@@ -9,6 +9,21 @@
 
   --font-title: "Caslon Antique", serif;
   --font-body: var(--font-eb-garamond), serif; 
+
+  --shadow-header: 0 275px 77px rgba(0,0,0,0), 0 176px 70px rgba(0,0,0,0.02), 0 99px 59px rgba(0,0,0,0.10), 0 44px 44px rgba(0,0,0,0.18), 0 11px 24px rgba(0,0,0,0.20);
+}
+
+@theme inline {
+  --color-roxo: var(--roxo);
+  --color-roxo-escuro: var(--roxo-escuro);
+  --color-bege-claro: var(--bege-claro);
+  --color-bege-medio: var(--bege-medio);
+  --color-bege-escuro: var(--bege-escuro);
+
+  --font-title: var(--font-title);
+  --font-body: var(--font-body);
+
+  --shadow-header: var(--shadow-header);
 }
 
 @font-face {
@@ -19,31 +34,23 @@
   font-display: swap;
 }
 
-@theme inline {
-  --roxo: var(--roxo);
-  --roxo-escuro: var(--roxo-escuro);
-  --bege-claro: var(--bege-claro);
-  --bege-medio: var(--bege-medio);
-  --bege-escuro: var(--bege-escuro);
 
-  --font-title: var(--font-title);
-  --font-body: var(--font-body);
-}
 
 * {
   box-sizing: border-box;
 }
 
-html, body {
+html, 
+body {
   min-height: 100%;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: radial-gradient(circle, rgba(43, 28, 52, 0.3) 0%, #1a0f22 100%);
   font-family: var(--font-body);
-  color: var(--roxo-escuro);
+  color: var(--bege-claro);
+
 }
 
 button,
@@ -55,4 +62,34 @@ select {
 
 button {
   cursor: pointer;
+}
+
+.site-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background-image: 
+  linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), 
+  radial-gradient(circle, #2B1C34 0%, #1A0F22 100%);
+}
+
+.site-background-paper {
+  position: fixed;
+  inset: 0;
+  z-index:20;
+  pointer-events: none;
+  background-image: url("/assets/images/paper.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: repeat;
+  opacity: 1;
+  mix-blend-mode: multiply;
+}
+
+.site-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  padding: clamp(24px, 5.2vw, 50px);
 }

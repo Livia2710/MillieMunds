@@ -21,9 +21,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={ebGaramond.variable}>
-        <div className="site-background" aria-hidden="true"/>
-          <div className="site-shell">{children}</div>
-          <div className="site-background-paper" aria-hidden="true"/>       
+        <div className="site-background" aria-hidden="true" />
+
+        <div className="site-shell">{children}</div>
+
+        <div className="site-background-paper" aria-hidden="true" />
       </body>
     </html>
   );

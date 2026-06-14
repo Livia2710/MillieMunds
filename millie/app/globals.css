@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --roxo: #2b1c34;
+  --roxo-escuro: #1a0f22;
+  --bege-claro:#f3ecdc;
+  --bege-medio:#d1ba8e;
+  --bege-escuro:#bfa77a;
+
+  --font-title: "Caslon Antique", serif;
+  --font-body: var(--font-eb-garamond), serif; 
+}
+
+@font-face {
+  font-family: "Caslon Antique";
+  src: url("/fonts/CaslonAntique-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme inline {
+  --roxo: var(--roxo);
+  --roxo-escuro: var(--roxo-escuro);
+  --bege-claro: var(--bege-claro);
+  --bege-medio: var(--bege-medio);
+  --bege-escuro: var(--bege-escuro);
+
+  --font-title: var(--font-title);
+  --font-body: var(--font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: radial-gradient(circle, rgba(43, 28, 52, 0.3) 0%, #1a0f22 100%);
+  font-family: var(--font-body);
+  color: var(--roxo-escuro);
+}
+
+button,
+input,
+textarea,
+select {
+  font:inherit;
+}
+
+button {
+  cursor: pointer;
+}

@@ -2,18 +2,21 @@
 
 import { useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { WorldCard } from "./WorldCard";
 
 const worlds = [
   {
     id: 1,
-    name: "Umbrael",
-    description: "Um mundo velado por noites antigas.",
+    slug: "desconhecido",
+    name: "Gaia",
+    description: "Um mundo que não deveria existir.",
     image: "/mundos/mundo-1.png",
     isLocked: true,
   },
   {
     id: 2,
+    slug: "dois",
     name: "Nome",
     description: "Breve descrição",
     image: "/mundos/mundo-1.png",
@@ -21,6 +24,7 @@ const worlds = [
   },
   {
     id: 3,
+    slug: "tres",
     name: "Nome",
     description: "Breve descrição",
     image: "/mundos/mundo-2.png",
@@ -28,6 +32,7 @@ const worlds = [
   },
   {
     id: 4,
+    slug: "quatro",
     name: "Aster",
     description: "Breve descrição",
     image: "/mundos/mundo-3.jpg",
@@ -116,25 +121,37 @@ export function HomeWorlds() {
           </button>
 
         {/* Carrossel ajustado para centralizar uma única carta por vez no mobile */}
-          <div
+                   <div
             ref={carouselRef}
-            className="flex w-full snap-x snap-mandatory gap-8 overflow-x-auto scroll-smooth px-0 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-10 lg:max-w-[760px]"
+            className="flex w-full snap-x snap-mandatory gap-8 overflow-x-auto scroll-smooth px-0 pb-4 scrollbar-none [&::-webkit-scrollbar]:hidden md:gap-10 lg:max-w-190"
           >
             {worlds.map((world) => (
               <div
                 key={world.id}
-                /* Modificado para basis-full e snap-center no mobile, restaurando as frações originais a partir de sm: */
                 className="shrink-0 basis-full snap-center sm:basis-[44%] md:basis-[30%]"
               >
-                <WorldCard
-                  name={world.name}
-                  description={world.description}
-                  image={world.image}
-                  isLocked={world.isLocked}
-                />
+                {world.isLocked ? (
+                  <WorldCard
+                    name={world.name}
+                    description={world.description}
+                    image={world.image}
+                    isLocked={world.isLocked}
+                  />
+                ) : (
+                  /* Adicionado w-full e h-full no Link para garantir que a estrutura da carta não sofra distorção */
+                  <Link href={`/mundos/${world.slug}`} className="block w-full h-full">
+                    <WorldCard
+                      name={world.name}
+                      description={world.description}
+                      image={world.image}
+                      isLocked={world.isLocked}
+                    />
+                  </Link>
+                )}
               </div>
             ))}
           </div>
+
 
 
           {/* Seta Direita Desktop */}

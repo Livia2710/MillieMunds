@@ -1,4 +1,5 @@
 import { Header } from "@/componentes/Header";
+import { MasterOrb } from "@/componentes/MasterOrb";
 
 export default function SiteLayout({
   children,
@@ -8,7 +9,7 @@ export default function SiteLayout({
   return (
     <>
       <Header />
-
+     
       <main className="mt-5 md:mt-10">
         {children}
       </main>
@@ -18,6 +19,8 @@ export default function SiteLayout({
           &copy; 2026 Escola dos Mil Mundos. Todos os direitos reservados a Lívia.
         </p>
       </footer>
+       <MasterOrb />
+
     </>
   );
 }

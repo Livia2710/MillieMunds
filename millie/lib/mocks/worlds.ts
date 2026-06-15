@@ -1,12 +1,14 @@
 import type { World } from "@/lib/types/world";
+import { DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
 
 export const worlds: World[] = [
   {
     id: "1",
-    slug: "desconhecido",
+    slug: "um",
     name: "Gaia",
     description: "Um mundo que não deveria existir.",
     image: "/mundos/mundo-1.png",
+    coverColor: "#2b1c34",
     chapters: [
       {
         id: "historia",
@@ -34,6 +36,7 @@ export const worlds: World[] = [
     name: "Dois",
     description: "22222222222222222222",
     image: "/mundos/mundo-1.png",
+    coverColor: DEFAULT_WORLD_COVER_COLOR,
     chapters: [
       {
         id: "historia",
@@ -60,6 +63,7 @@ export const worlds: World[] = [
     name: "Tres",
     description: "33333333333333333333",
     image: "/mundos/mundo-2.png",
+    coverColor: "#143033",
     chapters: [
       {
         id: "historia",
@@ -86,6 +90,7 @@ export const worlds: World[] = [
     name: "Quatro",
     description: "44444444444444444444",
     image: "/mundos/mundo-3.jpg",
+    coverColor: "#121d2e",
     chapters: [
       {
         id: "historia",

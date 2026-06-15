@@ -8,7 +8,7 @@ import { WorldCard } from "./WorldCard";
 const worlds = [
   {
     id: 1,
-    slug: "desconhecido",
+    slug: "um",
     name: "Gaia",
     description: "Um mundo que não deveria existir.",
     image: "/mundos/mundo-1.png",

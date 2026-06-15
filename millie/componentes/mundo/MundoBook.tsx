@@ -3,8 +3,10 @@
 import { forwardRef, useRef, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import type { World } from "@/lib/types/world";
 import { ChevronDown } from "lucide-react";
+
+import type { World } from "@/lib/types/world";
+import { DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
 
 const HTMLFlipBook = dynamic(() => import("react-pageflip"), { ssr: false });
 
@@ -19,6 +21,7 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
     const [openMobileChapter, setOpenMobileChapter] = useState<string | null>(
       null
     );
+
 
     const isReturningToCover = useRef(false);
 
@@ -82,6 +85,8 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
       if (isReturningToCover.current) return;
       getBook()?.flipNext();
     };
+
+    const coverColor = world.coverColor ?? "#2a1307";
 
     return (
       <div className="flex h-full min-h-[680px] w-full select-none flex-col items-center justify-center">
@@ -190,30 +195,40 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
                 swipeDistance={30}
                 disableFlipByClick={false}
               >
-               {/* CAPA */}
+              {/* CAPA */}
                 <div
-                className= "relative flex h-full flex-col items-center justify-center overflow-hidden border border-black/40 bg-[#2a1307] p-12 text-center text-bege-claro shadow-[inset_0_0_50px_rgba(0,0,0,0.85)]"
+                className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden border border-black/40 p-12 text-center text-bege-claro shadow-[inset_0_0_50px_rgba(0,0,0,0.85)]"
                 data-density="hard"
                 >
-                <div className="pointer-events-none absolute inset-4 border border-bege-medio/20" />
+                {/* COR REAL DA CAPA */}
+                <div
+                    className="absolute inset-0 z-0"
+                    style={{ backgroundColor: coverColor }}
+                />
 
-                <h1 className="mt-5 font-title text-4xl uppercase tracking-widest text-bege-medio drop-shadow-md">
+                {/* SOMBRA INTERNA DA CAPA */}
+                <div className="pointer-events-none absolute inset-0 z-[1] shadow-[inset_0_0_70px_rgba(0,0,0,0.55),inset_0_0_18px_rgba(209,186,142,0.08)]" />
+
+                <div className="pointer-events-none absolute inset-4 z-[2] border border-bege-medio/20" />
+
+                <div className="relative z-10 flex flex-col items-center">
+                    <h1 className="mt-5 font-title text-4xl uppercase tracking-widest text-bege-medio drop-shadow-md">
                     {world.name}
-                </h1>
+                    </h1>
 
-                {/* SEU DIVISOR COM IMAGEM CUSTOMIZADA */}
-                <div className="relative my-6 flex h-6 w-full max-w-[180px] justify-center items-center mx-auto">
+                    <div className="relative mx-auto my-6 flex h-6 w-full max-w-[180px] items-center justify-center">
                     <Image
-                    src="/assets/svgs/divider.svg" // SUBSTITUA AQUI pelo caminho correto da sua imagem
-                    alt="Divisor"
-                    fill
-                    className="object-contain opacity-80"
+                        src="/assets/svgs/divider.svg"
+                        alt="Divisor"
+                        fill
+                        className="object-contain opacity-80"
                     />
-                </div>
+                    </div>
 
-                <p className="font-title text-sm uppercase tracking-[0.2em] text-bege-escuro opacity-60">
-                     {world.description}
-                </p>
+                    <p className="font-title text-sm uppercase tracking-[0.2em] text-bege-escuro opacity-60">
+                    {world.description}
+                    </p>
+                </div>
                 </div>
 
 
@@ -273,17 +288,16 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
         </div>
 
         {/* CONTROLES DESKTOP */}
-        <div className="font-title mt-8 hidden w-full max-w-[500px] items-center justify-center gap-6 rounded-full border border-[#bfa77a]/20 bg-black/10 px-5 py-3 text-sm tracking-widest text-bege-escuro md:mt-10 md:flex md:gap-10 md:px-6">
+        <div className="font-title mt-8 hidden w-full max-w-[500px] items-center justify-center px-5 py-3 text-sm tracking-widest text-bege-escuro md:mt-10 md:flex md:gap-10 md:px-6">
           <button
             onClick={handlePrev}
             disabled={currentPage === 0 || isReturningToCover.current}
-            className="uppercase transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-20"
+            className="uppercase transition-colors hover:bg-roxo disabled:pointer-events-none disabled:opacity-20 gap-6 border border-[#bfa77a]/20 bg-black/10 px-5 py-2.5 whitespace-nowrap "
           >
             Capítulo Anterior
           </button>
 
-          <div className="h-4 w-px bg-[#bfa77a]/30" />
-
+  
           <span className="min-w-16 text-center tabular-nums text-bege-claro opacity-80">
             {currentPage === 0
               ? "Capa"
@@ -292,14 +306,13 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
                 : `${currentSpread} / ${totalSpreads}`}
           </span>
 
-          <div className="h-4 w-px bg-[#bfa77a]/30" />
 
           <button
             onClick={handleNext}
             disabled={
               currentPage >= finalBlankPageIndex || isReturningToCover.current
             }
-            className="uppercase transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-20"
+            className="uppercase transition-colors hover:bg-roxo disabled:pointer-events-none disabled:opacity-20 border border-[#bfa77a]/20 bg-black/10 px-5 py-2.5 whitespace-nowrap "
           >
             Próximo Capítulo
           </button>

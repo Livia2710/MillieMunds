@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react"; // Adicionado useState aqui
 import Image from "next/image";
 import type { World } from "@/lib/types/world";
 import { MundoBook } from "./MundoBook";
@@ -14,15 +14,26 @@ export function MundoReader({ world }: MundoReaderProps) {
   const desktopBookRef = useRef<any>(null);
   const mobileBookRef = useRef<any>(null);
 
+  // Criamos o estado para rastrear a página física atual do livro
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Função que o MundoBook vai disparar toda vez que uma página for virada
+  function handleFlip(pageIndex: number) {
+    setCurrentPage(pageIndex);
+  }
+
   function handleSelectChapter(chapterIndex: number) {
     // 0 = capa
     // 1 = folha branca atrás da capa
     // 2 = introdução
     // 3 em diante = capítulos
     const pageIndex = chapterIndex + 3;
-
     desktopBookRef.current?.pageFlip().flip(pageIndex);
   }
+
+  // Calculamos em qual "folha aberta" (spread) o livro está baseado na página atual
+  // Ex: página 0 ou 1 = spread 0 (Capa). Página 2 ou 3 = spread 1, etc.
+  const currentSpread = currentPage === 0 ? 0 : Math.ceil(currentPage / 2);
 
   return (
     <section className="relative min-h-180 overflow-hidden rounded-[10px] bg-roxo-escuro px-6 py-10 text-bege-escuro shadow-header md:px-10 md:py-8">
@@ -63,9 +74,14 @@ export function MundoReader({ world }: MundoReaderProps) {
         <MundoSummary
           chapters={world.chapters}
           onSelectChapter={handleSelectChapter}
+          // Passamos o índice correto baseado no cálculo do spread
+          // Se estiver na capa (spread 0), o activeChapterIndex será -1 (nenhum botão aceso)
+          // Se estiver no primeiro capítulo (spread 2), acende o índice 0 do sumário (2 - 2)
+          activeChapterIndex={currentSpread - 1} 
         />
 
-        <MundoBook ref={desktopBookRef} world={world} />
+        {/* Passamos o handleFlip para atualizar o estado do pai sempre que folhear */}
+        <MundoBook ref={desktopBookRef} world={world} onFlip={handleFlip} />
       </div>
 
       {/* MOBILE */}

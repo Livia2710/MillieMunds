@@ -5,6 +5,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import type {InventoryCategory,InventoryItem, InventoryRarity,} from "@/lib/types/inventory";
 import InventoryCard from "./InventoryCard";
 import InventoryFilters from "./InventoryFilters";
+import Image from "next/image";
 
 export type InventoryCategoryFilter = "todos" | InventoryCategory;
 export type InventoryRarityFilter = "todos" | InventoryRarity;
@@ -91,53 +92,61 @@ export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
       )}
 
       <section className="flex min-h-screen flex-col justify-between px-4 py-9 sm:px-6 md:px-12 md:py-16">
-        <div>
-          <div className="mb-6 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between md:gap-8">
-            <div>
-              <h1 className="font-title text-4xl uppercase tracking-[0.08em] text-bege-medio sm:text-5xl md:text-6xl">
-                Inventário
-              </h1>
+    <div>
+  {/* Conteúdo do Cabeçalho principal */}
+  <div className="mb-6 flex flex-col gap-5 md:mb-8 md:flex-row md:items-end md:justify-between md:gap-8">
+    <div>
+      <h1 className="font-title text-4xl uppercase tracking-[0.08em] text-bege-medio sm:text-5xl md:text-6xl">
+        Inventário
+      </h1>
+      <Image 
+        src="/assets/svgs/divider.svg" 
+        alt="divider" 
+        width={360} 
+        height={28} 
+        className="mt-3 max-w-[220px] sm:max-w-[300px] md:mt-4 md:max-w-[80%]" 
+      />
+      <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:text-2xl">
+        {usedSpaces}/200 espaços utilizados
+      </p>
+      {isMaster && (
+        <p className="mt-2 font-title text-base text-bege-medio/80">
+          Todos os itens registrados da campanha
+        </p>
+      )}
+    </div>
 
-              <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:text-2xl">
-                {usedSpaces}/200 espaços utilizados
-              </p>
+    {/* Input de Busca alinhado perfeitamente à direita no desktop */}
+    <div className="grid grid-cols-[1fr_auto] gap-3 md:block md:w-full md:max-w-md">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bege-escuro/60 md:h-5 md:w-5" />
+        <input 
+          value={search} 
+          onChange={(event) => setSearch(event.target.value)} 
+          placeholder="Buscar..." 
+          className="h-11 w-full border border-bege-escuro/40 bg-transparent pl-11 pr-4 text-base tracking-wider text-bege-claro outline-none placeholder:font-title placeholder:text-bege-medio/55 md:h-14 md:pl-12 md:text-lg" 
+        />
+      </div>
+      <button 
+        type="button" 
+        onClick={() => setIsMobileFiltersOpen(true)} 
+        className="flex h-11 items-center justify-center gap-2 border border-bege-escuro/40 px-4 font-title text-sm uppercase tracking-[0.12em] text-bege-medio md:hidden"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+      </button>
+    </div>
+  </div>
 
-              {isMaster && (
-                <p className="mt-2 font-title text-base text-bege-medio/80">
-                  Todos os itens registrados da campanha
-                </p>
-              )}
-            </div>
+  {/* A <hr /> agora fica AQUI, isolada, servindo como uma divisória horizontal perfeita */}
+  <hr className="mb-6 border-t border-bege-escuro/40 md:mb-10" />
 
-            <div className="grid grid-cols-[1fr_auto] gap-3 md:block md:w-full md:max-w-md">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bege-escuro/60 md:h-5 md:w-5" />
+  {/* Paginação Superior Mobile */}
+  <div className="mb-5 md:hidden">
+    <MobilePagination currentPage={currentPage} pages={pageNumbers} setCurrentPage={setCurrentPage} />
+  </div>
 
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar..."
-                  className="h-11 w-full border border-bege-escuro/40 bg-transparent pl-11 pr-4 text-base tracking-wider text-bege-claro outline-none placeholder:font-title placeholder:text-bege-medio/55 md:h-14 md:pl-12 md:text-lg"
-                />
-              </div>
+  {/* Grid de itens vem logo em sequência... */}
 
-              <button
-                type="button"
-                onClick={() => setIsMobileFiltersOpen(true)}
-                className="flex h-11 items-center justify-center gap-2 border border-bege-escuro/40 px-4 font-title text-sm uppercase tracking-[0.12em] text-bege-medio md:hidden"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-5 md:hidden">
-            <MobilePagination
-              currentPage={currentPage}
-              pages={pageNumbers}
-              setCurrentPage={setCurrentPage}
-            />
-          </div>
 
           {paginatedItems.length > 0 ? (
             <div className="grid grid-cols-3 gap-3 md:grid-cols-4 md:gap-5 lg:grid-cols-6">

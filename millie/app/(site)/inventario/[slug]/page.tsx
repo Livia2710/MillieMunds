@@ -1,34 +1,40 @@
 import Image from "next/image";
-import NoCampaign from "@/componentes/NoCampaign";
-import CharactersGrid from "@/componentes/personagens/CharactersGrid";
-import { mockCharacters } from "@/lib/mocks/characters";
+import { notFound } from "next/navigation";
+import InventoryBookDetails from "@/componentes/inventario/InventoryBookDetails";
+import InventoryItemDetails from "@/componentes/inventario/InventoryItemDetails";
+import { mockInventoryItems } from "@/lib/mocks/inventory";
 
-const mockUser = {
-  hasCampaign: true,
-  isMaster: false,
+type InventoryDetailsPageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
 };
 
-export default function PersonagensPage() {
-  if (!mockUser.hasCampaign) {
-    return (
-      <div className="relative min-h-screen w-full p-8 md:p-12 block bg-roxo-escuro shadow-header">
-        <PageCorners />
-        <NoCampaign message="Os personagens só aparecem depois que você entra em uma campanha ou cria a sua própria." />
-      </div>
-    );
+export default async function InventoryDetailsPage({
+  params,
+}: InventoryDetailsPageProps) {
+  const { slug } = await params;
+
+  const item = mockInventoryItems.find((item) => item.slug === slug);
+
+  if (!item) {
+    notFound();
   }
 
-  const characters = mockUser.isMaster
-    ? mockCharacters
-    : mockCharacters.filter((character) => !character.isLocked);
+  if (item.category === "livro") {
+    return <InventoryBookDetails book={item} />;
+  }
 
-  return (
-    <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
-      <PageCorners />
-      <CharactersGrid characters={characters} isMaster={mockUser.isMaster} />
-    </div>
-  ); 
-} 
+  return ( 
+    <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header">
+          <PageCorners />
+    
+        <InventoryItemDetails item={item} />;
+   </div>
+
+  );
+   
+}
 
 function PageCorners() {
   return (

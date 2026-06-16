@@ -66,7 +66,7 @@ export default function CharacterFilters({
       className={
         isMobile
           ? "w-full"
-          : "py-10"
+          : "md:border-r md:border-bege-escuro/25 md:px-4 py-10"
       }
     >
       <FilterGroup title="Categoria" compact={isMobile}>

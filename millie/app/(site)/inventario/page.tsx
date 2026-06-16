@@ -1,36 +1,37 @@
 import Image from "next/image";
 import NoCampaign from "@/componentes/NoCampaign";
-import CharactersGrid from "@/componentes/personagens/CharactersGrid";
-import { mockCharacters } from "@/lib/mocks/characters";
+import InventoryGrid from "@/componentes/inventario/InventoryGrid";
+import { mockInventoryItems } from "@/lib/mocks/inventory";
 
 const mockUser = {
   hasCampaign: true,
   isMaster: false,
 };
 
-export default function PersonagensPage() {
+export default function InventarioPage() {
   if (!mockUser.hasCampaign) {
     return (
-      <div className="relative min-h-screen w-full p-8 md:p-12 block bg-roxo-escuro shadow-header">
+      <div className="relative block min-h-screen w-full p-8 md:p-12 bg-roxo-escuro shadow-header">
         <PageCorners />
-        <NoCampaign message="Os personagens só aparecem depois que você entra em uma campanha ou cria a sua própria." />
+
+        <NoCampaign message="O inventário só aparece depois que você entra em uma campanha ou cria a sua própria." />
       </div>
     );
   }
 
-  const characters = mockUser.isMaster
-    ? mockCharacters
-    : mockCharacters.filter((character) => !character.isLocked);
+  const items = mockUser.isMaster
+    ? mockInventoryItems
+    : mockInventoryItems.filter((item) => !item.isLocked);
 
   return (
-    <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
+    <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header">
       <PageCorners />
-      <CharactersGrid characters={characters} isMaster={mockUser.isMaster} />
-    </div>
-  ); // CORREÇÃO: Fechamento correto do retorno da página
-} // CORREÇÃO: Fechamento correto do componente PersonagensPage
 
-// CORREÇÃO: Função isolada para fora para não gerar erros de escopo ou renderizações desnecessárias
+      <InventoryGrid items={items} isMaster={mockUser.isMaster} />
+    </div>
+  );
+}
+
 function PageCorners() {
   return (
     <>

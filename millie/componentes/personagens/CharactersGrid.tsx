@@ -137,7 +137,7 @@ const renderMobilePagination = () => {
   };
 
   return (
-    <main className="min-h-screen bg-roxo-escuro text-bege-escuro font-body md:grid md:grid-cols-[220px_1fr]">
+    <main className="min-h-screen bg-roxo-escuro text-bege-escuro font-body md:grid md:grid-cols-[220px_1fr] text-center">
       <div className="hidden md:block">
         <CharacterFilters {...filtersProps} />
       </div>
@@ -178,7 +178,7 @@ const renderMobilePagination = () => {
                 alt=""
                 width={360}
                 height={28}
-                className="mt-3 max-w-[220px] sm:max-w-[300px] md:mt-4 md:max-w-[80%]"
+                className=" mt-3 max-w-[220px] sm:max-w-[300px] md:mt-4 md:max-w-[80%]"
               />
 
               <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:mt-4 md:text-2xl">

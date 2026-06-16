@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Scroll, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye ,Backpack} from "lucide-react";
@@ -24,6 +25,7 @@ const campaigns = [
 ] as const;
 
 export function Header() {
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Estados independentes para os Accordions das campanhas
@@ -125,14 +127,49 @@ export function Header() {
 
           <SidebarBlock title="Páginas">
             <div className="block md:hidden">
-              <SidebarLink label="Home" icon={<Home size={17} strokeWidth={1.4} />} />
-              <SidebarLink label="Personagens" icon={<Users size={17} strokeWidth={1.4} />} />
-              <SidebarLink label="Habilidades" icon={<Sparkles size={17} strokeWidth={1.4} />} />
+               <SidebarLink
+              href="/"
+              label="Home"
+              icon={<Home size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/"}
+              />
+            <SidebarLink
+              href="/personagens"
+              label="Personagens"
+              icon={<Users size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/personagens"}
+              />
+              <SidebarLink
+              href="/"
+              label="Habilidades"
+              icon={<Sparkles size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/"}
+              />
             </div>
-            <SidebarLink label="Perfil" icon={<Scroll size={17} strokeWidth={1.4} />} />
-            <SidebarLink label="Inventário" icon={<Backpack size={17} strokeWidth={1.4} />} />
-            {/* Trocado o martelo industrial pelo olho místico de vidência/configurações */}
-            <SidebarLink label="Configurações" icon={<Eye size={17} strokeWidth={1.4} />} />
+            <SidebarLink
+              href="/"
+              label="Perfil"
+              icon={<Backpack size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/"}
+              />
+            <SidebarLink
+              href="/inventario"
+              label="Inventário"
+              icon={<Backpack size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/inventario"}
+              />
+              <SidebarLink
+              href="/"
+              label="Configurações"
+              icon={<Eye size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname === "/"}
+              />
           </SidebarBlock>
 
           <SidebarBlock title="Minhas Crônicas">
@@ -160,15 +197,37 @@ export function Header() {
   );
 }
 
-function SidebarLink({ label, icon }: { label: string; icon: React.ReactNode }) {
+function SidebarLink({label, icon, href, closeSidebar, active,}: {
+  label: string;
+  icon: React.ReactNode;
+  href: string;
+  closeSidebar: () => void;
+  active: boolean;
+}) {
   return (
-    <button
-      type="button"
-      className="flex min-h-12 w-full items-center gap-4 border-b border-bege-escuro/10 px-4 py-3 text-left font-title text-[15px] uppercase tracking-[0.12em] text-bege-medio transition-all hover:text-bege-claro hover:pl-5 cursor-pointer group"
-    >
-      <span className="text-bege-escuro/50 group-hover:text-bege-medio transition-colors shrink-0">{icon}</span>
-      <span className="truncate">{label}</span>
-    </button>
+    <Link
+      href={href}
+      onClick={closeSidebar}
+      className={` flex min-h-12 w-full items-center gap-4 border-b border-bege-escuro/10 px-4 py-3 text-left font-title text-[15px] uppercase tracking-[0.12em] transition-all hover:pl-5 group
+      ${active
+          ? "text-bege-claro pl-5 bg-bege-escuro/5"
+          : "text-bege-medio"
+      }`}>
+
+      <span className={`shrink-0 transition-colors
+          ${
+            active
+            ? "text-bege-claro"
+            : "text-bege-escuro/50 group-hover:text-bege-medio"
+          }`}>
+      {icon}
+      </span>
+
+      <span className="truncate">
+        {label}
+      </span>
+
+    </Link>
   );
 }
 

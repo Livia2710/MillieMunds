@@ -11,6 +11,12 @@
   --font-body: var(--font-eb-garamond), serif; 
 
   --shadow-header: 0 275px 77px rgba(0,0,0,0), 0 176px 70px rgba(0,0,0,0.02), 0 99px 59px rgba(0,0,0,0.10), 0 44px 44px rgba(0,0,0,0.18), 0 11px 24px rgba(0,0,0,0.20);
+
+  --shadow-card: 0px 275px 77px rgba(0, 0, 0, 0), 
+                 0px 176px 70px rgba(0, 0, 0, 0.02), 
+                 0px 99px 59px rgba(0, 0, 0, 0.10), 
+                 0px 44px 44px rgba(0, 0, 0, 0.18), 
+                 0px 11px 24px rgba(0, 0, 0, 0.20);
 }
 
 @theme inline {
@@ -24,6 +30,7 @@
   --font-body: var(--font-body);
 
   --shadow-header: var(--shadow-header);
+  --shadow-card: var(--shadow-card);
 }
 
 @font-face {

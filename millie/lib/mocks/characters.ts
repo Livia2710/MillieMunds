@@ -1,0 +1,98 @@
+import type { Character } from "@/lib/types/character";
+
+export const mockCharacters: Character[] = [
+  {
+    id: "1",
+    name: "Alistair Vance",
+    category: "aluno",
+    rank: "A",
+    element: "fogo",
+    race: "Meio-Elfo",
+    worldSlug: "Aethelgard",
+    year: 3,
+    image: "/assets/images/alistair.jpg",
+    isLocked: false,
+  },
+  {
+    id: "2",
+    name: "Professora Morgana",
+    category: "professor",
+    rank: "S",
+    element: "trevas",
+    race: "Humana",
+    worldSlug: "Umbra",
+    subject: "Alquimia Avançada",
+    image: "/assets/images/morgana.jpg",
+    isLocked: false,
+  },
+  {
+    id: "3",
+    name: "Tobias das Três Luas",
+    category: "npc",
+    rank: "C",
+    element: "agua",
+    race: "Anão",
+    worldSlug: "Kharadur",
+    occupation: "Comerciante de Artefatos",
+    image: "/assets/images/tobias.jpg",
+    isLocked: false,
+  },
+  {
+    id: "4",
+    name: "Gorgoroth",
+    category: "monstro",
+    rank: "V",
+    element: "terra",
+    race: "Abissal",
+    worldSlug: "Fenda Negra",
+    dangerLevel: "Calamidade",
+    image: "/assets/images/gorgoroth.jpg",
+    isLocked: false, // Bloqueado para jogadores comuns
+  },{
+    id: "5",
+    name: "Tobias das Três Luas",
+    category: "npc",
+    rank: "C",
+    element: "agua",
+    race: "Anão",
+    worldSlug: "Kharadur",
+    occupation: "Comerciante de Artefatos",
+    image: "/assets/images/tobias.jpg",
+    isLocked: true, // Bloqueado para jogadores comuns
+  },
+  {
+    id: "6",
+    name: "Gorgoroth",
+    category: "monstro",
+    rank: "V",
+    element: "terra",
+    race: "Abissal",
+    worldSlug: "Fenda Negra",
+    dangerLevel: "Calamidade",
+    image: "/assets/images/gorgoroth.jpg",
+    isLocked: true, // Bloqueado para jogadores comuns
+  },{
+    id: "7",
+    name: "Tobias das Três Luas",
+    category: "npc",
+    rank: "C",
+    element: "agua",
+    race: "Anão",
+    worldSlug: "Kharadur",
+    occupation: "Comerciante de Artefatos",
+    image: "/assets/images/tobias.jpg",
+    isLocked: true,// Bloqueado para jogadores comuns
+  },
+  {
+    id: "8",
+    name: "Gorgoroth",
+    category: "monstro",
+    rank: "V",
+    element: "terra",
+    race: "Abissal",
+    worldSlug: "Fenda Negra",
+    dangerLevel: "Calamidade",
+    image: "/assets/images/gorgoroth.jpg",
+    isLocked: true, // Bloqueado para jogadores comuns
+  }
+];

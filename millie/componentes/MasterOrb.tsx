@@ -33,7 +33,7 @@ const masterActions = [
 export function MasterOrb() {
   const [isOpen, setIsOpen] = useState(false);
 
-  const isMasterMode = true;
+  const isMasterMode = false;
 
   if (!isMasterMode) {
     return null;

@@ -91,7 +91,7 @@ export function Header() {
 
       {isSidebarOpen && (
         /* Adicionado classes para ocultar a barra de rolagem cinza padrão do navegador */
-        <aside className="fixed right-0 top-0 z-30 h-dvh w-80 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden border-l border-bege-escuro/40 bg-roxo-escuro/95 px-6 py-6 text-bege-escuro shadow-2xl">
+        <aside className="fixed right-0 top-0 z-30 h-dvh w-80 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden border-l border-bege-escuro/40 bg-roxo-escuro px-6 py-6 text-bege-escuro shadow-2xl">
           <div className="flex justify-end mb-2">
             <button 
               type="button" 

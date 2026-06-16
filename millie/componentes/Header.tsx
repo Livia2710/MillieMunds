@@ -152,7 +152,7 @@ export function Header() {
             <SidebarLink
               href="/"
               label="Perfil"
-              icon={<Backpack size={17} strokeWidth={1.4}/>}
+              icon={<Users size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
               active={pathname === "/"}
               />

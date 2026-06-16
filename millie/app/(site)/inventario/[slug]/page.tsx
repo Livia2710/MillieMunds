@@ -22,7 +22,13 @@ export default async function InventoryDetailsPage({
   }
 
   if (item.category === "livro") {
-    return <InventoryBookDetails book={item} />;
+    return (
+      <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header">
+          <PageCorners />
+    
+         <InventoryBookDetails book={item} />
+   </div>
+    )
   }
 
   return ( 

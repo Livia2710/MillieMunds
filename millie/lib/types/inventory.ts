@@ -20,6 +20,26 @@ export type InventoryChapter = {
   content: string;
 };
 
+type BookCover =
+  | {
+      coverType: "image";
+      coverImage: string;
+      coverColor?: never;
+    }
+  | {
+      coverType: "color";
+      coverColor: string;
+      coverImage?: never;
+    };
+
+type BookItem = BaseInventoryItem & BookCover & {
+  category: "livro";
+  author?: string;
+  chapters: InventoryChapter[];
+};
+
+
+
 interface BaseInventoryItem {
   id: string;
   slug: string;
@@ -57,12 +77,6 @@ interface RelicItem extends BaseInventoryItem {
   effect: string;
 }
 
-interface BookItem extends BaseInventoryItem {
-  category: "livro";
-  author?: string;
-  coverColor?: string;
-  chapters: InventoryChapter[];
-}
 
 interface OtherItem extends BaseInventoryItem {
   category: "outro";

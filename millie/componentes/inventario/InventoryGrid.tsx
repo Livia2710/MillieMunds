@@ -15,7 +15,7 @@ type InventoryGridProps = {
   isMaster: boolean;
 };
 
-const ITEMS_PER_PAGE = 18;
+const ITEMS_PER_PAGE = 12;
 
 export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
   const [search, setSearch] = useState("");
@@ -52,6 +52,35 @@ export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
   );
 
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  const renderMobilePagination = () => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex w-full justify-center overflow-x-auto px-1 md:hidden">
+      <div className="flex items-center gap-2">
+        {pageNumbers.map((page) => {
+          const isActive = currentPage === page;
+
+          return (
+            <button
+              key={page}
+              type="button"
+              onClick={() => setCurrentPage(page)}
+              className={`flex h-7 w-7 items-center justify-center border font-title text-xs transition-all ${
+                isActive
+                  ? "border-bege-claro bg-bege-claro text-roxo-escuro"
+                  : "border-bege-escuro/40 text-bege-medio"
+              }`}
+            >
+              {page}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+  };
 
   const filtersProps = {
     category,
@@ -141,8 +170,8 @@ export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
   <hr className="mb-6 border-t border-bege-escuro/40 md:mb-10" />
 
   {/* Paginação Superior Mobile */}
-  <div className="mb-5 md:hidden">
-    <MobilePagination currentPage={currentPage} pages={pageNumbers} setCurrentPage={setCurrentPage} />
+  <div className="mb-5">
+    {renderMobilePagination()}
   </div>
 
   {/* Grid de itens vem logo em sequência... */}
@@ -160,46 +189,69 @@ export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
             </p>
           )}
 
-          <div className="mt-6 md:hidden">
-            <MobilePagination
-              currentPage={currentPage}
-              pages={pageNumbers}
-              setCurrentPage={setCurrentPage}
-            />
+          <div className="mt-6">
+            {renderMobilePagination()}
           </div>
         </div>
 
         {totalPages > 1 && (
           <div className="mt-12 hidden items-center justify-center gap-6 font-title text-lg tracking-wider md:flex">
+
             <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              onClick={() =>
+                setCurrentPage((prev) => Math.max(prev - 1, 1))
+              }
               disabled={currentPage === 1}
-              className="flex h-10 w-10 items-center justify-center rounded border border-bege-escuro/30 disabled:opacity-20"
+              className="
+                group flex h-10 w-10 items-center justify-center
+                border border-bege-escuro/30
+                disabled:opacity-20
+              "
             >
-              &lt;
+              <Image
+                src="/assets/svgs/arrow.svg"
+                alt="Voltar"
+                width={16}
+                height={16}
+                className="transition-transform group-hover:-translate-x-1"
+              />
             </button>
 
-            {pageNumbers.map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`flex h-10 w-10 items-center justify-center border ${
-                  currentPage === page
-                    ? "border-bege-claro text-bege-claro"
-                    : "border-transparent text-bege-medio"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+
+            <span className="text-bege-medio">
+              PÁGINA{" "}
+              <span className="text-xl text-bege-claro">
+                {currentPage}
+              </span>{" "}
+              DE{" "}
+              <span className="text-xl text-bege-claro">
+                {totalPages}
+              </span>
+            </span>
+
 
             <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              onClick={() =>
+                setCurrentPage((prev) =>
+                  Math.min(prev + 1, totalPages)
+                )
+              }
               disabled={currentPage === totalPages}
-              className="flex h-10 w-10 items-center justify-center rounded border border-bege-escuro/30 disabled:opacity-20"
+              className="
+                group flex h-10 w-10 items-center justify-center
+                border border-bege-escuro/30
+                disabled:opacity-20
+              "
             >
-              &gt;
+              <Image
+                src="/assets/svgs/arrow.svg"
+                alt="Avançar"
+                width={16}
+                height={16}
+                className="rotate-180 transition-transform group-hover:translate-x-1"
+              />
             </button>
+
           </div>
         )}
       </section>

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { InventoryItem } from "@/lib/types/inventory";
+import BookCover from "./BookCover";
 
 type InventoryCardProps = {
   item: InventoryItem;
@@ -16,27 +17,37 @@ const rarityCrests: Record<string, string> = {
 };
 
 export default function InventoryCard({ item }: InventoryCardProps) {
+  if (item.isLocked) {
+    return null;
+  }
+
   return (
-    <Link
-      href={`/inventario/${item.slug}`}
-      aria-label={`Abrir detalhes de ${item.name}`}
-      className="block"
-    >
-      <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card transition-all">
-        <img
+    <Link href={`/inventario/${item.slug}`} className="block">
+      <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card">
+        {/* Brasão de Raridade */}
+        <Image
           src={rarityCrests[item.rarity]}
           alt=""
-          className="pointer-events-none absolute left-2 top-2 h-6 w-6 object-contain opacity-80"
+          width={24}
+          height={24}
+          className="absolute left-2 top-2 z-[3] opacity-80"
         />
 
+        {/* Quantidade */}
         {item.quantity > 1 && (
-          <span className="absolute bottom-2 right-3 font-title text-base text-bege-claro md:text-xl">
+          <span className="absolute bottom-2 right-3 z-[3] font-title text-base text-bege-claro">
             {item.quantity}
           </span>
         )}
 
+        {/* Conteúdo Central */}
         <div className="flex h-full w-full items-center justify-center">
-          {item.image ? (
+          {item.category === "livro" ? (
+            <div className="h-[80%] w-[60%] shadow-card">
+              {/* Passando hideText aqui para esconder o título e autor no grid */}
+              <BookCover book={item} hideText={true} />
+            </div>
+          ) : item.image ? (
             <Image
               src={item.image}
               alt={item.name}

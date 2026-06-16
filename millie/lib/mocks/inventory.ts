@@ -2,14 +2,14 @@ import type { InventoryItem } from "@/lib/types/inventory";
 
 export const mockInventoryItems: InventoryItem[] = [
   {
-    id: "item-espada-ferro-antigo",
-    slug: "espada-ferro-antigo",
-    name: "Espada de Ferro Antigo",
+    id: "item-pergaminho",
+    slug: "pergaminho",
+    name: "Pergaminho",
     category: "equipamento",
     rarity: "comum",
     quantity: 1,
-    image: "/assets/images/inventory/espada.png",
-    description: "Uma lâmina simples, resistente e marcada por duelos antigos.",
+    image: "/assets/images/inventory/pergaminho.png",
+    description: "Um pergaminho simples, resistente e marcada por tempos antigos.",
     worldSlug: "escola-millie-munds",
     forgedBy: "Ferreiros da Ala Norte",
     effect: "Aumenta levemente o dano físico em combate corpo a corpo.",
@@ -58,41 +58,90 @@ export const mockInventoryItems: InventoryItem[] = [
     isLocked: true,
   },
   {
-    id: "item-grimorio-das-portas",
-    slug: "grimorio-das-portas",
-    name: "Grimório das Portas",
-    category: "livro",
-    rarity: "mitico",
-    quantity: 1,
-    image: "/assets/images/inventory/grimorio-portas.png",
-    description: "Um livro instável sobre passagens, mundos e lugares que não deveriam se tocar.",
-    worldSlug: "escola-millie-munds",
-    author: "M. Vesper",
-    coverColor: "#2b1c34",
-    chapters: [
-      {
-        id: "capitulo-1",
-        title: "A Primeira Fechadura",
-        content:
-          "Toda porta deseja permanecer fechada até que alguém aprenda o nome correto da chave.",
-      },
-      {
-        id: "capitulo-2",
-        title: "Corredores Entre Mundos",
-        content:
-          "Existem caminhos que não pertencem a mapa algum. Eles aparecem apenas quando a vontade encontra uma rachadura na realidade.",
-      },
-    ],
-    isLocked: false,
+ id:"grimorio",
+ slug:"grimorio-das-portas",
+
+ name:"Grimório das Portas",
+
+ category:"livro",
+ rarity:"mitico",
+
+ quantity:1,
+
+ coverType:"image",
+
+ coverImage:
+ "/assets/images/inventory/grimorio.jpg",
+
+
+ description:
+ "Um livro instável sobre portas entre mundos.",
+
+
+ worldSlug:"escola-millie-munds",
+
+
+ author:"M. Vesper",
+
+
+ chapters:[
+ {
+  id:"1",
+  title:"A Primeira Fechadura",
+  content:"Toda porta possui um segredo."
+ }
+ ],
+ isLocked:false
+},
+  {
+  id:"diario-astral",
+  slug:"diario-astral",
+
+  name:"Diário Astral",
+
+  category:"livro",
+  rarity:"raro",
+
+  quantity:1,
+
+
+  coverType:"color",
+
+  coverColor:"#35213f",
+
+
+  description:
+  "Páginas que registram sonhos de outros mundos.",
+
+
+  worldSlug:"mundo-etereo",
+
+
+  author:"Lyra",
+
+
+  chapters:[
+  {
+  id:"1",
+  title:"O Primeiro Sonho",
+  content:"As estrelas guardam memórias.",
+  }, 
+   {
+  id:"2",
+  title:"O Segundo Sonho",
+  content:"As estrelas guardam memórias.",
+  },
+  ],
+  isLocked:false
   },
   {
-    id: "item-chave-sem-dono",
-    slug: "chave-sem-dono",
-    name: "Chave Sem Dono",
-    category: "outro",
+    id: "item-pocao-nigro",
+    slug: "pocao-nigro",
+    name: "Poção Nigro",
+    category: "consumivel",
     rarity: "epico",
     quantity: 1,
-    image: "/assets/images/inventory/chave.png",
+    image: "/assets/images/inventory/pocao-nigro.png",
     description: "Uma chave ornamentada que não parece pertencer a nenhuma fechadura conhecida.",
     worldSlug: "escola-millie-munds",
     origin: "Encontrada no corredor oeste",

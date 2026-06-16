@@ -1,61 +1,131 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
 import type { InventoryItem } from "@/lib/types/inventory";
+import BookCover from "./BookCover";
 
 type BookInventoryItem = Extract<InventoryItem, { category: "livro" }>;
 
-type InventoryBookDetailsProps = {
+export default function InventoryBookDetails({
+  book,
+}: {
   book: BookInventoryItem;
-};
+}) {
+  const [currentChapter, setCurrentChapter] = useState(0);
 
-export default function InventoryBookDetails({ book }: InventoryBookDetailsProps) {
+  const chapter = book.chapters[currentChapter];
+
+  const nextChapter = () => {
+    setCurrentChapter((prev) => Math.min(prev + 1, book.chapters.length - 1));
+  };
+
+  const previousChapter = () => {
+    setCurrentChapter((prev) => Math.max(prev - 1, 0));
+  };
+
   return (
-    <main className="min-h-screen bg-roxo-escuro px-6 py-12 text-bege-medio md:px-16">
-      <section className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[300px_1fr]">
-        <aside
-          className="min-h-[420px] border border-bege-escuro/45 p-8 shadow-card"
-          style={{ backgroundColor: book.coverColor ?? "#2a1307" }}
-        >
-          <div className="flex h-full flex-col justify-between border border-bege-escuro/35 p-6 text-center">
-            <div>
-              <p className="font-title text-sm uppercase tracking-[0.24em] text-bege-escuro">
-                Livro
-              </p>
-
-              <h1 className="mt-8 font-title text-3xl uppercase tracking-[0.1em] text-bege-claro">
-                {book.name}
-              </h1>
-            </div>
-
-            <p className="font-title text-sm text-bege-medio/80">
-              {book.author ?? "Autor desconhecido"}
-            </p>
-          </div>
+    <main className="min-h-screen bg-roxo-escuro px-5 py-8 text-bege-medio md:px-16 md:py-14">
+      <section className="mx-auto max-w-6xl grid gap-8 md:grid-cols-[260px_1fr]">
+        {/* CAPA */}
+        <aside>
+          <BookCover book={book} />
         </aside>
 
+        {/* LEITURA */}
         <article>
-          <p className="font-title text-sm uppercase tracking-[0.22em] text-bege-escuro">
-            {book.rarity} / {book.worldSlug}
-          </p>
+          <div className="text-center md:text-left">
+            <p className="font-title text-sm uppercase tracking-[0.22em] text-bege-escuro">
+              {book.rarity} / {book.worldSlug}
+            </p>
 
-          <h2 className="mt-3 font-title text-4xl uppercase tracking-[0.08em] text-bege-claro md:text-6xl">
-            {book.name}
-          </h2>
+            <h1 className="mt-3 font-title text-4xl uppercase tracking-wider text-bege-claro md:text-6xl">
+              {book.name}
+            </h1>
 
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-bege-medio/90">
-            {book.description}
-          </p>
+            <Image
+              src="/assets/svgs/divider.svg"
+              alt=""
+              width={320}
+              height={20}
+              className="mx-auto mt-3 md:mx-0"
+            />
 
-          <div className="mt-10 space-y-8 border-t border-bege-escuro/30 pt-8">
-            {book.chapters.map((chapter) => (
-              <section key={chapter.id}>
-                <h3 className="font-title text-2xl uppercase tracking-[0.08em] text-bege-claro">
+            <p className="mt-5 leading-8 text-bege-medio/90">
+              {book.description}
+            </p>
+          </div>
+
+          {/* SELECT CAPITULOS */}
+          <div className="mt-8 border border-bege-escuro/40">
+            <select
+              value={currentChapter}
+              onChange={(e) => setCurrentChapter(Number(e.target.value))}
+              className="w-full bg-transparent px-5 py-4 font-title uppercase tracking-wider text-bege-medio outline-none"
+            >
+              {book.chapters.map((chapter, index) => (
+                <option
+                  key={chapter.id}
+                  value={index}
+                  className="bg-roxo-escuro"
+                >
                   {chapter.title}
-                </h3>
+                </option>
+              ))}
+            </select>
+          </div>
 
-                <p className="mt-3 whitespace-pre-line leading-8 text-bege-medio/90">
-                  {chapter.content}
-                </p>
-              </section>
-            ))}
+          {/* CAPITULO ATUAL */}
+          <div className="mt-8 min-h-[260px]">
+            <h2 className="font-title text-2xl uppercase tracking-wider text-bege-claro">
+              {chapter.title}
+            </h2>
+
+            <p className="mt-4 whitespace-pre-line leading-8 text-bege-medio/90">
+              {chapter.content}
+            </p>
+          </div>
+
+          {/* NAVEGAÇÃO (Igual ao estilo do Grid) */}
+          <div className="mt-10 flex items-center justify-between font-title text-base tracking-wider md:text-lg">
+            <button
+              onClick={previousChapter}
+              disabled={currentChapter === 0}
+              className="group flex h-10 w-10 items-center justify-center border border-bege-escuro/30 disabled:opacity-20"
+            >
+              <Image
+                src="/assets/svgs/arrow.svg"
+                alt="Voltar"
+                width={16}
+                height={16}
+                className="transition-transform group-hover:-translate-x-1"
+              />
+            </button>
+
+            <span className="text-bege-medio uppercase">
+              Capítulo{" "}
+              <span className="text-xl text-bege-claro">
+                {currentChapter + 1}
+              </span>{" "}
+              de{" "}
+              <span className="text-xl text-bege-claro">
+                {book.chapters.length}
+              </span>
+            </span>
+
+            <button
+              onClick={nextChapter}
+              disabled={currentChapter === book.chapters.length - 1}
+              className="group flex h-10 w-10 items-center justify-center border border-bege-escuro/30 disabled:opacity-20"
+            >
+              <Image
+                src="/assets/svgs/arrow.svg"
+                alt="Avançar"
+                width={16}
+                height={16}
+                className="rotate-180 transition-transform group-hover:translate-x-1"
+              />
+            </button>
           </div>
         </article>
       </section>

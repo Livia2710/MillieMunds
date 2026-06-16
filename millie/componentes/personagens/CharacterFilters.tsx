@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction, ReactNode } from "react";
 import type { CategoryFilter, RankFilter, YearFilter } from "./CharactersGrid";
 
 type CharacterFiltersProps = {
@@ -8,6 +8,7 @@ type CharacterFiltersProps = {
   setRank: Dispatch<SetStateAction<RankFilter>>;
   year: YearFilter;
   setYear: Dispatch<SetStateAction<YearFilter>>;
+  variant?: "desktop" | "mobile";
 };
 
 const categories: { label: string; value: CategoryFilter }[] = [
@@ -46,7 +47,8 @@ const rankCoatOfArms: Record<string, string> = {
   V: "/assets/svgs/V.svg",
 };
 
-const buttonBaseClass = "flex w-full items-center gap-2 py-1 px-0.5 text-left uppercase border border-transparent rounded transition-all text-sm";
+const buttonBaseClass =
+  "flex w-full items-center gap-2 border border-transparent px-0.5 py-1 text-left text-sm uppercase transition-all";
 
 export default function CharacterFilters({
   category,
@@ -55,27 +57,32 @@ export default function CharacterFilters({
   setRank,
   year,
   setYear,
+  variant = "desktop",
 }: CharacterFiltersProps) {
+  const isMobile = variant === "mobile";
+
   return (
-    <aside className="border-r border-bege-escuro/25 px-4 py-10 w-60">
-      
-      {/* CATEGORIA */}
-      <FilterGroup title="Categoria">
+    <aside
+      className={
+        isMobile
+          ? "w-full"
+          : "py-10"
+      }
+    >
+      <FilterGroup title="Categoria" compact={isMobile}>
         {categories.map((item) => {
           const isSelected = category === item.value;
+
           return (
             <button
               key={item.value}
               type="button"
               onClick={() => setCategory(item.value)}
               className={`${buttonBaseClass} ${
-                isSelected
-                  ? "bg-roxo" 
-                  : "hover:border-bege-escuro/40"
+                isSelected ? "bg-roxo" : "hover:border-bege-escuro/40"
               }`}
             >
-              {/* Modificado: tamanho reduzido para h-6 w-6 */}
-              <div className="flex h-6 w-6 items-center justify-center shrink-0">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center">
                 <span
                   className={`h-3.5 w-3.5 rounded-full border ${
                     isSelected
@@ -84,72 +91,68 @@ export default function CharacterFilters({
                   }`}
                 />
               </div>
+
               <span className="tracking-wide">{item.label}</span>
             </button>
           );
         })}
       </FilterGroup>
 
-      {/* ANO */}
-      <FilterGroup title="Ano">
+      <FilterGroup title="Ano" compact={isMobile}>
         {years.map((item) => {
           const isSelected = year === item.value;
+
           return (
             <button
               key={item.value}
               type="button"
               onClick={() => setYear(isSelected ? "todos" : item.value)}
               className={`${buttonBaseClass} ${
-                isSelected
-                  ? "bg-roxo" 
-                  : "hover:border-bege-escuro/40"
+                isSelected ? "bg-roxo" : "hover:border-bege-escuro/40"
               }`}
             >
-              {/* Modificado: tamanho reduzido para h-6 w-6 */}
-              <div className="flex h-6 w-6 items-center justify-center shrink-0">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center">
                 <span
                   className={`h-3.5 w-3.5 border ${
                     isSelected
                       ? "border-bege-medio bg-bege-medio"
-                      : "border-bege-escuro font-medium "
+                      : "border-bege-escuro"
                   }`}
                 />
               </div>
+
               <span className="tracking-wide">{item.label}</span>
             </button>
           );
         })}
       </FilterGroup>
 
-      {/* RANK */}
-      <FilterGroup title="Rank">
+      <FilterGroup title="Rank" compact={isMobile}>
         {ranks.map((item) => {
           const isSelected = rank === item.value;
+
           return (
             <button
               key={item.value}
               type="button"
               onClick={() => setRank(isSelected ? "todos" : item.value)}
               className={`${buttonBaseClass} ${
-                isSelected
-                  ? "bg-roxo" 
-                  : "hover:border-bege-escuro/40"
+                isSelected ? "bg-roxo" : "hover:border-bege-escuro/40"
               }`}
             >
-
-              <div className="flex h-6 w-6 items-center justify-center shrink-0">
-                <img 
-                  src={rankCoatOfArms[item.value]} 
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                <img
+                  src={rankCoatOfArms[item.value]}
                   alt={`Brasão ${item.label}`}
-                  className="h-full w-full object-contain" 
+                  className="h-full w-full object-contain"
                 />
               </div>
+
               <span className="tracking-wide">{item.label}</span>
             </button>
           );
         })}
       </FilterGroup>
-      
     </aside>
   );
 }
@@ -157,17 +160,27 @@ export default function CharacterFilters({
 function FilterGroup({
   title,
   children,
+  compact = false,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <div className="mb-6">
-      <h2 className="mb-2 border-b border-bege-escuro/20 pb-1.5 font-title text-base text-bege-claro uppercase tracking-[0.12em]">
+    <div className={compact ? "mb-5" : "mb-6"}>
+      <h2 className="mb-2 border-b border-bege-escuro/20 pb-1.5 font-title text-base uppercase tracking-[0.12em] text-bege-claro">
         {title}
       </h2>
-     
-      <div className="flex flex-col gap-2 text-bege-medio">{children}</div>
+
+      <div
+        className={
+          compact
+            ? "grid grid-cols-2 gap-2 text-bege-medio"
+            : "flex flex-col gap-2 text-bege-medio"
+        }
+      >
+        {children}
+      </div>
     </div>
   );
 }

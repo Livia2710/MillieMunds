@@ -58,7 +58,7 @@ export const mockCharacters: Character[] = [
     worldSlug: "Kharadur",
     occupation: "Comerciante de Artefatos",
     image: "/assets/images/tobias.jpg",
-    isLocked: true, // Bloqueado para jogadores comuns
+    isLocked: false, // Bloqueado para jogadores comuns
   },
   {
     id: "6",
@@ -70,7 +70,7 @@ export const mockCharacters: Character[] = [
     worldSlug: "Fenda Negra",
     dangerLevel: "Calamidade",
     image: "/assets/images/gorgoroth.jpg",
-    isLocked: true, // Bloqueado para jogadores comuns
+    isLocked: false, // Bloqueado para jogadores comuns
   },{
     id: "7",
     name: "Tobias das Três Luas",
@@ -81,7 +81,7 @@ export const mockCharacters: Character[] = [
     worldSlug: "Kharadur",
     occupation: "Comerciante de Artefatos",
     image: "/assets/images/tobias.jpg",
-    isLocked: true,// Bloqueado para jogadores comuns
+    isLocked: false,// Bloqueado para jogadores comuns
   },
   {
     id: "8",
@@ -93,6 +93,6 @@ export const mockCharacters: Character[] = [
     worldSlug: "Fenda Negra",
     dangerLevel: "Calamidade",
     image: "/assets/images/gorgoroth.jpg",
-    isLocked: true, // Bloqueado para jogadores comuns
+    isLocked: false, // Bloqueado para jogadores comuns
   }
 ];

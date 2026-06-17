@@ -150,7 +150,7 @@ export function Header() {
               />
             </div>
             <SidebarLink
-              href="/"
+              href="/perfil"
               label="Perfil"
               icon={<Users size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
@@ -257,9 +257,9 @@ function SidebarBlock({ title, children }: { title: string; children: React.Reac
       
       {/* Divisor estético centralizado após o bloco */}
       <div className="mt-5 flex items-center justify-center w-20 mx-auto opacity-15">
-        <div className="h-[1px] w-full bg-bege-escuro" />
+        <div className="h-px w-full bg-bege-escuro" />
         <div className="h-1 w-1 rotate-45 border border-bege-escuro bg-roxo-escuro mx-2 shrink-0" />
-        <div className="h-[1px] w-full bg-bege-escuro" />
+        <div className="h-px w-full bg-bege-escuro" />
       </div>
     </section>
   );

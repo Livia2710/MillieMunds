@@ -10,7 +10,7 @@ type BookCoverProps = {
 
 export default function BookCover({ book, hideText = false }: BookCoverProps) {
   return (
-    <div className="relative aspect-[3/4] w-full overflow-hidden border border-bege-escuro/40">
+    <div className="relative aspect-3/4 w-full overflow-hidden border border-bege-escuro/40">
       {book.coverType === "image" ? (
         <Image
           src={book.coverImage}
@@ -25,9 +25,9 @@ export default function BookCover({ book, hideText = false }: BookCoverProps) {
             style={{ backgroundColor: book.coverColor }}
           />
 
-          <div className="pointer-events-none absolute inset-0 z-[1] shadow-[inset_0_0_70px_rgba(0,0,0,0.55),inset_0_0_18px_rgba(209,186,142,0.08)]" />
+          <div className="pointer-events-none absolute inset-0 z-1 shadow-[inset_0_0_70px_rgba(0,0,0,0.55),inset_0_0_18px_rgba(209,186,142,0.08)]" />
 
-          <div className="pointer-events-none absolute inset-4 z-[2] border border-bege-medio/20" />
+          <div className="pointer-events-none absolute inset-4 z-2 border border-bege-medio/20" />
         </>
       )}
 

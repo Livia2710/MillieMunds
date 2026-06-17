@@ -133,7 +133,7 @@ export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
         alt="divider" 
         width={360} 
         height={28} 
-        className="mt-3 max-w-[220px] sm:max-w-[300px] md:mt-4 md:max-w-[80%]" 
+        className="mt-3 max-w-55 sm:max-w-75 md:mt-4 md:max-w-[80%]" 
       />
       <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:text-2xl">
         {usedSpaces}/200 espaços utilizados

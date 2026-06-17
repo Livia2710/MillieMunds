@@ -23,28 +23,34 @@ export default function InventoryCard({ item }: InventoryCardProps) {
 
   return (
     <Link href={`/inventario/${item.slug}`} className="block">
-      <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card">
-        {/* Brasão de Raridade */}
-        <Image
-          src={rarityCrests[item.rarity]}
-          alt=""
-          width={24}
-          height={24}
-          className="absolute left-2 top-2 z-[3] opacity-80"
-        />
+      <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card transition-colors hover:border-bege-medio">
+        
+        {/* Brasão de Raridade posicionado elegantemente no topo superior direito */}
+        <div className="absolute top-2 right-2 w-4 h-4 z-10 opacity-80 group-hover:opacity-100 transition-opacity">
+          <Image
+            src={rarityCrests[item.rarity] || rarityCrests.comum}
+            alt={`Raridade ${item.rarity}`}
+            fill
+            className="object-contain"
+          />
+        </div>
 
-        {/* Quantidade */}
-        {item.quantity > 1 && (
-          <span className="absolute bottom-2 right-3 z-[3] font-title text-base text-bege-claro">
-            {item.quantity}
+        {/* Quantidade padronizada no canto inferior direito estilo RPG (ex: x5) */}
+        <span className="absolute bottom-2 right-3 z-10 font-mono text-[10px] text-bege-escuro/60">
+          x{item.quantity}
+        </span>
+
+        {/* Nome do item na parte inferior esquerda se não for livro */}
+        {item.category !== "livro" && (
+          <span className="absolute bottom-2 left-3 z-10 font-title text-[10px] text-bege-escuro truncate max-w-[70%]">
+            {item.name}
           </span>
         )}
 
         {/* Conteúdo Central */}
-        <div className="flex h-full w-full items-center justify-center">
+        <div className="flex h-full w-full items-center justify-center pb-2">
           {item.category === "livro" ? (
             <div className="h-[80%] w-[60%] shadow-card">
-              {/* Passando hideText aqui para esconder o título e autor no grid */}
               <BookCover book={item} hideText={true} />
             </div>
           ) : item.image ? (
@@ -53,14 +59,16 @@ export default function InventoryCard({ item }: InventoryCardProps) {
               alt={item.name}
               width={140}
               height={140}
-              className="h-[72%] w-[72%] object-contain"
+              className="h-[68%] w-[68%] object-contain"
+              priority
             />
           ) : (
-            <span className="px-2 text-center font-title text-xs uppercase tracking-wider text-bege-medio/50">
+            <span className="px-2 text-center font-title text-[10px] uppercase tracking-wider text-bege-medio/40">
               {item.name}
             </span>
           )}
         </div>
+
       </article>
     </Link>
   );

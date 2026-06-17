@@ -76,7 +76,7 @@ export default function InventoryBookDetails({
           </div>
 
           {/* CAPITULO ATUAL */}
-          <div className="mt-8 min-h-[260px]">
+          <div className="mt-8 min-h-65">
             <h2 className="font-title text-2xl uppercase tracking-wider text-bege-claro">
               {chapter.title}
             </h2>

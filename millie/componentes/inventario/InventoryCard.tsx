@@ -8,12 +8,12 @@ type InventoryCardProps = {
 };
 
 const rarityCrests: Record<string, string> = {
-  comum: "/assets/svgs/C.svg",
-  incomum: "/assets/svgs/E.svg",
-  raro: "/assets/svgs/B.svg",
-  epico: "/assets/svgs/A.svg",
-  lendario: "/assets/svgs/S.svg",
-  mitico: "/assets/svgs/V.svg",
+  comum: "/assets/svgs/Comum.svg",
+  incomum: "/assets/svgs/Incomum.svg",
+  raro: "/assets/svgs/Raro.svg",
+  epico: "/assets/svgs/Epico.svg",
+  lendario: "/assets/svgs/Lendario.svg",
+  mitico: "/assets/svgs/Mitico.svg",
 };
 
 export default function InventoryCard({ item }: InventoryCardProps) {

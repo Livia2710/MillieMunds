@@ -154,7 +154,7 @@ export function Header() {
               label="Perfil"
               icon={<Users size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
-              active={pathname === "/"}
+              active={pathname === "/perfil"}
               />
             <SidebarLink
               href="/inventario"

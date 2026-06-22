@@ -8,18 +8,32 @@ interface ProfileCardsProps {
   character: ProfileCharacter;
 }
 
+// Na vdd a ideia é que o baralho que vai ser usado diariamente é do arcano menor que já esta pronta, e os arcanos maiores serão usados somente na leituras, ou seja, so o mestre terá acesso porém não sei onde colocar isso, na tela de perfil?
+//Alem disso, no sistema temos a "cartas especiais" que são os cavaleiros e os valetes, são cartas que não precisam ser usadas de imediatos,em vez disso podem sr guardadas, porme não podem ser usadas juntas, ai pensei em colocar tipo um "deck de baralho" ou ou algo que mostre que vc tem essas cartas salvas, sei lá o que
+
 const BARALHO_MOCK = [
-  { id: 'carta-0', name: 'O Louco', src: '/assets/images/cartas/louco.png' },
-  { id: 'carta-1', name: 'O Mago', src: '/assets/images/cartas/mago.png' },
-  { id: 'carta-2', name: 'A Imperatriz', src: '/assets/images/cartas/imperatriz.png' },
-  { id: 'carta-3', name: 'O Imperador', src: '/assets/images/cartas/imperador.png' },
-  { id: 'carta-4', name: 'O Carruagem', src: '/assets/images/cartas/carruagem.png' },
-  { id: 'carta-5', name: 'O Eremita', src: '/assets/images/cartas/eremita.png' },
-  { id: 'carta-6', name: 'A Força', src: '/assets/images/cartas/forca.png' },
-  { id: 'carta-7', name: 'O Diabo', src: '/assets/images/cartas/diabo.png' },
-  { id: 'carta-8', name: 'A Estrela', src: '/assets/images/cartas/estrela.png' },
-  { id: 'carta-9', name: 'A Lua', src: '/assets/images/cartas/lua.png' },
-  { id: 'carta-10', name: 'O Sol', src: '/assets/images/cartas/sol.png' },
+  { id: 'carta-0', name: 'O Louco', src: '/assets/images/cartas/arcano_maior/louco.png' },
+  { id: 'carta-1', name: 'O Mago', src: '/assets/images/cartas/arcano_maior/mago.png' },
+  { id: 'carta-2', name: 'A Sacerdotisa', src: '/assets/images/cartas/arcano_maior/sacerdotisa.png' },
+  { id: 'carta-3', name: 'A Imperatriz', src: '/assets/images/cartas/arcano_maior/imperatriz.png' },
+  { id: 'carta-4', name: 'O Imperador', src: '/assets/images/cartas/arcano_maior/imperador.png' },
+  { id: 'carta-5', name: 'O Papa', src: '/assets/images/cartas/arcano_maior/papa.png' },
+  { id: 'carta-6', name: 'Os Enamorados', src: '/assets/images/cartas/arcano_maior/enamorados.png' },
+  { id: 'carta-7', name: 'A Carruagem', src: '/assets/images/cartas/arcano_maior/carruagem.png' },
+  { id: 'carta-8', name: 'A Força', src: '/assets/images/cartas/arcano_maior/forca.png' },
+  { id: 'carta-9', name: 'O Eremita', src: '/assets/images/cartas/arcano_maior/eremita.png' },
+  { id: 'carta-10', name: 'A Roda da Fortuna', src: '/assets/images/cartas/arcano_maior/roda-fortuna.png' },
+  { id: 'carta-11', name: 'A Justiça', src: '/assets/images/cartas/arcano_maior/justica.png' },
+  { id: 'carta-12', name: 'O Enforcado', src: '/assets/images/cartas/arcano_maior/enforcado.png' },
+  { id: 'carta-13', name: 'A Morte', src: '/assets/images/cartas/arcano_maior/morte.png' },
+  { id: 'carta-14', name: 'A Temperança', src: '/assets/images/cartas/arcano_maior/temperanca.png' },
+  { id: 'carta-15', name: 'O Diabo', src: '/assets/images/cartas/arcano_maior/diabo.png' },
+  { id: 'carta-16', name: 'A Torre', src: '/assets/images/cartas/arcano_maior/torre.png' },
+  { id: 'carta-17', name: 'A Estrela', src: '/assets/images/cartas/arcano_maior/estrela.png' },  
+  { id: 'carta-18', name: 'A Lua', src: '/assets/images/cartas/arcano_maior/lua.png' },
+  { id: 'carta-19', name: 'O Sol', src: '/assets/images/cartas/arcano_maior/sol.png' },
+  { id: 'carta-20', name: 'O Julgamento', src: '/assets/images/cartas/arcano_maior/julgamento.png' },
+  { id: 'carta-21', name: 'O Mundo', src: '/assets/images/cartas/arcano_maior/mundo.png' },
 ];
 
 export default function ProfileCards({ character }: ProfileCardsProps) {

@@ -8,7 +8,7 @@ import { mockProfileCharacters } from "@/lib/mocks/profile";
 // Objeto de controle local para simular e testar facilmente todos os estados da tela
 const mockUser = {
   hasCampaign: true,
-  isMaster: true,            // Mude para true para testar a visão do Mestre
+  isMaster: false,            // Mude para true para testar a visão do Mestre
   activeCharacterId: "char_aluno_1", // Altere para null para testar o CreateCharForm
   username: "Eldritch_User",
 };

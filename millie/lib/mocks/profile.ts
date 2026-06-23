@@ -15,8 +15,8 @@ export const mockProfileCharacters: Record<string, ProfileCharacter> = {
     name: 'Eldrin do Vale',
     year: 3, // Exclusivo de Aluno
     rank: 'B',
-    element: 'trevas',
-    race: 'Meio-Elfo',
+    element: 'terra',
+    race: 'Dalalilaz',
     worldSlug: 'elysium',
     image: '/assets/images/castelo.png',
     level: 5,

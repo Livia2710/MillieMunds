@@ -142,11 +142,11 @@ export function Header() {
               active={pathname === "/personagens"}
               />
               <SidebarLink
-              href="/"
+              href="/habilidades"
               label="Habilidades"
               icon={<Sparkles size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
-              active={pathname === "/"}
+              active={pathname === "/habilidades"}
               />
             </div>
             <SidebarLink
@@ -164,11 +164,11 @@ export function Header() {
               active={pathname === "/inventario"}
               />
               <SidebarLink
-              href="/"
+              href="/configuracoes"
               label="Configurações"
               icon={<Eye size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
-              active={pathname === "/"}
+              active={pathname === "/configuracoes"}
               />
           </SidebarBlock>
 

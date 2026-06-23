@@ -7,7 +7,7 @@ export const mockCharacters: Character[] = [
     category: "aluno",
     rank: "A",
     element: "fogo",
-    race: "Meio-Elfo",
+    race: "Dalalilaz",
     worldSlug: "Aethelgard",
     year: 3,
     image: "/assets/images/alistair.jpg",

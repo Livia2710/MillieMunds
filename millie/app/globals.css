@@ -7,6 +7,19 @@
   --bege-medio:#d1ba8e;
   --bege-escuro:#bfa77a;
 
+  --fogo: #D96A2B;
+  --fogo-glow: #FF9A56;
+  --agua: #5BA8D6;
+  --agua-glow: #9BE1FF;
+  --terra: #8FA96B;
+  --terra-glow: #C7E39B;
+  --vento: #6CCFCF;
+  --vento-glow: #B5FFFF;
+  --luz: #D8B35E;
+  --luz-glow: #FFE9AB;
+  --trevas: #8C5ACF;
+  --trevas-glow: #C89BFF;
+
   --font-title: "Caslon Antique", serif;
   --font-body: var(--font-eb-garamond), serif; 
 
@@ -25,6 +38,19 @@
   --color-bege-claro: var(--bege-claro);
   --color-bege-medio: var(--bege-medio);
   --color-bege-escuro: var(--bege-escuro);
+
+  --color-fogo: var(--fogo);
+  --color-fogo-glow: var(--fogo-glow);
+  --color-agua: var(--agua);
+  --color-agua-glow: var(--agua-glow);
+  --color-terra: var(--terra);
+  --color-terra-glow: var(--terra-glow);
+  --color-vento: var(--vento);
+  --color-vento-glow: var(--vento-glow);
+  --color-luz: var(--luz);
+  --color-luz-glow: var(--luz-glow);
+  --color-trevas: var(--trevas);
+  --color-trevas-glow: var(--trevas-glow);
 
   --font-title: var(--font-title);
   --font-body: var(--font-body);
@@ -154,4 +180,35 @@ button {
     transform: translateX(70%) rotate(8deg);
     opacity: 0;
   }
+}
+
+/* Keyframes da tela de Habilidades */
+
+/* Rotação da órbita — cada símbolo gira em torno do centro */
+@keyframes orbit-spin {
+  from {
+    /* O rotate do pai já posiciona o símbolo — aqui giramos o conjunto todo */
+    transform: rotate(var(--start-angle, 0deg)) translateY(-88px) rotate(calc(var(--start-angle, 0deg) * -1));
+  }
+  to {
+    transform: rotate(calc(var(--start-angle, 0deg) + 360deg)) translateY(-88px) rotate(calc((var(--start-angle, 0deg) + 360deg) * -1));
+  }
+}
+
+/* Keyframes da tela de Habilidades */
+
+@keyframes slot-flip {
+  0%   { opacity: 0; transform: translateY(-8px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes slot-depart {
+  0%   { opacity: 1; transform: translateY(0)    scale(1); }
+  30%  { opacity: 1; transform: translateY(-6px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(40px) scale(0.8); }
+}
+
+@keyframes branch-reveal {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
 }

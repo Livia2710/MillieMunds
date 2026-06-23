@@ -44,7 +44,7 @@ const MOCK_PDFS = [
   },
   {
     id: "universo-bestiariu",
-    title: "Universo Bestiariu",
+    title: "Universo Bestiarius",
     description: "Criaturas, reinos e a política do Reino Bestial.",
     category: "Universo",
     size: "3.8 MB",

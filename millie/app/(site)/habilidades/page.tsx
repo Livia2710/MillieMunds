@@ -1,27 +1,48 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import NoCampaign from "@/componentes/NoCampaign";
 import HabilidadesClient from "@/componentes/habilidades/HabilidadesClient";
 import MasterSkillDashboard from "@/componentes/habilidades/MasterSkillDashboard";
+import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal"; // Ajuste os caminhos se necessário
+import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
+import { useCampaign } from "@/lib/contexts/CampaignContext";
 import { mockProfileCharacters } from "@/lib/mocks/profile";
 import { getSkillTreeByRace } from "@/lib/mocks/skills";
 
+// Mantemos o mock apenas para o personagem simulado do usuário
 const mockUser = {
-  hasCampaign: true,
-  isMaster: false,          // mude para true para testar visão do Mestre
   activeCharacterId: "char_aluno_1",
 };
 
 export default function HabilidadesPage() {
-  if (!mockUser.hasCampaign) {
+  // Consome os estados reais se há campanha ativa e o papel do usuário
+  const { hasCampaign, isMaster } = useCampaign();
+
+  // Estados locais para controlar a abertura dos modais de campanha
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+
+  // 1. Guard de vínculo com campanha (Sem campanha ativa)
+  if (!hasCampaign) {
     return (
       <PageShell>
-        <NoCampaign message="As habilidades só ficam disponíveis depois que você entra em uma campanha ativa." />
+        <NoCampaign 
+          message="As habilidades só ficam disponíveis depois que você entra em uma campanha ativa." 
+          onCreate={() => setIsCreateOpen(true)}
+          onJoin={() => setIsJoinOpen(true)}
+        />
+        
+        {/* Modais injetados dentro do fluxo para renderizarem na tela quando os botões forem clicados */}
+        <CriarCampanhaModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+        <EntrarCampanhaModal open={isJoinOpen} onClose={() => setIsJoinOpen(false)} />
       </PageShell>
     );
   }
 
-  // Visão do Mestre
-  if (mockUser.isMaster) {
+  // 2. Visão do Mestre
+  if (isMaster) {
     const allCharacters = Object.values(mockProfileCharacters);
     return (
       <div className="relative min-h-screen w-full block bg-roxo-escuro shadow-header">
@@ -33,7 +54,7 @@ export default function HabilidadesPage() {
     );
   }
 
-  // Sem personagem
+  // 3. Sem personagem ativo vinculado
   if (!mockUser.activeCharacterId) {
     return (
       <PageShell>
@@ -42,6 +63,7 @@ export default function HabilidadesPage() {
     );
   }
 
+  // 4. Fluxo normal de Jogador (Com campanha e personagem ativos)
   const character = mockProfileCharacters[mockUser.activeCharacterId];
   const tree = getSkillTreeByRace(character.race);
 

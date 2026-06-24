@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CampaignProvider } from "@/lib/contexts/CampaignContext";
 import { EB_Garamond } from "next/font/google";
 import "./globals.css";
 
@@ -21,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={ebGaramond.variable}>
+        <CampaignProvider>
         <div className="site-background" aria-hidden="true" />
         <div className="site-shell">{children}</div>
         <div className="site-background-paper" aria-hidden="true" />
+        </CampaignProvider>
       </body>
     </html>
   );

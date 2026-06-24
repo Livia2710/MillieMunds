@@ -1,42 +1,56 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import NoCampaign from "@/componentes/NoCampaign";
 import MasterDashboard from "@/componentes/perfil/MasterDashboard";
 import CreateCharForm from "@/componentes/perfil/CreateCharForm";
 import ProfileGrid from "@/componentes/perfil/ProfileGrid";
+import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
+import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
+import { useCampaign } from "@/lib/contexts/CampaignContext";
 import { mockProfileCharacters } from "@/lib/mocks/profile";
 
-// Objeto de controle local para simular e testar facilmente todos os estados da tela
+// Mantemos apenas os dados simulados do usuário que não pertencem ao contexto de campanhas
 const mockUser = {
-  hasCampaign: true,
-  isMaster: false,            // Mude para true para testar a visão do Mestre
   activeCharacterId: "char_aluno_1", // Altere para null para testar o CreateCharForm
   username: "Eldritch_User",
 };
 
 export default function ProfilePage() {
-  // 1. Guard de vínculo com campanha
-  if (!mockUser.hasCampaign) {
+  // Consome os estados reais e reativos do seu contexto de campanhas
+  const { hasCampaign, isMaster } = useCampaign();
+
+  // Estados locais para controlar a abertura dos modais de campanha
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+
+  // 1. Guard de vínculo com campanha (Cenário sem campanha ativa)
+  if (!hasCampaign) {
     return (
       <div className="relative min-h-screen w-full p-8 md:p-12 block bg-roxo-escuro shadow-header">
         <PageCorners />
-        {/* Adicionado contêiner de proteção com padding superior para dar respiro */}
         <div className="max-w-5xl mx-auto pt-16 relative z-10">
-          <NoCampaign message="As informações do seu perfil só aparecem depois que você entra em uma campanha ativa." />
+          <NoCampaign 
+            message="As informações do seu perfil só aparecem depois que você entra em uma campanha ativa." 
+            onCreate={() => setIsCreateOpen(true)}
+            onJoin={() => setIsJoinOpen(true)}
+          />
         </div>
+
+        {/* Modais montados na raiz da página prontos para escutar o clique */}
+        <CriarCampanhaModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+        <EntrarCampanhaModal open={isJoinOpen} onClose={() => setIsJoinOpen(false)} />
       </div>
     );
   }
 
   // 2. Fluxo Visão do Mestre
-  if (mockUser.isMaster) {
+  if (isMaster) {
     const allCharacters = Object.values(mockProfileCharacters);
     return (
       <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
         <PageCorners />
-        {/* 
-          Contêiner de proteção: pt-16 afasta o título das cantoneiras do topo,
-          e px-4/md:px-12 empurra o grid para dentro protegendo as laterais.
-        */}
         <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
           <MasterDashboard characters={allCharacters} />
         </div>
@@ -49,7 +63,6 @@ export default function ProfilePage() {
     return (
       <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
         <PageCorners />
-        {/* Contêiner de proteção para o formulário de grimório respirar */}
         <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
           <CreateCharForm />
         </div>
@@ -57,16 +70,12 @@ export default function ProfilePage() {
     );
   }
 
-  // 4. Fluxo Visão do Jogador com sua própria ficha ativa (Gerenciado pelo ProfileGrid)
+  // 4. Fluxo Visão do Jogador com sua própria ficha ativa
   const myCharacter = mockProfileCharacters[mockUser.activeCharacterId];
 
   return (
     <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
       <PageCorners />
-      {/* 
-        Contêiner de proteção para a ficha: removemos o padding excessivo de dentro 
-        do ProfileGrid e concentramos o respiro global de forma limpa aqui.
-      */}
       <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
         <ProfileGrid character={myCharacter} username={mockUser.username} />
       </div>

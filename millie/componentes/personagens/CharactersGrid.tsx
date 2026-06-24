@@ -18,6 +18,7 @@ export type YearFilter = "todos" | 1 | 2 | 3 | 4 | 5;
 type CharactersGridProps = {
   characters: Character[];
   isMaster: boolean;
+  onUnlock?: (characterId: string) => void;
 };
 
 const categoryTitles: Record<CategoryFilter, string> = {
@@ -30,10 +31,7 @@ const categoryTitles: Record<CategoryFilter, string> = {
 
 const ITEMS_PER_PAGE = 6;
 
-export default function CharactersGrid({
-  characters,
-  isMaster,
-}: CharactersGridProps) {
+export default function CharactersGrid({characters, isMaster, onUnlock}: CharactersGridProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("todos");
   const [rank, setRank] = useState<RankFilter>("todos");

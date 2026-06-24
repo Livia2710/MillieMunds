@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import type { Character } from "@/lib/types/character";
 
@@ -47,6 +48,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
   const specificInfo = getCharacterSpecificInfo(character);
 
   return (
+    <Link href={`/personagens/${character.id}`} className="block">
     <article className="arcane-hover relative flex min-h-0 w-full flex-row items-center gap-4 overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-4 shadow-card transition-all lg:min-h-[360px] lg:flex-col lg:p-5">
       <div className="pointer-events-none absolute right-4 top-4 h-8 w-8 lg:left-4 lg:right-auto lg:top-4 lg:h-9 lg:w-9">
         <img
@@ -120,5 +122,6 @@ export default function CharacterCard({ character }: CharacterCardProps) {
         </div>
       </div>
     </article>
+    </Link>
   );
 }

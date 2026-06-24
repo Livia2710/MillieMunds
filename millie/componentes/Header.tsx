@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Scroll, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye ,Backpack} from "lucide-react";
+import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
+import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
 
 const campaigns = [
   {
@@ -31,6 +33,9 @@ export function Header() {
   // Estados independentes para os Accordions das campanhas
   const [isMasterOpen, setIsMasterOpen] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+
+  const [createCampaignOpen,setCreateCampaignOpen] = useState(false);
+  const [joinCampaignOpen,setJoinCampaignOpen] = useState(false);
 
   const masterCampaigns = campaigns.filter((campaign) => campaign.role === "master");
   const playerCampaigns = campaigns.filter((campaign) => campaign.role === "player");
@@ -114,13 +119,15 @@ export function Header() {
           </div>
 
           {/* Seção Campanhas: Trocado os ícones por Pena e Bússola */}
-          <SidebarBlock title="Ações">
+          <SidebarBlock title="Campanhas">
             <SidebarAction
-              label="Criar campanha"
+              label="Criar"
+              onClick={()=>setCreateCampaignOpen(true)}
               icon={<Feather size={16} strokeWidth={1.4} />}
             />
             <SidebarAction
-              label="Participar de"
+              label="Participar"
+              onClick={()=>setJoinCampaignOpen(true)}
               icon={<Compass size={16} strokeWidth={1.4} />}
             />
           </SidebarBlock>
@@ -193,6 +200,17 @@ export function Header() {
           </SidebarBlock>
         </aside>
       )}
+      
+      <CriarCampanhaModal
+      open={createCampaignOpen}
+      onClose={()=>setCreateCampaignOpen(false)}
+      />
+
+
+      <EntrarCampanhaModal
+      open={joinCampaignOpen}
+      onClose={()=>setJoinCampaignOpen(false)}
+      />
     </>
   );
 }
@@ -231,10 +249,11 @@ function SidebarLink({label, icon, href, closeSidebar, active,}: {
   );
 }
 
-function SidebarAction({ label, icon }: { label: string; icon: React.ReactNode }) {
+function SidebarAction({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick?:()=>void; }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="flex min-h-12 w-full items-center gap-4 border-b border-bege-escuro/10 px-4 py-3 text-left font-title text-[15px] uppercase tracking-[0.12em] text-bege-medio transition-all hover:text-bege-claro hover:pl-5 cursor-pointer group"
     >
       <span className="text-bege-escuro/50 group-hover:text-bege-medio transition-colors shrink-0">{icon}</span>

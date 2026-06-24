@@ -13,11 +13,12 @@ export type InventoryRarityFilter = "todos" | InventoryRarity;
 type InventoryGridProps = {
   items: InventoryItem[];
   isMaster: boolean;
+  onUnlock?: (itemId: string) => void;
 };
 
 const ITEMS_PER_PAGE = 12;
 
-export default function InventoryGrid({ items, isMaster }: InventoryGridProps) {
+export default function InventoryGrid({ items, isMaster, onUnlock }: InventoryGridProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<InventoryCategoryFilter>("todos");
   const [rarity, setRarity] = useState<InventoryRarityFilter>("todos");

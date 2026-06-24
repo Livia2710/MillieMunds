@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCampaign } from "@/lib/contexts/CampaignContext";
 import {
   BookOpen, Boxes, Gem, Scroll,
   Sparkles, UserRoundPlus, WandSparkles, X,
@@ -34,9 +35,9 @@ export function MasterOrb() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalKey>(null);
 
-  const isMasterMode = true; // TODO: virá da session após auth
+  const { isMaster } = useCampaign();
 
-  if (!isMasterMode) return null;
+  if (!isMaster) return null;
 
   function openModal(modal: ModalKey) {
     setIsOpen(false);  // fecha o menu

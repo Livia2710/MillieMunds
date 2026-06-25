@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye, Backpack } from "lucide-react";
+import { ChevronDown, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye, Backpack, LogOut  } from "lucide-react";
 import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
 import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
+import { signOut } from 'next-auth/react'
 
 export function Header() {
   const pathname = usePathname();
@@ -104,6 +105,7 @@ export function Header() {
             </div>
           </div>
 
+
           {/* Seção Campanhas: Trocado os ícones por Pena e Bússola */}
           <SidebarBlock title="Campanhas">
             <SidebarAction
@@ -192,6 +194,15 @@ export function Header() {
             }}
             />
           </SidebarBlock>
+
+           <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="flex min-h-12 w-full items-center gap-4 border-b border-bege-escuro/10 px-4 py-3 text-left font-title text-[15px] uppercase tracking-[0.12em] text-bege-medio/60 transition-all hover:text-bege-claro hover:pl-5 cursor-pointer group"
+        >
+          <LogOut size={17} strokeWidth={1.4} className="text-bege-escuro/50 group-hover:text-bege-medio transition-colors shrink-0" />
+          <span>Sair</span>
+        </button>
         </aside>
       )}
       

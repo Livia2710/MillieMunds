@@ -155,6 +155,7 @@ model InventoryItem {
   category   String   // equipamento | consumivel | material | reliquia | livro | outro
   rarity     String
   quantity   Int      @default(1)
+  image      String? 
   worldSlug  String?
   isLocked   Boolean  @default(false)
   campaignId String

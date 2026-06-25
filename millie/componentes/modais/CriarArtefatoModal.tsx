@@ -9,6 +9,7 @@ import MillieSelect from "@/componentes/ui/MillieSelect";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import type { InventoryRarity } from "@/lib/types/inventory";
 import { createInventoryItem } from "@/app/actions/inventory";
+import MillieImageUpload from "../ui/MillieImageUpload";
 
 type Props = { isOpen: boolean; onClose: () => void }
 
@@ -27,6 +28,7 @@ export default function CriarArtefatoModal({ isOpen, onClose }: Props) {
   const [effect, setEffect] = useState("")
   const [quantity, setQuantity] = useState("1")
   const [worldSlug, setWorldSlug] = useState("")
+  const [image, setImage] = useState("")
   const [error, setError] = useState("")
 
   function handleClose() {
@@ -59,6 +61,13 @@ export default function CriarArtefatoModal({ isOpen, onClose }: Props) {
         <MillieInput label="Mundo de Origem" placeholder="Ex: Aethelgard" value={worldSlug} onChange={(e) => setWorldSlug(e.target.value)} />
         <MillieInput label="Origem" placeholder="Ex: Forjado pelos Anões" value={origin} onChange={(e) => setOrigin(e.target.value)} />
         <MillieTextarea label="Efeito" placeholder="Descreva o efeito mágico..." rows={3} value={effect} onChange={(e) => setEffect(e.target.value)} />
+          <MillieImageUpload
+          label="Imagem (opcional)"
+          value={image}
+          onChange={setImage}
+          aspectRatio="portrait" // para personagem
+          // aspectRatio="square" // para artefato/equipamento
+        />
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex justify-end gap-3 border-t border-bege-escuro/20 pt-4">
           <button onClick={handleClose} className="font-title text-xs uppercase tracking-widest text-bege-medio/50 hover:text-bege-claro">Cancelar</button>

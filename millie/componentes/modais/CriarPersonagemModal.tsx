@@ -8,6 +8,7 @@ import MillieSelect from "@/componentes/ui/MillieSelect";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import type { CharacterCategory, CharacterElement } from "@/lib/types/character";
 import { createCharacter, getUniverses } from "@/app/actions/character";
+import MillieImageUpload from "../ui/MillieImageUpload";
 
 type Race = { id: string; name: string; element: string }
 type UniverseWorld = { id: string; name: string; races: Race[] }
@@ -37,6 +38,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const [year, setYear] = useState("1")
   const [subject, setSubject] = useState("")
   const [occupation, setOccupation] = useState("")
+  const [image, setImage] = useState("")
   const [dangerLevel, setDangerLevel] = useState("Iniciante")
   const [error, setError] = useState("")
 
@@ -136,6 +138,14 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
         {category === "professor" && <MillieInput label="Disciplina" placeholder="Ex: Alquimia Avançada" value={subject} onChange={(e) => setSubject(e.target.value)} />}
         {category === "npc" && <MillieInput label="Ocupação" placeholder="Ex: Comerciante, Guardião" value={occupation} onChange={(e) => setOccupation(e.target.value)} />}
         {category === "monstro" && <MillieSelect label="Nível de Perigo" options={DANGER_LEVELS} value={dangerLevel} onChange={(e) => setDangerLevel(e.target.value)} />}
+
+        <MillieImageUpload
+        label="Imagem (opcional)"
+        value={image}
+        onChange={setImage}
+        aspectRatio="portrait" // para personagem
+        // aspectRatio="square" // para artefato/equipamento
+      />
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 

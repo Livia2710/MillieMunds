@@ -135,6 +135,7 @@ export async function createCharacter(data: {
   raceId: string
   element: string
   worldSlug: string
+  image?: string
   year?: number
   subject?: string
   occupation?: string
@@ -157,6 +158,7 @@ export async function createCharacter(data: {
       rank: 'E',
       raceId: data.raceId,
       campaignId: membership.campaignId,
+      image: data.image,    
       year: data.year,
       subject: data.subject,
       occupation: data.occupation,
@@ -173,6 +175,7 @@ export async function createPlayerCharacter(data: {
   raceId: string
   element: string
   worldSlug: string
+  image?: string
   year?: number
   subject?: string
   occupation?: string
@@ -196,6 +199,7 @@ export async function createPlayerCharacter(data: {
       raceId: data.raceId,
       campaignId: membership.campaignId,
       playerId: session.user.id,
+      image: data.image,    
       year: data.year,
       subject: data.subject,
       occupation: data.occupation,

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { PrimaryButton } from '@/componentes/PrimaryButton'
 import { getUniverses, createPlayerCharacter } from '@/app/actions/character'
 import type { CharacterCategory } from '@/lib/types/character'
+import MillieImageUpload from '@/componentes/ui/MillieImageUpload'
 
 type Race = { id: string; name: string; element: string }
 type UniverseWorld = { id: string; name: string; races: Race[] }
@@ -24,6 +25,7 @@ export default function CreateCharForm() {
   const [year, setYear] = useState(1)
   const [subject, setSubject] = useState('')
   const [occupation, setOccupation] = useState('')
+  const [image, setImage] = useState("")
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function CreateCharForm() {
           raceId,
           element,
           worldSlug: selectedWorld?.name.toLowerCase() ?? '',
+          image: image || undefined,
           year: category === 'aluno' ? year : undefined,
           subject: category === 'professor' ? subject : undefined,
           occupation: category === 'npc' ? occupation : undefined,
@@ -179,6 +182,13 @@ export default function CreateCharForm() {
             </div>
           )}
         </div>
+
+        <MillieImageUpload
+          label="Foto do personagem (opcional)"
+          value={image}
+          onChange={setImage}
+          aspectRatio="portrait"
+        />
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 

@@ -1,7 +1,7 @@
 // auth.ts (raiz do projeto)
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
-import { prisma } from './lib/prisma'   // ← caminho relativo, não @/
+import { prisma } from './lib/prisma'  
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 
@@ -31,16 +31,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: 'jwt' },   // ← IMPORTANTE com Credentials
   callbacks: {
-    jwt({ token, user }) {
-      if (user) token.id = user.id
-      return token
-    },
-    session({ session, token }) {
-      if (token?.id) session.user.id = token.id as string
-      return session
-    }
+  jwt({ token, user }) {
+    if (user) token.id = user.id
+    return token
   },
-  pages: {
-    signIn: '/login'
+  async session({ session, token }) {
+    if (token?.id) {
+      session.user.id = token.id as string
+
+      // Busca o username real do banco
+      const dbUser = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { username: true, email: true }
+      })
+      session.user.name = dbUser?.username ?? dbUser?.email ?? ''
+    }
+    return session
   }
+}
 })

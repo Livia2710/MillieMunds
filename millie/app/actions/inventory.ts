@@ -47,6 +47,7 @@ export async function createInventoryItem(data: {
   author?: string
   coverType?: string
   coverColor?: string
+  image?: string
   coverImage?: string
   chapters?: { title: string; content: string }[]
 }) {
@@ -79,6 +80,7 @@ export async function createInventoryItem(data: {
       author: data.author,
       coverType: data.coverType,
       coverColor: data.coverColor,
+      image: data.image,
       coverImage: data.coverImage,
       campaignId: membership.campaignId,
       chapters: data.chapters

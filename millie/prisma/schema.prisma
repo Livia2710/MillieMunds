@@ -5,26 +5,91 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
+
+// ─── ENUMS ────────────────────────────────────────────────
 
 enum Role {
   MASTER
   PLAYER
 }
 
-model User {
-  id          String           @id @default(cuid())
-  email       String           @unique
-  username    String?
-  avatar      String?
-  bio         String?
-  createdAt   DateTime         @default(now())
-  passwordHash  String?
-  accounts    Account[]
-  sessions    Session[]
-  memberships CampaignMember[]
+enum BaseRank {
+  E
+  D
+  C
+  B
+  A
+  S
 }
+
+enum RacePath {
+  ASCENSAO
+  CORRUPCAO
+  PERMANENCIA
+}
+
+enum SpecialCardType {
+  VALETE
+  CAVALEIRO
+}
+
+enum ReadingType {
+  COMUM
+  PROFUNDA
+}
+
+// ─── AUTH ─────────────────────────────────────────────────
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  username     String?
+  avatar       String?
+  bio          String?
+  createdAt    DateTime         @default(now())
+  passwordHash String?
+  accounts     Account[]
+  sessions     Session[]
+  memberships  CampaignMember[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── CAMPANHA ─────────────────────────────────────────────
 
 model Campaign {
   id          String           @id @default(cuid())
@@ -44,24 +109,28 @@ model CampaignMember {
   userId     String
   campaignId String
   role       Role     @default(PLAYER)
-  active     Boolean  @default(false)  
-  joinedAt   DateTime @default(now())  
+  active     Boolean  @default(false)
+  joinedAt   DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
   @@unique([userId, campaignId])
 }
 
+// ─── MUNDO ────────────────────────────────────────────────
+
 model World {
   id          String    @id @default(cuid())
-  slug        String    
+  slug        String
   name        String
   description String?
   coverColor  String?
   coverImage  String?
+  isLocked    Boolean   @default(true)
   campaignId  String
   campaign    Campaign  @relation(fields: [campaignId], references: [id])
   chapters    Chapter[]
-  isLocked  Boolean  @default(true) 
+
   @@unique([slug, campaignId])
 }
 
@@ -74,107 +143,188 @@ model Chapter {
   world   World  @relation(fields: [worldId], references: [id])
 }
 
-model Character {
-  id         String   @id @default(cuid())
-  name       String
-  raceId     String
-  race       Race     @relation(fields: [raceId], references: [id])
-  category   String   // aluno | professor | npc | monstro
-  element    String   // fogo | agua | terra | vento | luz | trevas
-  rank       String   // S | A | B | C | D | E | V
-  image      String?
-  worldSlug  String
-  isLocked   Boolean  @default(false)
-  campaignId String
-  playerId   String?  // null = NPC/Monstro
-
-  // Campos específicos por categoria (nullable)
-  year        Int?     // aluno
-  subject     String?  // professor
-  occupation  String?  // npc
-  dangerLevel String?  // monstro
-
-  campaign   Campaign    @relation(fields: [campaignId], references: [id])
-  skills     Skill[]
-  tarotDraws TarotDraw[]
-  level  Int  @default(1)
-  xp     Int  @default(0)
-  maxXp  Int  @default(100)
-
-  // Stats
-  agilidade    Int @default(0)
-  inteligencia Int @default(0)
-  forca        Int @default(0)
-  vigor        Int @default(0)
-  sorte        Int @default(0)
-}
+// ─── UNIVERSO / RAÇA ──────────────────────────────────────
 
 model Universe {
-  id     String         @id @default(cuid())
-  name   String         @unique
+  id     String          @id @default(cuid())
+  name   String          @unique
   worlds UniverseWorld[]
 }
 
 model UniverseWorld {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   name       String
   universeId String
-  universe   Universe @relation(fields: [universeId], references: [id])
+  universe   Universe  @relation(fields: [universeId], references: [id])
   races      Race[]
+
   @@unique([name, universeId])
 }
 
 model Race {
-  id              String        @id @default(cuid())
+  id              String          @id @default(cuid())
   name            String
   element         String
+  baseRank        BaseRank        @default(D)
+  canAscend       Boolean         @default(false)
+  canCorrupt      Boolean         @default(false)
   universeWorldId String
-  universeWorld   UniverseWorld @relation(fields: [universeWorldId], references: [id])
+  universeWorld   UniverseWorld   @relation(fields: [universeWorldId], references: [id])
   characters      Character[]
+  skills          RaceSkill[]
+  evolutions      RaceEvolution[] @relation("FromRace")
+
   @@unique([name, universeWorldId])
 }
 
-model Skill {
-  id                    String    @id @default(cuid())
-  name                  String
-  description           String
-  branch                String    // ativa | passiva | reacao | aprimoramento
-  element               String
-  currentLevel          Int       @default(0)
-  maxLevel              Int       @default(3)
-  isUnlocked            Boolean   @default(false)
-  requiredCharacterLevel Int
-  characterId           String
-  character             Character @relation(fields: [characterId], references: [id])
+// habilidades inatas de cada raça
+model RaceSkill {
+  id            String  @id @default(cuid())
+  raceId        String
+  race          Race    @relation(fields: [raceId], references: [id])
+  name          String
+  description   String  @db.Text
+  branch        String  // passiva | aprimoramento | ativa | reacao
+  levelRequired Int     @default(1)
+  isInnate      Boolean @default(true)
 }
 
+// para qual raça cada caminho de evolução leva
+model RaceEvolution {
+  id            String   @id @default(cuid())
+  fromRaceId    String
+  fromRace      Race     @relation("FromRace", fields: [fromRaceId], references: [id])
+  toRaceName    String
+  path          RacePath
+  levelRequired Int      @default(100)
+}
+
+// ─── PERSONAGEM ───────────────────────────────────────────
+
+model Character {
+  id          String  @id @default(cuid())
+  name        String
+  category    String  // aluno | professor | npc | monstro
+  element     String
+  image       String?
+  worldSlug   String
+  isLocked    Boolean @default(false)
+  campaignId  String
+  playerId    String?
+
+  // campos específicos por categoria (nullable)
+  year        Int?    // aluno
+  subject     String? // professor
+  occupation  String? // npc
+  dangerLevel String? // monstro
+
+  // progressão
+  level Int @default(1)
+  xp    Int @default(0)
+  maxXp Int @default(100)
+
+  // rank de nascença (vem da raça, nunca muda)
+  // rank atual é calculado pelo level no código — não salvo no banco
+  birthRank BaseRank @default(D)
+
+  // caminho de evolução da raça (preenchido quando o jogador escolhe)
+  racePath      RacePath? // null = ainda não escolheu
+  evolvedRaceId String?
+
+  // atributos (escala por rank: D 1–10 | C 4–45 | B 6–63 | A 8–81 | S 10–100)
+  agilidade    Int @default(1)
+  inteligencia Int @default(1)
+  forca        Int @default(1)
+  vigor        Int @default(1)
+  sorte        Int @default(1)
+
+  // PV = 10 + (vigor × 2) | PM = 10 + (inteligencia × 2) — cacheados
+  pv    Int @default(12)
+  pvMax Int @default(12)
+  pm    Int @default(12)
+  pmMax Int @default(12)
+
+  // relações
+  raceId       String
+  race         Race          @relation(fields: [raceId], references: [id])
+  campaign     Campaign      @relation(fields: [campaignId], references: [id])
+  skills       Skill[]
+  tarotDraws   TarotDraw[]
+  specialCards SpecialCard[]
+}
+
+// ─── HABILIDADES ──────────────────────────────────────────
+
+model Skill {
+  id                     String    @id @default(cuid())
+  name                   String
+  description            String
+  branch                 String    // ativa | passiva | reacao | aprimoramento
+  element                String
+  currentLevel           Int       @default(0)
+  maxLevel               Int       @default(3)
+  isUnlocked             Boolean   @default(false)
+  requiredCharacterLevel Int
+  characterId            String
+  character              Character @relation(fields: [characterId], references: [id])
+}
+
+// ─── CARTAS ESPECIAIS ─────────────────────────────────────
+
+model SpecialCard {
+  id          String          @id @default(cuid())
+  characterId String
+  cardType    SpecialCardType
+  isAvailable Boolean         @default(true)
+  obtainedAt  DateTime        @default(now())
+  usedAt      DateTime?
+  character   Character       @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  // unicidade garantida via Server Action, não aqui
+}
+
+// ─── LEITURAS DE TARÔ ─────────────────────────────────────
+
+model TarotDraw {
+  id                   String      @id @default(cuid())
+  readingType          ReadingType
+  question             String      @db.Text
+  cards                String[]    // slugs das cartas (3 para Comum, 5 para Profunda)
+  sacrifice            String      @db.Text
+  sacrificeIsPermanent Boolean     @default(false)
+  hadJoker             Boolean     @default(false)
+  drawnAt              DateTime    @default(now())
+  characterId          String
+  character            Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+// ─── INVENTÁRIO ───────────────────────────────────────────
+
 model InventoryItem {
-  id         String   @id @default(cuid())
+  id         String        @id @default(cuid())
   name       String
   slug       String
-  category   String   // equipamento | consumivel | material | reliquia | livro | outro
+  category   String        // equipamento | consumivel | material | reliquia | livro | outro
   rarity     String
-  quantity   Int      @default(1)
-  image      String? 
+  quantity   Int           @default(1)
+  image      String?
   worldSlug  String?
-  isLocked   Boolean  @default(false)
+  isLocked   Boolean       @default(false)
   campaignId String
-  ownerId    String?  // null = item da campanha, não de personagem específico
+  ownerId    String?
 
-  // Campos específicos (nullable)
-  forgedBy   String?  // equipamento
-  effect     String?  // equipamento | consumivel | reliquia
-  origin     String?  // consumivel | material | reliquia | outro
-  author     String?  // livro
-  coverType  String?  // livro: color | image
-  coverColor String?  // livro
-  coverImage String?  // livro
+  // campos específicos por tipo (nullable)
+  forgedBy   String? // equipamento
+  effect     String? // equipamento | consumivel | reliquia
+  origin     String? // consumivel | material | reliquia | outro
+  author     String? // livro
+  coverType  String? // livro: color | image
+  coverColor String? // livro
+  coverImage String? // livro
 
-  campaign   Campaign      @relation(fields: [campaignId], references: [id])
-  chapters   ItemChapter[]
+  campaign Campaign      @relation(fields: [campaignId], references: [id])
+  chapters ItemChapter[]
 
-  // Garante que o slug do item só não se repita DENTRO da mesma campanha
-  @@unique([slug, campaignId]) 
+  @@unique([slug, campaignId])
 }
 
 model ItemChapter {
@@ -184,44 +334,4 @@ model ItemChapter {
   order   Int
   itemId  String
   item    InventoryItem @relation(fields: [itemId], references: [id])
-}
-
-model TarotDraw {
-  id          String    @id @default(cuid())
-  cardSlug    String    // ex: 'louco', 'mago'
-  drawnAt     DateTime  @default(now())
-  characterId String
-  character   Character @relation(fields: [characterId], references: [id])
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-  @@unique([identifier, token])
 }

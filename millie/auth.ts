@@ -31,20 +31,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: 'jwt' },   // ← IMPORTANTE com Credentials
   callbacks: {
-  jwt({ token, user }) {
-    if (user) token.id = user.id
-    return token
-  },
-  async session({ session, token }) {
-    if (token?.id) {
-      session.user.id = token.id as string
+  async jwt({ token, user }) {
+    if (user) {
+      token.id = user.id
 
-      // Busca o username real do banco
+      // Busca username aqui — jwt roda no Node, não no Edge
       const dbUser = await prisma.user.findUnique({
-        where: { id: token.id as string },
+        where: { id: user.id },
         select: { username: true, email: true }
       })
-      session.user.name = dbUser?.username ?? dbUser?.email ?? ''
+      token.username = dbUser?.username ?? dbUser?.email ?? ''
+    }
+    return token
+  },
+  session({ session, token }) {
+    if (token?.id) {
+      session.user.id = token.id as string
+      session.user.name = token.username as string
     }
     return session
   }

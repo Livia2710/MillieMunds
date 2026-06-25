@@ -1,34 +1,26 @@
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { mockProfileCharacters } from '@/lib/mocks/profile';
-import ProfileGrid from '@/componentes/perfil/ProfileGrid';
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
+import { getCharacterById } from '@/app/actions/character'
+import ProfileGrid from '@/componentes/perfil/ProfileGrid'
 
 interface Props {
-  params: Promise<{ id: string }>; // Atualizado para Promise
+  params: Promise<{ id: string }>
 }
 
 export default async function CharacterDetailPage({ params }: Props) {
-  // Aguarda a resolução dos parâmetros da URL para evitar o 404 falso
-  const resolvedParams = await params;
-  const character = mockProfileCharacters[resolvedParams.id];
+  const { id } = await params
+  const character = await getCharacterById(id)
 
-  if (!character) {
-    notFound();
-  }
+  if (!character) notFound()
 
   return (
     <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
-      {/* Cantoneiras da Página de Inspeção */}
       <PageCorners />
-      
-      {/* Área de Proteção das Cantoneiras: pt-16 e px-4/md:px-12 */}
       <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10 space-y-6">
-        
-        {/* Barra de Navegação Superior do Mestre com a sua paleta */}
         <div className="flex justify-between items-center bg-roxo-escuro/60 p-4 border border-bege-escuro/45 shadow-card">
-          <Link 
-            href="/perfil" 
+          <Link
+            href="/perfil"
             className="text-xs text-bege-escuro hover:text-bege-medio transition flex items-center gap-2 font-title tracking-widest uppercase"
           >
             &larr; Voltar para Painel do Mestre
@@ -37,12 +29,10 @@ export default async function CharacterDetailPage({ params }: Props) {
             Modo Inspeção (Mestre)
           </span>
         </div>
-        
-        {/* O ProfileGrid assume o controle visual sem paddings duplicados */}
-        <ProfileGrid character={character} username="" />
+        <ProfileGrid character={character as any} username="" />
       </div>
     </div>
-  );
+  )
 }
 
 function PageCorners() {

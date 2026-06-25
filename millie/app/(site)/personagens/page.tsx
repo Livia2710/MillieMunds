@@ -1,54 +1,20 @@
-"use client";
+import { getCharactersByActiveCampaign } from '@/app/actions/character'
+import { getActiveCampaign } from '@/app/actions/campaign'
+import PersonagensClient from '@/componentes/personagens/PersonagensClient'
 
-import { useState } from "react";
-import Image from "next/image";
-import NoCampaign from "@/componentes/NoCampaign";
-import CharactersGrid from "@/componentes/personagens/CharactersGrid";
-import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
-import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
-import { useCampaign } from "@/lib/contexts/CampaignContext";
+export default async function PersonagensPage() {
+  const [characters, activeCampaign] = await Promise.all([
+    getCharactersByActiveCampaign(),
+    getActiveCampaign(),
+  ])
 
-export default function PersonagensPage() {
-  const { hasCampaign, isMaster, charactersState, unlockCharacter } = useCampaign();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isJoinOpen, setIsJoinOpen] = useState(false);
-
-  if (!hasCampaign) {
-    return (
-      <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header md:p-12">
-        <PageCorners />
-        <NoCampaign 
-          message="Os personagens só aparecem depois que você entra em uma campanha ou cria a sua própria." 
-          onCreate={() => setIsCreateOpen(true)}
-          onJoin={() => setIsJoinOpen(true)}
-        />
-        <CriarCampanhaModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-        <EntrarCampanhaModal open={isJoinOpen} onClose={() => setIsJoinOpen(false)} />
-      </div>
-    );
-  }
-
-  // 🟢 MASTER: Vê tudo (Desbloqueados e Bloqueados) | PLAYER: Só vê os já Desbloqueados
-  const characters = isMaster
-    ? charactersState
-    : charactersState.filter((character) => !character.isLocked);
+  const isMaster = activeCampaign?.role === 'MASTER'
 
   return (
-    <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header">
-      <PageCorners />
-      {/* Repassamos a função unlockCharacter caso o seu grid ou card de personagem precise de um botão para o mestre clicar e liberar */}
-      <CharactersGrid characters={characters} isMaster={isMaster} onUnlock={unlockCharacter} />
-    </div>
-  ); 
-}
-
-function PageCorners() {
-  return (
-    <>
-      <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 m-0 block h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 m-0 block h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 m-0 block h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 m-0 block h-19 w-19 md:h-25 md:w-25" />
-    </>
-  );
+    <PersonagensClient
+      characters={characters}
+      isMaster={isMaster}
+      hasCampaign={!!activeCampaign}
+    />
+  )
 }

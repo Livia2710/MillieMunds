@@ -2,43 +2,29 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, Scroll, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye ,Backpack} from "lucide-react";
+import { ChevronDown, X, Sparkles, Home, Users, Menu, BookOpen, Feather, Compass, Wand, Eye, Backpack } from "lucide-react";
 import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
 import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
-
-const campaigns = [
-  {
-    id: "1",
-    name: "Crônicas de Umbrael",
-    role: "master",
-  },
-  {
-    id: "2",
-    name: "A Travessia dos Mil Mundos",
-    role: "player",
-  },
-  {
-    id: "3",
-    name: "O Véu de Aster",
-    role: "master",
-  },
-] as const;
+import { useCampaign } from "@/lib/contexts/CampaignContext";
 
 export function Header() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const { campaigns, switchCampaign } = useCampaign();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // Estados independentes para os Accordions das campanhas
   const [isMasterOpen, setIsMasterOpen] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
+  const [joinCampaignOpen, setJoinCampaignOpen] = useState(false);
 
-  const [createCampaignOpen,setCreateCampaignOpen] = useState(false);
-  const [joinCampaignOpen,setJoinCampaignOpen] = useState(false);
+  const username = session?.user?.name ?? session?.user?.email ?? "Usuário";
 
-  const masterCampaigns = campaigns.filter((campaign) => campaign.role === "master");
-  const playerCampaigns = campaigns.filter((campaign) => campaign.role === "player");
+  const masterCampaigns = campaigns.filter((c) => c.role === "MASTER");
+  const playerCampaigns = campaigns.filter((c) => c.role === "PLAYER");
 
   return (
     <>
@@ -113,7 +99,7 @@ export function Header() {
             <div className="h-10 w-10 rounded-full border border-bege-escuro/40 bg-roxo" />
             <div>
               <p className="font-title text-md uppercase tracking-[0.14em] text-bege-claro">
-                Username
+                {username}
               </p>
             </div>
           </div>
@@ -187,6 +173,10 @@ export function Header() {
               icon={<Wand size={15} strokeWidth={1.4} />}
               isOpen={isMasterOpen}
               onToggle={() => setIsMasterOpen(!isMasterOpen)}
+              onSelect={(id) => {
+              switchCampaign(id);
+              setIsSidebarOpen(false);
+            }}
             />
 
             {/* Accordion de Jogador */}
@@ -196,6 +186,10 @@ export function Header() {
               icon={<BookOpen size={15} strokeWidth={1.4} />}
               isOpen={isPlayerOpen}
               onToggle={() => setIsPlayerOpen(!isPlayerOpen)}
+              onSelect={(id) => {
+              switchCampaign(id);
+              setIsSidebarOpen(false);
+            }}
             />
           </SidebarBlock>
         </aside>
@@ -284,18 +278,13 @@ function SidebarBlock({ title, children }: { title: string; children: React.Reac
   );
 }
 
-function CampaignGroup({
-  title,
-  campaigns,
-  icon,
-  isOpen,
-  onToggle,
-}: {
+function CampaignGroup({ title, campaigns, icon, isOpen, onToggle, onSelect,}: {
   title: string;
-  campaigns: readonly { id: string; name: string; role: "master" | "player" }[];
+  campaigns: { id: string; name: string; role: "MASTER" | "PLAYER"; active: boolean }[];
   icon: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
+  onSelect: (id: string) => void;
 }) {
   return (
     <div className="w-full border-b border-bege-escuro/10 last:border-b-0">
@@ -319,12 +308,19 @@ function CampaignGroup({
             <button
               key={campaign.id}
               type="button"
-              className="flex min-h-11 w-full items-center gap-3 px-6 py-2.5 text-left transition hover:bg-bege-escuro/5 border-t border-bege-escuro/5 first:border-t-0 group"
-            >
+              onClick={() => onSelect(campaign.id)}
+              className={`flex min-h-11 w-full items-center gap-3 px-6 py-2.5 text-left transition hover:bg-bege-escuro/5 border-t border-bege-escuro/5 first:border-t-0 group ${
+                campaign.active ? "bg-bege-escuro/10" : ""
+              }`} >
               <span className="text-bege-escuro/40 group-hover:text-bege-medio transition-colors shrink-0">{icon}</span>
-              <span className="truncate font-title text-md tracking-[0.08em] text-bege-claro/90 " >
+              <span className={`truncate font-title text-md tracking-[0.08em] ${
+                campaign.active ? "text-bege-claro" : "text-bege-claro/90"
+              }`}>
                 {campaign.name}
               </span>
+              {campaign.active && (
+                <span className="ml-auto text-bege-escuro/60 text-[10px] font-title tracking-widest uppercase">ativa</span>
+              )}
             </button>
           ))}
           

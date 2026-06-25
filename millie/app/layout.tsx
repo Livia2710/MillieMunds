@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CampaignProvider } from "@/lib/contexts/CampaignContext";
+import { Providers } from "@/lib/providers";
 import { EB_Garamond } from "next/font/google";
 import "./globals.css";
 
@@ -16,17 +16,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
       <body className={ebGaramond.variable}>
-        <CampaignProvider>
-        <div className="site-background" aria-hidden="true" />
-        <div className="site-shell">{children}</div>
-        <div className="site-background-paper" aria-hidden="true" />
-        </CampaignProvider>
+        <Providers>
+          <div className="site-background" aria-hidden="true" />
+          <div className="site-shell">{children}</div>
+          <div className="site-background-paper" aria-hidden="true" />
+        </Providers>
       </body>
     </html>
   );

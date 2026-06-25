@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  MASTER
+  PLAYER
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  username    String?
+  avatar      String?
+  bio         String?
+  createdAt   DateTime         @default(now())
+  passwordHash  String?
+  accounts    Account[]
+  sessions    Session[]
+  memberships CampaignMember[]
+}
+
+model Campaign {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String           @unique @default(cuid())
+  masterId    String
+  createdAt   DateTime         @default(now())
+  members     CampaignMember[]
+  worlds      World[]
+  characters  Character[]
+  items       InventoryItem[]
+}
+
+model CampaignMember {
+  id         String   @id @default(cuid())
+  userId     String
+  campaignId String
+  role       Role     @default(PLAYER)
+  active     Boolean  @default(false)  
+  joinedAt   DateTime @default(now())  
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  @@unique([userId, campaignId])
+}
+
+model World {
+  id          String    @id @default(cuid())
+  slug        String    
+  name        String
+  description String?
+  coverColor  String?
+  coverImage  String?
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+  chapters    Chapter[]
+  isLocked  Boolean  @default(true) 
+  @@unique([slug, campaignId])
+}
+
+model Chapter {
+  id      String @id @default(cuid())
+  title   String
+  content String @db.Text
+  order   Int
+  worldId String
+  world   World  @relation(fields: [worldId], references: [id])
+}
+
+model Character {
+  id         String   @id @default(cuid())
+  name       String
+  raceId     String
+  race       Race     @relation(fields: [raceId], references: [id])
+  category   String   // aluno | professor | npc | monstro
+  element    String   // fogo | agua | terra | vento | luz | trevas
+  rank       String   // S | A | B | C | D | E | V
+  image      String?
+  worldSlug  String
+  isLocked   Boolean  @default(false)
+  campaignId String
+  playerId   String?  // null = NPC/Monstro
+
+  // Campos específicos por categoria (nullable)
+  year        Int?     // aluno
+  subject     String?  // professor
+  occupation  String?  // npc
+  dangerLevel String?  // monstro
+
+  campaign   Campaign    @relation(fields: [campaignId], references: [id])
+  skills     Skill[]
+  tarotDraws TarotDraw[]
+  level  Int  @default(1)
+  xp     Int  @default(0)
+  maxXp  Int  @default(100)
+
+  // Stats
+  agilidade    Int @default(0)
+  inteligencia Int @default(0)
+  forca        Int @default(0)
+  vigor        Int @default(0)
+  sorte        Int @default(0)
+}
+
+model Universe {
+  id     String         @id @default(cuid())
+  name   String         @unique
+  worlds UniverseWorld[]
+}
+
+model UniverseWorld {
+  id         String   @id @default(cuid())
+  name       String
+  universeId String
+  universe   Universe @relation(fields: [universeId], references: [id])
+  races      Race[]
+  @@unique([name, universeId])
+}
+
+model Race {
+  id              String        @id @default(cuid())
+  name            String
+  element         String
+  universeWorldId String
+  universeWorld   UniverseWorld @relation(fields: [universeWorldId], references: [id])
+  characters      Character[]
+  @@unique([name, universeWorldId])
+}
+
+model Skill {
+  id                    String    @id @default(cuid())
+  name                  String
+  description           String
+  branch                String    // ativa | passiva | reacao | aprimoramento
+  element               String
+  currentLevel          Int       @default(0)
+  maxLevel              Int       @default(3)
+  isUnlocked            Boolean   @default(false)
+  requiredCharacterLevel Int
+  characterId           String
+  character             Character @relation(fields: [characterId], references: [id])
+}
+
+model InventoryItem {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String
+  category   String   // equipamento | consumivel | material | reliquia | livro | outro
+  rarity     String
+  quantity   Int      @default(1)
+  worldSlug  String?
+  isLocked   Boolean  @default(false)
+  campaignId String
+  ownerId    String?  // null = item da campanha, não de personagem específico
+
+  // Campos específicos (nullable)
+  forgedBy   String?  // equipamento
+  effect     String?  // equipamento | consumivel | reliquia
+  origin     String?  // consumivel | material | reliquia | outro
+  author     String?  // livro
+  coverType  String?  // livro: color | image
+  coverColor String?  // livro
+  coverImage String?  // livro
+
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+  chapters   ItemChapter[]
+
+  // Garante que o slug do item só não se repita DENTRO da mesma campanha
+  @@unique([slug, campaignId]) 
+}
+
+model ItemChapter {
+  id      String        @id @default(cuid())
+  title   String
+  content String        @db.Text
+  order   Int
+  itemId  String
+  item    InventoryItem @relation(fields: [itemId], references: [id])
+}
+
+model TarotDraw {
+  id          String    @id @default(cuid())
+  cardSlug    String    // ex: 'louco', 'mago'
+  drawnAt     DateTime  @default(now())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}

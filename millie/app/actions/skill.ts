@@ -15,10 +15,7 @@ export async function getSkillsByCharacter(characterId: string) {
   if (!session?.user?.id) return null
 
   const char = await prisma.character.findFirst({
-    where: {
-      id: characterId,
-      campaign: { members: { some: { userId: session.user.id } } },
-    },
+    where: { id: characterId },   // ← remove a verificação de membership que pode estar quebrando
     include: {
       race: {
         include: { skills: true },
@@ -29,15 +26,20 @@ export async function getSkillsByCharacter(characterId: string) {
 
   if (!char) return null
 
+  // verifica separadamente se o usuario tem acesso
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, campaignId: char.campaignId },
+  })
+  if (!membership) return null
+
   const firstUnlock = calcFirstSkillUnlock(char.birthRank)
 
-  // Habilidades inatas — vêm da raça
   const innate = char.race.skills.map((rs) => ({
     id:                     rs.id,
     name:                   rs.name,
     description:            rs.description,
     branch:                 rs.branch,
-    currentLevel:           0,       // inatas não têm nível próprio salvo — evoluem por uso
+    currentLevel:           0,
     maxLevel:               3,
     isUnlocked:             char.level >= Math.max(rs.levelRequired, firstUnlock),
     requiredCharacterLevel: Math.max(rs.levelRequired, firstUnlock),
@@ -45,7 +47,6 @@ export async function getSkillsByCharacter(characterId: string) {
     isInnate:               true,
   }))
 
-  // Habilidades criadas pelo Mestre para este personagem
   const custom = char.skills.map((s) => ({
     id:                     s.id,
     name:                   s.name,
@@ -60,15 +61,15 @@ export async function getSkillsByCharacter(characterId: string) {
   }))
 
   return {
-    characterId:  char.id,
+    characterId:   char.id,
     characterName: char.name,
-    race:         char.race.name,
-    element:      char.element,
-    birthRank:    char.birthRank,
-    level:        char.level,
-    xp:           char.xp,
-    maxXp:        char.maxXp,
-    skills:       [...innate, ...custom],
+    race:          char.race.name,
+    element:       char.element,
+    birthRank:     char.birthRank,
+    level:         char.level,
+    xp:            char.xp,
+    maxXp:         char.maxXp,
+    skills:        [...innate, ...custom],
   }
 }
 

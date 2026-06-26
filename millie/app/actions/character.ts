@@ -554,3 +554,47 @@ export async function applyRaceEvolution(
     newBirthRank: targetRace.baseRank,
   }
 }
+
+// ─── updateCharacterPoints ────────────────────────────────
+// Jogador ajusta PV/PM do próprio personagem durante a narrativa.
+// Respeita os limites (0 ↔ pvMax / pmMax).
+
+export async function updateCharacterPoints(
+  characterId: string,
+  data: { pv?: number; pm?: number }
+) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const char = await prisma.character.findFirst({
+    where: {
+      id: characterId,
+      playerId: session.user.id, // só o próprio jogador
+    },
+    select: { pvMax: true, pmMax: true, pv: true, pm: true },
+  })
+  if (!char) throw new Error('Personagem não encontrado')
+
+  const newPv = data.pv !== undefined
+    ? Math.max(0, Math.min(data.pv, char.pvMax))
+    : undefined
+
+  const newPm = data.pm !== undefined
+    ? Math.max(0, Math.min(data.pm, char.pmMax))
+    : undefined
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: {
+      ...(newPv !== undefined && { pv: newPv }),
+      ...(newPm !== undefined && { pm: newPm }),
+    },
+  })
+
+  revalidatePath('/perfil')
+
+  return {
+    pv: newPv ?? char.pv,
+    pm: newPm ?? char.pm,
+  }
+}

@@ -1,7 +1,7 @@
 'use client'
 
-import { calcAutoConditions, CONDITION_LABELS, CONDITION_COLORS } from '@/app/actions/condition'
-import type { AnyCondition } from '@/app/actions/condition'
+import { CONDITION_LABELS, CONDITION_COLORS, calcAutoConditions } from '@/lib/utils/conditions'
+import type { AnyCondition } from '@/lib/utils/conditions'
 
 type ActiveCondition = {
   id: string

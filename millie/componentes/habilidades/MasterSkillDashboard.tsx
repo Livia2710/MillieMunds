@@ -125,6 +125,7 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
             tree={tree}
             meta={meta}
             characterLevel={selectedChar.level}
+            birthRank={selectedChar.birthRank}
             visible={true}
           />
         ) : (

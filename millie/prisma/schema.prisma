@@ -276,6 +276,7 @@ model Skill {
   maxLevel               Int       @default(3)
   isUnlocked             Boolean   @default(false)
   requiredCharacterLevel Int
+  uses     Int @default(0) 
   characterId            String
   character              Character @relation(fields: [characterId], references: [id])
 }

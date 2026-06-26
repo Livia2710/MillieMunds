@@ -1,23 +1,38 @@
 'use client'
 
-import { ProfileCharacter } from "@/lib/types/profile";
-import ProfileHeader from "./ProfileHeader";
-import ProfileCards from "./ProfileCards";
-import ProfileInventory from "./ProfileInventory";
-import TarotReadingModal from "@/componentes/modais/TarotReadingModal";
-import { useTarotPolling } from "@/lib/hooks/useTarotPolling";
+import type { ProfileCharacter } from "@/lib/types/profile"
+import ProfileHeader from "./ProfileHeader"
+import ProfileCards from "./ProfileCards"
+import ProfileInventory from "./ProfileInventory"
+import TarotReadingModal from "@/componentes/modais/TarotReadingModal"
+import { useTarotPolling } from "@/lib/hooks/useTarotPolling"
 
-interface ProfileGridProps {
-  character: ProfileCharacter;
-  username: string;
+type ActiveCondition = {
+  id: string
+  type: string
 }
 
-export default function ProfileGrid({ character, username }: ProfileGridProps) {
+interface ProfileGridProps {
+  character: ProfileCharacter
+  username: string
+  activeConditions?: ActiveCondition[]
+}
+
+export default function ProfileGrid({
+  character,
+  username,
+  activeConditions = [],
+}: ProfileGridProps) {
   const { pendingDraw, clearPending } = useTarotPolling(character.id)
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <ProfileHeader character={character} username={username} isMaster={false} />
+      <ProfileHeader
+        character={character}
+        username={username}
+        isMaster={false}
+        activeConditions={activeConditions}
+      />
 
       <div className="grid grid-cols-1 gap-6">
         <ProfileCards character={character} />
@@ -34,5 +49,5 @@ export default function ProfileGrid({ character, username }: ProfileGridProps) {
         />
       )}
     </div>
-  );
+  )
 }

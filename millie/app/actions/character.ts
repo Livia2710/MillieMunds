@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import type { BaseRank } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
-import { calcRankByLevel, calcPV, calcPM } from '@/lib/utils/rank'
+import { calcRankByLevel, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
 
 
 // ─── helper: shape de retorno compartilhado ───────────────
@@ -381,4 +381,167 @@ export async function useSpecialCard(cardId: string) {
     where: { id: cardId },
     data: { isAvailable: false, usedAt: new Date() },
   })
+}
+
+// ─── addXp ────────────────────────────────────────────────
+// Adiciona XP ao personagem e processa level up(s) automaticamente.
+// O custo por nível usa o birthRank da raça ATUAL (evolvedRaceId ?? raceId).
+// Pode subir vários níveis de uma vez se o XP for suficiente.
+// Apenas o Mestre pode chamar esta action.
+
+export async function addXp(characterId: string, amount: number) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode conceder XP')
+
+  // busca o personagem com a raça atual (evoluída ou original)
+  const char = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    include: {
+      race: true,
+    },
+  })
+  if (!char) throw new Error('Personagem não encontrado')
+
+  // se tem raça evoluída, busca o birthRank dela; senão usa a original
+  let currentBirthRank: string = char.race.baseRank
+
+  if (char.evolvedRaceId) {
+    const evolvedRace = await prisma.race.findUnique({
+      where: { id: char.evolvedRaceId },
+      select: { baseRank: true },
+    })
+    if (evolvedRace) currentBirthRank = evolvedRace.baseRank
+  }
+
+  // processa level up em loop — o personagem pode subir vários níveis de uma vez
+  let currentLevel = char.level
+  let currentXp    = char.xp + amount
+
+  while (true) {
+    const xpNeeded = calcXpToNextLevel(currentBirthRank)
+    if (currentXp < xpNeeded) break
+    currentXp    -= xpNeeded
+    currentLevel += 1
+  }
+
+  const newMaxXp = calcXpToNextLevel(currentBirthRank)
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: {
+      xp:    currentXp,
+      level: currentLevel,
+      maxXp: newMaxXp,
+    },
+  })
+
+  revalidatePath('/personagens')
+  revalidatePath('/perfil')
+  revalidatePath('/mestre')
+
+  return {
+    newLevel: currentLevel,
+    newXp:    currentXp,
+    maxXp:    newMaxXp,
+    leveledUp: currentLevel > char.level,
+    levelsGained: currentLevel - char.level,
+  }
+}
+
+// ─── applyRaceEvolution ───────────────────────────────────
+// Aplica a escolha de evolução de raça de um personagem.
+// A escolha (ASCENSAO | CORRUPCAO | PERMANENCIA) é do JOGADOR,
+// mas o Mestre confirma/executa pelo painel.
+//
+// Ao evoluir:
+// - evolvedRaceId recebe o id da nova raça
+// - racePath recebe o caminho escolhido
+// - birthRank do personagem NÃO é alterado diretamente —
+//   o custo de XP passa a usar o baseRank da nova raça (via evolvedRaceId)
+// - birthRank de nascença (original) é preservado para cálculo de
+//   primeiro despertar de habilidade
+
+export async function applyRaceEvolution(
+  characterId: string,
+  path: 'ASCENSAO' | 'CORRUPCAO' | 'PERMANENCIA'
+) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode aplicar evolução de raça')
+
+  const char = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    include: {
+      race: {
+        include: { evolutions: true },
+      },
+    },
+  })
+  if (!char) throw new Error('Personagem não encontrado')
+  if (char.racePath !== null) throw new Error('Este personagem já escolheu um caminho')
+
+  // PERMANENCIA: apenas registra o caminho, sem trocar de raça
+  if (path === 'PERMANENCIA') {
+    await prisma.character.update({
+      where: { id: characterId },
+      data: { racePath: 'PERMANENCIA' },
+    })
+
+    revalidatePath('/mestre')
+    revalidatePath('/personagens')
+    return { path: 'PERMANENCIA', newRaceName: null }
+  }
+
+  // ASCENSAO ou CORRUPCAO: encontra a evolução correspondente
+  const evolution = char.race.evolutions.find(
+    (e) => e.path === path && char.level >= e.levelRequired
+  )
+  if (!evolution) {
+    throw new Error(
+      `Evolução ${path} não disponível para ${char.race.name} no nível ${char.level}`
+    )
+  }
+
+  // busca a raça de destino pelo nome (toRaceName definido no seed)
+  const targetRace = await prisma.race.findFirst({
+    where: { name: evolution.toRaceName },
+    select: { id: true, name: true, baseRank: true },
+  })
+  if (!targetRace) {
+    throw new Error(
+      `Raça de destino "${evolution.toRaceName}" não encontrada no banco`
+    )
+  }
+
+  // recalcula maxXp com o birthRank da nova raça
+  const newMaxXp = calcXpToNextLevel(targetRace.baseRank)
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: {
+      racePath:      path,
+      evolvedRaceId: targetRace.id,
+      raceId:        targetRace.id,  // raça ativa agora é a nova
+      maxXp:         newMaxXp,
+    },
+  })
+
+  revalidatePath('/mestre')
+  revalidatePath('/personagens')
+  revalidatePath('/perfil')
+
+  return {
+    path,
+    newRaceName:  targetRace.name,
+    newBirthRank: targetRace.baseRank,
+  }
 }

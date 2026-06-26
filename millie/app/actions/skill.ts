@@ -91,10 +91,11 @@ export async function createSkill(data: {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true, role: 'MASTER' },
-  })
-  if (!membership) throw new Error('Apenas o Mestre pode criar habilidades')
+ const char = await prisma.character.findUnique({
+  where: { id: data.characterId },
+  select: { level: true },
+})
+  if (!char) throw new Error('Voce ainda não chegou no nível exigido.')
 
   await prisma.skill.create({
     data: {
@@ -105,7 +106,7 @@ export async function createSkill(data: {
       maxLevel:               data.maxLevel,
       requiredCharacterLevel: data.requiredCharacterLevel,
       characterId:            data.characterId,
-      isUnlocked:             false,
+       isUnlocked: char ? char.level >= data.requiredCharacterLevel : false,
       currentLevel:           0,
       uses:                   0,
     },

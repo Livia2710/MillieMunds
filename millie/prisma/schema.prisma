@@ -251,6 +251,8 @@ model Character {
   skills       Skill[]
   tarotDraws   TarotDraw[]
   specialCards SpecialCard[]
+
+  conditions   CharacterCondition[]
 }
 
 model CharacterCondition {
@@ -297,13 +299,17 @@ model TarotDraw {
   id                   String      @id @default(cuid())
   readingType          ReadingType
   question             String      @db.Text
-  cards                String[]    // slugs das cartas (3 para Comum, 5 para Profunda)
-  sacrifice            String      @db.Text
+  cards                String[]
+  sacrifice            String      @db.Text  @default("")
   sacrificeIsPermanent Boolean     @default(false)
   hadJoker             Boolean     @default(false)
   drawnAt              DateTime    @default(now())
   characterId          String
   character            Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // ── campos para o fluxo de leitura em tempo real ──
+  status               String      @default("pendente") // pendente | cartas_reveladas | concluida
+  initiatedByMasterId  String?     // id do mestre que iniciou
 }
 
 // ─── INVENTÁRIO ───────────────────────────────────────────

@@ -6,6 +6,11 @@ import { Swords } from 'lucide-react'
 import { SectionTitle, Empty } from './MestreUI'
 import { applyRaceEvolution } from '@/app/actions/character'
 import type { RacePath } from '@/lib/generated/prisma'
+import type { MasterCharacter } from '@/lib/types/character'
+
+interface MestreEvolucaoProps {
+  eligible: MasterCharacter[]
+}
 
 type Evolution = {
   id: string

@@ -11,6 +11,11 @@ import { addCondition, removeCondition } from '@/app/actions/condition'
 import { MANUAL_CONDITIONS, CONDITION_LABELS } from '@/lib/utils/conditions'
 import type { ManualCondition } from '@/lib/utils/conditions'
 import type { RacePath } from '@/lib/generated/prisma'
+import type { MasterPlayer } from '@/lib/types/character'
+
+interface MestreJogadoresProps {
+  players: MasterPlayer[]
+}
 
 type Character = {
   id: string

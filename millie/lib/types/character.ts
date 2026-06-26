@@ -37,3 +37,36 @@ interface MonstroCharacter extends BaseCharacter {
 
 // O tipo Character final é a união de todas as possibilidades
 export type Character = AlunoCharacter | ProfessorCharacter | NpcCharacter | MonstroCharacter;
+
+// Tipo usado exclusivamente no Painel do Mestre
+export type MasterCharacter = {
+  id:              string
+  name:            string
+  image?:          string
+  category:        CharacterCategory
+  level:           number
+  rank:            CharacterRank
+  pv:              number
+  pvMax:           number
+  xp:              number
+  maxXp:           number
+  racePath:        string | null
+  evolvedRaceId:   string | null
+  playerId:        string | null
+  race: {
+    id:         string
+    name:       string
+    canAscend:  boolean
+    canCorrupt: boolean
+    evolutions: { path: string; levelRequired: number; toRaceName: string }[]
+  }
+  activeConditions: { id: string; type: string }[]
+}
+
+export type MasterPlayer = {
+  userId:    string
+  username:  string | null
+  avatar:    string | null
+  email:     string | null
+  character: MasterCharacter | null
+}

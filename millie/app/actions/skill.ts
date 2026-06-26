@@ -12,23 +12,26 @@ import { calcFirstSkillUnlock, calcSkillUsesRequired } from '@/lib/utils/rank'
 
 export async function getSkillsByCharacter(characterId: string) {
   const session = await auth()
+
   if (!session?.user?.id) return null
 
   const char = await prisma.character.findFirst({
-    where: { id: characterId },   // ← remove a verificação de membership que pode estar quebrando
+    where: { id: characterId },
     include: {
-      race: {
-        include: { skills: true },
-      },
+      race: { include: { skills: true } },
       skills: true,
     },
   })
 
   if (!char) return null
 
-  // verifica separadamente se o usuario tem acesso
+  // verifica acesso via membership ativa — mesma lógica de getMyCharacter
   const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, campaignId: char.campaignId },
+    where: {
+      userId:     session.user.id,
+      campaignId: char.campaignId,
+      active:     true,           // ← adiciona active: true, igual ao getMyCharacter
+    },
   })
   if (!membership) return null
 

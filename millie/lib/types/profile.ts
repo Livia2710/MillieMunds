@@ -29,3 +29,4 @@ export interface ProfileSession {
   hasCampaign:       boolean
   activeCharacterId: string | null
 }
+

@@ -72,7 +72,7 @@ export function Header() {
             onClick={() => setIsSidebarOpen((current) => !current)}
             className="ml-auto flex items-center gap-3 font-title text-[24px] leading-[1.1] tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <span className="hidden md:inline">Username</span>
+            <span className="hidden md:inline">{username}</span>
             <div className="hidden md:block">
               <ChevronDown size={22} strokeWidth={1.5} className={`transition-transform duration-200 ${isSidebarOpen ? 'rotate-180' : ''}`} />
             </div>

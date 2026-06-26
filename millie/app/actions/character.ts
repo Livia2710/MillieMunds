@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import type { BaseRank } from '@/lib/generated/prisma'
+import type { BaseRank, RacePath } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
 import { calcRankByLevel, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
@@ -303,23 +303,28 @@ export async function getMasterPageData() {
   const { campaign } = membership
 
   const characters = campaign.characters.map((char) => ({
-    id: char.id,
-    name: char.name,
-    category: char.category,
-    image: char.image,
-    level: char.level,
-    rank: calcRankByLevel(char.level),
-    racePath: char.racePath,
+    id:            char.id,
+    name:          char.name,
+    category:      char.category,
+    image:         char.image,
+    level:         char.level,
+    rank:          calcRankByLevel(char.level),
+    racePath:      char.racePath,
     evolvedRaceId: char.evolvedRaceId,
-    playerId: char.playerId,
+    playerId:      char.playerId,
     race: {
-      id: char.race.id,
-      name: char.race.name,
-      canAscend: char.race.canAscend,
+      id:         char.race.id,
+      name:       char.race.name,
+      canAscend:  char.race.canAscend,
       canCorrupt: char.race.canCorrupt,
-      evolutions: char.race.evolutions,
+      evolutions: char.race.evolutions.map((e) => ({
+        id:            e.id,
+        path:          e.path as RacePath,
+        levelRequired: e.levelRequired,
+        toRaceName:    e.toRaceName,
+      })),
     },
-    tarotDraws: char.tarotDraws,
+    tarotDraws:       char.tarotDraws,
     pv:               char.pv,
     pvMax:            char.pvMax,
     xp:               char.xp,

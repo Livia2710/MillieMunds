@@ -7,14 +7,7 @@ import MestreInvite from '@/componentes/mestre/MestreInvite'
 import MestreJogadores from '@/componentes/mestre/MestreJogadores'
 import MestreEvolucao from '@/componentes/mestre/MestreEvolucao'
 import MestreTaro from '@/componentes/mestre/MestreTaro'
-import type { RacePath } from '@/lib/generated/prisma'
-
-type Evolution = {
-  id: string
-  toRaceName: string
-  path: RacePath
-  levelRequired: number
-}
+import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 
 type RawTarotDraw = {
   id: string
@@ -30,46 +23,18 @@ type RawTarotDraw = {
 
 type TarotDraw = RawTarotDraw & { characterName: string }
 
-type Character = {
-  id: string
-  name: string
-  category: string
-  image: string | null
-  level: number
-  rank: string
-  racePath: RacePath | null
-  evolvedRaceId: string | null
-  playerId: string | null
-  race: {
-    id: string
-    name: string
-    canAscend: boolean
-    canCorrupt: boolean
-    evolutions: Evolution[]
-  }
-  tarotDraws: RawTarotDraw[]
-}
-
-type Player = {
-  userId: string
-  username: string | null
-  avatar: string | null
-  email: string
-  character: Character | null
-}
-
 type MasterData = {
-  inviteCode: string
-  campaignName: string
-  players: Player[]
-  characters: Character[]
-  eligibleForEvolution: Character[]
-  allTarotDraws: TarotDraw[]
+  inviteCode:           string
+  campaignName:         string
+  players:              MasterPlayer[]
+  characters:           MasterCharacter[]
+  eligibleForEvolution: MasterCharacter[]
+  allTarotDraws:        TarotDraw[]
 }
 
 export default function MestrePage() {
   const { isMaster, hasCampaign, loading: ctxLoading } = useCampaign()
-  const [data, setData]     = useState<MasterData | null>(null)
+  const [data, setData]       = useState<MasterData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

@@ -8,30 +8,6 @@ import { applyRaceEvolution } from '@/app/actions/character'
 import type { RacePath } from '@/lib/generated/prisma'
 import type { MasterCharacter } from '@/lib/types/character'
 
-interface MestreEvolucaoProps {
-  eligible: MasterCharacter[]
-}
-
-type Evolution = {
-  id: string
-  toRaceName: string
-  path: RacePath
-  levelRequired: number
-}
-
-type Character = {
-  id: string
-  name: string
-  image: string | null
-  level: number
-  race: {
-    name: string
-    canAscend: boolean
-    canCorrupt: boolean
-    evolutions: Evolution[]
-  }
-}
-
 const PATH_LABELS: Record<RacePath, string> = {
   ASCENSAO:    'Ascensão',
   CORRUPCAO:   'Corrupção',
@@ -50,7 +26,7 @@ const PATH_BUTTON: Record<RacePath, string> = {
   PERMANENCIA: 'border-blue-400/50  text-blue-400  hover:border-blue-300  hover:text-blue-300',
 }
 
-export default function MestreEvolucao({ eligible }: { eligible: Character[] }) {
+export default function MestreEvolucao({ eligible }: { eligible: MasterCharacter[] }) {
   const [isPending,  startTransition] = useTransition()
   const [feedback,   setFeedback]     = useState<Record<string, string>>({})
   const [confirmed,  setConfirmed]    = useState<Record<string, RacePath | null>>({})
@@ -60,14 +36,11 @@ export default function MestreEvolucao({ eligible }: { eligible: Character[] }) 
     setTimeout(() => setFeedback((prev) => ({ ...prev, [charId]: '' })), 4000)
   }
 
-  function handleConfirm(char: Character, path: RacePath) {
-    // primeiro clique = pede confirmação
+  function handleConfirm(char: MasterCharacter, path: RacePath) {
     if (confirmed[char.id] !== path) {
       setConfirmed((prev) => ({ ...prev, [char.id]: path }))
       return
     }
-
-    // segundo clique = executa
     startTransition(async () => {
       try {
         const result = await applyRaceEvolution(char.id, path)
@@ -93,14 +66,12 @@ export default function MestreEvolucao({ eligible }: { eligible: Character[] }) 
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {eligible.map((char) => {
-            const available  = char.race.evolutions.filter((e) => char.level >= e.levelRequired)
-            const canStay    = !char.race.canAscend && !char.race.canCorrupt
+            const available   = char.race.evolutions.filter((e) => char.level >= e.levelRequired)
             const pendingPath = confirmed[char.id]
 
             return (
               <div key={char.id} className="p-4 bg-roxo-escuro/40 border border-yellow-400/30 space-y-3">
 
-                {/* Cabeçalho */}
                 <div className="flex items-center gap-3">
                   <div className="relative w-9 h-9 rounded-full overflow-hidden border border-bege-escuro/30 bg-roxo-escuro shrink-0">
                     {char.image ? (
@@ -115,14 +86,12 @@ export default function MestreEvolucao({ eligible }: { eligible: Character[] }) 
                   </div>
                 </div>
 
-                {/* Feedback */}
                 {feedback[char.id] && (
                   <p className="font-title text-[10px] uppercase tracking-wider text-terra">
                     {feedback[char.id]}
                   </p>
                 )}
 
-                {/* Caminhos disponíveis */}
                 <div className="flex flex-wrap gap-2">
                   {available.map((evo) => {
                     const isPendingThis = pendingPath === evo.path
@@ -145,7 +114,6 @@ export default function MestreEvolucao({ eligible }: { eligible: Character[] }) 
                     )
                   })}
 
-                  {/* Permanência — sempre disponível */}
                   <button
                     onClick={() => handleConfirm(char, 'PERMANENCIA')}
                     disabled={isPending}
@@ -159,14 +127,12 @@ export default function MestreEvolucao({ eligible }: { eligible: Character[] }) 
                   </button>
                 </div>
 
-                {/* Aviso de duplo clique */}
                 {pendingPath && (
                   <p className="font-title text-[9px] uppercase tracking-widest text-bege-escuro/40">
                     Clique novamente para confirmar · clique em outro para cancelar
                   </p>
                 )}
 
-                {/* Aviso original — aguardando jogador */}
                 {!pendingPath && (
                   <p className="text-[10px] text-bege-escuro/40 italic">
                     A escolha pertence ao jogador — confirme apenas com a decisão dele.

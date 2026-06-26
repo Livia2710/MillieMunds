@@ -2,6 +2,8 @@ export type CharacterCategory = "aluno" | "professor" | "npc" | "monstro";
 export type CharacterRank = "S" | "A" | "B" | "C" | "D" | "E" | "V";
 export type CharacterElement = "trevas" | "luz" | "terra" | "agua" | "vento" | "fogo";
 
+import type { RacePath } from '@/lib/generated/prisma'
+
 // Propriedades obrigatórias para ABSOLUTAMENTE TODOS os personagens
 interface BaseCharacter {
   id: string;
@@ -38,27 +40,27 @@ interface MonstroCharacter extends BaseCharacter {
 // O tipo Character final é a união de todas as possibilidades
 export type Character = AlunoCharacter | ProfessorCharacter | NpcCharacter | MonstroCharacter;
 
-// Tipo usado exclusivamente no Painel do Mestre
+
 export type MasterCharacter = {
-  id:              string
-  name:            string
-  image?:          string
-  category:        CharacterCategory
-  level:           number
-  rank:            CharacterRank
-  pv:              number
-  pvMax:           number
-  xp:              number
-  maxXp:           number
-  racePath:        string | null
-  evolvedRaceId:   string | null
-  playerId:        string | null
+  id:            string
+  name:          string
+  image?:        string
+  category:      CharacterCategory
+  level:         number
+  rank:          CharacterRank
+  pv:            number
+  pvMax:         number
+  xp:            number
+  maxXp:         number
+  racePath:      string | null
+  evolvedRaceId: string | null
+  playerId:      string | null
   race: {
     id:         string
     name:       string
     canAscend:  boolean
     canCorrupt: boolean
-    evolutions: { path: string; levelRequired: number; toRaceName: string }[]
+    evolutions: { id: string; path: RacePath; levelRequired: number; toRaceName: string }[]  // ← path: RacePath
   }
   activeConditions: { id: string; type: string }[]
 }

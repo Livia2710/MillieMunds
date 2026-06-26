@@ -3,53 +3,26 @@
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Users, Plus, Minus, Heart } from 'lucide-react'
+import { Users, Plus, Minus } from 'lucide-react'
 import { SectionTitle, Empty } from './MestreUI'
 import IniciarLeituraModal from '@/componentes/modais/IniciarLeituraModal'
 import { addXp } from '@/app/actions/character'
 import { addCondition, removeCondition } from '@/app/actions/condition'
 import { MANUAL_CONDITIONS, CONDITION_LABELS } from '@/lib/utils/conditions'
 import type { ManualCondition } from '@/lib/utils/conditions'
-import type { RacePath } from '@/lib/generated/prisma'
-import type { MasterPlayer } from '@/lib/types/character'
-
-interface MestreJogadoresProps {
-  players: MasterPlayer[]
-}
-
-type Character = {
-  id: string
-  name: string
-  level: number
-  rank: string
-  racePath: RacePath | null
-  playerId: string | null
-  pv: number
-  pvMax: number
-  xp: number
-  maxXp: number
-  activeConditions: { id: string; type: string }[]
-}
-
-type Player = {
-  userId: string
-  username: string | null
-  avatar: string | null
-  email: string
-  character: Character | null
-}
+import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 
 const XP_PRESETS = [50, 100, 250, 500]
 
-export default function MestreJogadores({ players }: { players: Player[] }) {
-  const [leituraChar, setLeituraChar]   = useState<{ id: string; name: string } | null>(null)
-  const [expandedId,  setExpandedId]    = useState<string | null>(null)
-  const [xpInput,     setXpInput]       = useState<Record<string, string>>({})
-  const [feedback,    setFeedback]      = useState<Record<string, string>>({})
-  const [isPending,   startTransition]  = useTransition()
+export default function MestreJogadores({ players }: { players: MasterPlayer[] }) {
+  const [leituraChar, setLeituraChar]  = useState<{ id: string; name: string } | null>(null)
+  const [expandedId,  setExpandedId]   = useState<string | null>(null)
+  const [xpInput,     setXpInput]      = useState<Record<string, string>>({})
+  const [feedback,    setFeedback]     = useState<Record<string, string>>({})
+  const [isPending,   startTransition] = useTransition()
 
   function toggleExpand(id: string) {
-    setExpandedId((prev) => prev === id ? null : id)
+    setExpandedId((prev) => (prev === id ? null : id))
   }
 
   function showFeedback(charId: string, msg: string) {
@@ -57,22 +30,23 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
     setTimeout(() => setFeedback((prev) => ({ ...prev, [charId]: '' })), 3000)
   }
 
-  function handleAddXp(char: Character, amount: number) {
+  function handleAddXp(char: MasterCharacter, amount: number) {
     startTransition(async () => {
       try {
         const result = await addXp(char.id, amount)
-        if (result.leveledUp) {
-          showFeedback(char.id, `+${amount} XP · Subiu para nível ${result.newLevel}!`)
-        } else {
-          showFeedback(char.id, `+${amount} XP`)
-        }
+        showFeedback(
+          char.id,
+          result.leveledUp
+            ? `+${amount} XP · Subiu para nível ${result.newLevel}!`
+            : `+${amount} XP`
+        )
       } catch (e: any) {
         showFeedback(char.id, e.message)
       }
     })
   }
 
-  function handleCustomXp(char: Character) {
+  function handleCustomXp(char: MasterCharacter) {
     const val = parseInt(xpInput[char.id] ?? '0')
     if (!val || val <= 0) return
     handleAddXp(char, val)
@@ -101,6 +75,7 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
     })
   }
 
+  // resto do JSX sem nenhuma mudança — só substitui os tipos inline por MasterCharacter
   return (
     <section className="space-y-3">
       <SectionTitle icon={<Users size={14} />} label="Jogadores" />
@@ -110,13 +85,12 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
       ) : (
         <div className="flex flex-col gap-3">
           {players.map((player) => {
-            const char      = player.character
+            const char       = player.character
             const isExpanded = expandedId === char?.id
 
             return (
               <div key={player.userId} className="border border-bege-escuro/30 bg-roxo-escuro/40">
 
-                {/* Linha principal */}
                 <div className="flex items-center gap-4 p-4">
                   <div className="relative w-10 h-10 rounded-full overflow-hidden border border-bege-escuro/30 bg-roxo-escuro shrink-0">
                     {player.avatar ? (
@@ -169,18 +143,15 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
                   </div>
                 </div>
 
-                {/* Painel expandido */}
                 {char && isExpanded && (
                   <div className="border-t border-bege-escuro/20 p-4 space-y-5">
 
-                    {/* Feedback */}
                     {feedback[char.id] && (
                       <p className="font-title text-xs uppercase tracking-wider text-terra">
                         {feedback[char.id]}
                       </p>
                     )}
 
-                    {/* XP */}
                     <div className="space-y-2">
                       <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">
                         Conceder XP · atual {char.xp}/{char.maxXp}
@@ -196,7 +167,6 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
                             +{amount}
                           </button>
                         ))}
-                        {/* XP customizado */}
                         <div className="flex gap-1">
                           <input
                             type="number"
@@ -217,7 +187,6 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
                       </div>
                     </div>
 
-                    {/* Condições ativas */}
                     {char.activeConditions.length > 0 && (
                       <div className="space-y-2">
                         <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">
@@ -239,7 +208,6 @@ export default function MestreJogadores({ players }: { players: Player[] }) {
                       </div>
                     )}
 
-                    {/* Aplicar condição */}
                     <div className="space-y-2">
                       <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">
                         Aplicar condição

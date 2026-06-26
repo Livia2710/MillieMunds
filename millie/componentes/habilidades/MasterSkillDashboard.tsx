@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { Search, ArrowLeft } from "lucide-react";
 import type { ProfileCharacter } from "@/lib/types/profile";
 import type { CharacterElement, CharacterRank, CharacterCategory } from "@/lib/types/character";
+import type { RaceSkillTree, SkillBranch } from "@/lib/types/skill";
 import { ELEMENT_META } from "@/lib/types/skill";
 import { SkillTree } from "./SkillTree";
-import { getSkillTreeByRace } from "@/lib/mocks/skills";
+import { getSkillsByCharacter } from "@/app/actions/skill";
+
 
 type Tab = "jogadores" | "personagens";
 
@@ -39,9 +41,11 @@ type MasterSkillDashboardProps = {
 };
 
 export default function MasterSkillDashboard({ characters }: MasterSkillDashboardProps) {
-  const [activeTab, setActiveTab]             = useState<Tab>("jogadores");
-  const [selectedChar, setSelectedChar]       = useState<ProfileCharacter | null>(null);
-  const [filters, setFilters]                 = useState<Filters>({
+  const [activeTab, setActiveTab]         = useState<Tab>("jogadores");
+  const [selectedChar, setSelectedChar]   = useState<ProfileCharacter | null>(null);
+  const [tree, setTree]                   = useState<RaceSkillTree | null>(null);
+  const [treeLoading, setTreeLoading]     = useState(false);
+  const [filters, setFilters]             = useState<Filters>({
     search: "", element: "todos", rank: "todos", category: "todos",
   });
 
@@ -59,15 +63,30 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
     });
   }, [characters, filters]);
 
+  useEffect(() => {
+    if (!selectedChar) return
+    setTree(null)
+    setTreeLoading(true)
+    getSkillsByCharacter(selectedChar.id).then((data) => {
+      if (!data) return
+      setTree({
+        race:    data.race,
+        element: data.element as CharacterElement,
+        skills:  data.skills.map((s) => ({
+        ...s,
+        branch: s.branch as SkillBranch,
+      })),
+      })
+    }).finally(() => setTreeLoading(false))
+  }, [selectedChar])
+
   // ── Visão da árvore de um personagem específico ──
   if (selectedChar) {
-    const tree = getSkillTreeByRace(selectedChar.race);
     const meta = ELEMENT_META[selectedChar.element];
 
     return (
       <div className="space-y-6">
 
-        {/* Botão voltar */}
         <button
           type="button"
           onClick={() => setSelectedChar(null)}
@@ -77,7 +96,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
           Voltar ao painel
         </button>
 
-        {/* Cabeçalho do personagem */}
         <div
           className="flex flex-col gap-4 rounded-sm border p-5 sm:flex-row sm:items-center"
           style={{ borderColor: `${meta.color}40`, backgroundColor: `${meta.color}08` }}
@@ -105,7 +123,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
             </p>
           </div>
 
-          {/* Elemento com ícone */}
           <div className="flex items-center gap-2">
             <div
               className="flex h-9 w-9 items-center justify-center rounded-full border"
@@ -119,8 +136,11 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
           </div>
         </div>
 
-        {/* Árvore ou aviso */}
-        {tree ? (
+        {treeLoading ? (
+          <p className="py-12 text-center font-title text-sm uppercase tracking-wider text-bege-escuro/40 animate-pulse">
+            Carregando habilidades...
+          </p>
+        ) : tree ? (
           <SkillTree
             tree={tree}
             meta={meta}
@@ -130,7 +150,7 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
           />
         ) : (
           <p className="py-12 text-center font-title text-sm uppercase tracking-wider text-bege-escuro/40">
-            Árvore de habilidades não registrada para esta raça.
+            Nenhuma habilidade registrada para este personagem.
           </p>
         )}
       </div>
@@ -141,7 +161,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
   return (
     <div className="space-y-6 md:space-y-8">
 
-      {/* Cabeçalho */}
       <div>
         <h1 className="font-title text-3xl uppercase tracking-[0.08em] text-bege-medio md:text-6xl">
           Habilidades
@@ -153,7 +172,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
         </p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-0 border-b border-bege-escuro/25">
         {(["jogadores", "personagens"] as Tab[]).map((tab) => (
           <button
@@ -173,7 +191,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
         ))}
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="relative w-full md:max-w-xs">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bege-escuro/50" />
@@ -186,7 +203,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* Elemento */}
           <div className="relative">
             <select
               value={filters.element}
@@ -202,7 +218,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-bege-escuro/50">▼</span>
           </div>
 
-          {/* Rank */}
           <div className="relative">
             <select
               value={filters.rank}
@@ -218,7 +233,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-bege-escuro/50">▼</span>
           </div>
 
-          {/* Arquétipo */}
           <div className="relative">
             <select
               value={filters.category}
@@ -252,7 +266,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
         {filtered.length} {filtered.length === 1 ? "resultado" : "resultados"} · Toque em um card para ver a árvore
       </p>
 
-      {/* Grid de cards */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((char) => {
@@ -265,13 +278,11 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
                 onClick={() => setSelectedChar(char)}
                 className="group relative flex flex-col gap-3 border border-bege-escuro/35 bg-roxo-escuro/40 p-4 text-left shadow-card transition-all hover:border-bege-medio/50 active:scale-[0.98]"
               >
-                {/* Linha de cor do elemento */}
                 <div
                   className="absolute left-0 right-0 top-0 h-px"
                   style={{ background: `linear-gradient(to right, transparent, ${meta.color}, transparent)` }}
                 />
 
-                {/* Avatar + nome + rank */}
                 <div className="flex items-center gap-3">
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-bege-escuro/40 bg-roxo">
                     {char.image ? (
@@ -295,7 +306,6 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
 
                 <hr className="border-t border-bege-escuro/15" />
 
-                {/* Elemento + XP */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <div
@@ -308,24 +318,18 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
                       {meta.label}
                     </span>
                   </div>
-
                   <span className="font-mono text-[10px] text-bege-escuro/40">
                     {char.xp}/{char.maxXp} XP
                   </span>
                 </div>
 
-                {/* Barra XP */}
                 <div className="h-0.5 w-full overflow-hidden rounded-full bg-roxo">
                   <div
                     className="h-full rounded-full"
-                    style={{
-                      width: `${(char.xp / char.maxXp) * 100}%`,
-                      backgroundColor: meta.color,
-                    }}
+                    style={{ width: `${(char.xp / char.maxXp) * 100}%`, backgroundColor: meta.color }}
                   />
                 </div>
 
-                {/* Indicador de habilidades — só na tab personagens */}
                 {activeTab === "personagens" && (
                   <p className="font-title text-[10px] uppercase tracking-widest text-bege-escuro/40">
                     Ver árvore de habilidades →

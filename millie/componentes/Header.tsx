@@ -14,7 +14,7 @@ import { signOut } from 'next-auth/react'
 export function Header() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { campaigns, switchCampaign } = useCampaign();
+  const { campaigns, switchCampaign, isMaster } = useCampaign();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMasterOpen, setIsMasterOpen] = useState(false);
@@ -144,6 +144,15 @@ export function Header() {
               active={pathname === "/habilidades"}
               />
             </div>
+              {isMaster && (
+                <SidebarLink
+                  href="/mestre"
+                  label="Painel do Mestre"
+                  icon={<Wand size={17} strokeWidth={1.4}/>}
+                  closeSidebar={() => setIsSidebarOpen(false)}
+                  active={pathname === "/mestre"}
+                />
+              )}
             <SidebarLink
               href="/perfil"
               label="Perfil"

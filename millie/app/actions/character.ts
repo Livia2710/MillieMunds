@@ -262,3 +262,123 @@ export async function getUniverses() {
     },
   })
 }
+
+export async function getMasterPageData() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+    include: {
+      campaign: {
+        include: {
+          members: {
+            include: {
+              user: {
+                select: { id: true, username: true, avatar: true, email: true },
+              },
+            },
+          },
+          characters: {
+            include: {
+              race: {
+                include: {
+                  evolutions: true,
+                },
+              },
+              tarotDraws: { orderBy: { drawnAt: 'desc' } },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!membership) return null
+
+  const { campaign } = membership
+
+  const characters = campaign.characters.map((char) => ({
+    id: char.id,
+    name: char.name,
+    category: char.category,
+    image: char.image,
+    level: char.level,
+    rank: calcRankByLevel(char.level),
+    racePath: char.racePath,
+    evolvedRaceId: char.evolvedRaceId,
+    playerId: char.playerId,
+    race: {
+      id: char.race.id,
+      name: char.race.name,
+      canAscend: char.race.canAscend,
+      canCorrupt: char.race.canCorrupt,
+      evolutions: char.race.evolutions,
+    },
+    tarotDraws: char.tarotDraws,
+  }))
+
+  const players = campaign.members
+    .filter((m) => m.role === 'PLAYER')
+    .map((m) => ({
+      userId: m.user.id,
+      username: m.user.username,
+      avatar: m.user.avatar,
+      email: m.user.email,
+      character: characters.find((c) => c.playerId === m.user.id) ?? null,
+    }))
+
+  // personagens elegíveis para ascensão/corrupção:
+  // level atingiu o levelRequired de alguma evolução e ainda não escolheu caminho
+  const eligibleForEvolution = characters.filter(
+    (c) =>
+      c.racePath === null &&
+      c.race.evolutions.some((e) => c.level >= e.levelRequired)
+  )
+
+  return {
+    inviteCode: campaign.inviteCode,
+    campaignName: campaign.name,
+    players,
+    characters,
+    eligibleForEvolution,
+    allTarotDraws: characters.flatMap((c) =>
+      c.tarotDraws.map((draw) => ({ ...draw, characterName: c.name }))
+    ),
+  }
+}
+
+export async function getSpecialCards(characterId: string) {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  return prisma.specialCard.findMany({
+    where: { characterId },
+    orderBy: { obtainedAt: 'asc' },
+  })
+}
+
+export async function saveSpecialCard(characterId: string, cardType: 'VALETE' | 'CAVALEIRO') {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  // garante unicidade: só 1 de cada tipo disponível por vez
+  const existing = await prisma.specialCard.findFirst({
+    where: { characterId, cardType, isAvailable: true },
+  })
+  if (existing) throw new Error(`Você já tem um ${cardType} guardado.`)
+
+  return prisma.specialCard.create({
+    data: { characterId, cardType },
+  })
+}
+
+export async function useSpecialCard(cardId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  return prisma.specialCard.update({
+    where: { id: cardId },
+    data: { isAvailable: false, usedAt: new Date() },
+  })
+}

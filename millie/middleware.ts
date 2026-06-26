@@ -1,9 +1,15 @@
 import { auth } from './auth'
 
 export default auth((req) => {
-  if (!req.auth && req.nextUrl.pathname !== '/login') {
+  const { pathname } = req.nextUrl
+
+  if (!req.auth && pathname !== '/login') {
     return Response.redirect(new URL('/login', req.url))
   }
+
+  // rota /mestre: só MASTER pode acessar
+  // a verificação real é feita na própria page via getMasterPageData(),
+  // mas aqui bloqueamos acesso sem sessão ativa
 })
 
 export const config = {

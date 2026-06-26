@@ -7,27 +7,24 @@ import {
   Sparkles, UserRoundPlus, WandSparkles, X,
 } from "lucide-react";
 import CriarMundoModal from "@/componentes/modais/CriarMundoModal";
+import CriarItemModal from "@/componentes/modais/CriarItemModal";
 import CriarPersonagemModal from "@/componentes/modais/CriarPersonagemModal";
-import CriarArtefatoModal from "@/componentes/modais/CriarArtefatoModal";
 import CriarLivroModal from "@/componentes/modais/CriarLivroModal";
-import CriarEquipamentoModal from "@/componentes/modais/CriarEquipamentoModal";
 import CriarHabilidadeModal from "@/componentes/modais/CriarHabilidadeModal";
 
 type ModalKey =
   | "mundo"
   | "personagem"
-  | "artefato"
+  | "item"
   | "livro"
-  | "equipamento"
   | "habilidade"
   | null;
 
 const masterActions: { label: string; icon: React.ReactNode; modal: ModalKey }[] = [
   { label: "Criar mundo",       icon: <Sparkles size={17} strokeWidth={1.5} />,     modal: "mundo" },
   { label: "Criar personagem",  icon: <UserRoundPlus size={17} strokeWidth={1.5} />, modal: "personagem" },
-  { label: "Criar artefato",    icon: <Gem size={17} strokeWidth={1.5} />,           modal: "artefato" },
+  { label: "Criar item",    icon: <Boxes size={17} strokeWidth={1.5} />,           modal: "item" },
   { label: "Criar livro",       icon: <BookOpen size={17} strokeWidth={1.5} />,      modal: "livro" },
-  { label: "Criar equipamento", icon: <Boxes size={17} strokeWidth={1.5} />,         modal: "equipamento" },
   { label: "Criar habilidade",  icon: <Scroll size={17} strokeWidth={1.5} />,        modal: "habilidade" },
 ];
 
@@ -92,9 +89,8 @@ export function MasterOrb() {
       {/* Modais */}
       <CriarMundoModal       isOpen={activeModal === "mundo"}        onClose={closeModal} />
       <CriarPersonagemModal  isOpen={activeModal === "personagem"}   onClose={closeModal} />
-      <CriarArtefatoModal    isOpen={activeModal === "artefato"}     onClose={closeModal} />
+      <CriarItemModal   isOpen={activeModal === "item"}     onClose={closeModal} />
       <CriarLivroModal       isOpen={activeModal === "livro"}        onClose={closeModal} />
-      <CriarEquipamentoModal isOpen={activeModal === "equipamento"}  onClose={closeModal} />
       <CriarHabilidadeModal  isOpen={activeModal === "habilidade"}   onClose={closeModal} />
     </>
   );

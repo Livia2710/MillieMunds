@@ -253,6 +253,15 @@ model Character {
   specialCards SpecialCard[]
 }
 
+model CharacterCondition {
+  id          String    @id @default(cuid())
+  characterId String
+  type        String    // "envenenado" | "exausto" | etc.
+  appliedAt   DateTime  @default(now())
+  removedAt   DateTime?
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
 // ─── HABILIDADES ──────────────────────────────────────────
 
 model Skill {

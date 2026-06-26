@@ -7,9 +7,10 @@ import { Users, Plus, Minus, Heart } from 'lucide-react'
 import { SectionTitle, Empty } from './MestreUI'
 import IniciarLeituraModal from '@/componentes/modais/IniciarLeituraModal'
 import { addXp } from '@/app/actions/character'
-import { addCondition, removeCondition, MANUAL_CONDITIONS, CONDITION_LABELS } from '@/app/actions/condition'
+import { addCondition, removeCondition } from '@/app/actions/condition'
+import { MANUAL_CONDITIONS, CONDITION_LABELS } from '@/lib/utils/conditions'
+import type { ManualCondition } from '@/lib/utils/conditions'
 import type { RacePath } from '@/lib/generated/prisma'
-import type { ManualCondition } from '@/app/actions/condition'
 
 type Character = {
   id: string

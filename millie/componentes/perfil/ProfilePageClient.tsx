@@ -14,9 +14,10 @@ import type { ProfileCharacter } from '@/lib/types/profile'
 interface Props {
   username: string
   myCharacter: ProfileCharacter | null
+  activeConditions?: { id: string; type: string }[]
 }
 
-export default function ProfilePageClient({ username, myCharacter }: Props) {
+export default function ProfilePageClient({ username, myCharacter,activeConditions = [] }: Props) {
   const { hasCampaign, isMaster, activeCampaign } = useCampaign()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
@@ -65,10 +66,14 @@ export default function ProfilePageClient({ username, myCharacter }: Props) {
 
   // 4. Jogador com ficha
   return (
-    <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
+     <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
       <PageCorners />
       <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
-        <ProfileGrid character={myCharacter as ProfileCharacter} username={username} />
+        <ProfileGrid
+          character={myCharacter as ProfileCharacter}
+          username={username}
+          activeConditions={activeConditions}
+        />
       </div>
     </div>
   )

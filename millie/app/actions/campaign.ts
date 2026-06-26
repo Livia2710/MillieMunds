@@ -139,3 +139,123 @@ export async function getActiveCampaign() {
     active: true,
   }
 }
+
+// ─── leaveCampaign ────────────────────────────────────────
+// Jogador sai da campanha ativa. Personagem e progresso permanecem.
+
+export async function leaveCampaign() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true },
+    include: { campaign: true },
+  })
+  if (!membership) throw new Error('Sem campanha ativa')
+  if (membership.role === 'MASTER') throw new Error('O Mestre não pode sair — transfira a liderança primeiro')
+
+  await prisma.campaignMember.delete({
+    where: { id: membership.id },
+  })
+
+  revalidatePath('/')
+  revalidatePath('/perfil')
+}
+
+// ─── transferMastership ───────────────────────────────────
+// Mestre passa a liderança para outro membro da campanha.
+
+export async function transferMastership(newMasterUserId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+    include: { campaign: true },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode transferir a liderança')
+
+  const target = await prisma.campaignMember.findUnique({
+    where: {
+      userId_campaignId: {
+        userId:     newMasterUserId,
+        campaignId: membership.campaignId,
+      },
+    },
+  })
+  if (!target) throw new Error('Jogador não encontrado na campanha')
+
+  await prisma.$transaction([
+    // rebaixa o mestre atual para PLAYER
+    prisma.campaignMember.update({
+      where: { id: membership.id },
+      data:  { role: 'PLAYER' },
+    }),
+    // promove o novo mestre
+    prisma.campaignMember.update({
+      where: { id: target.id },
+      data:  { role: 'MASTER' },
+    }),
+    // atualiza masterId na campanha
+    prisma.campaign.update({
+      where: { id: membership.campaignId },
+      data:  { masterId: newMasterUserId },
+    }),
+  ])
+
+  revalidatePath('/')
+  revalidatePath('/mestre')
+}
+
+// ─── archiveCampaign ──────────────────────────────────────
+// Mestre arquiva a campanha — fica oculta mas pode ser restaurada.
+// Implementado como renomear com prefixo [ARQUIVADA] por ora,
+// já que o schema não tem campo isArchived ainda.
+
+export async function archiveCampaign() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+    include: { campaign: true },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode arquivar a campanha')
+
+  const name = membership.campaign.name
+  const prefix = '[ARQUIVADA] '
+
+  await prisma.$transaction([
+    prisma.campaign.update({
+      where: { id: membership.campaignId },
+      data:  { name: name.startsWith(prefix) ? name : `${prefix}${name}` },
+    }),
+    // desativa a campanha para todos os membros
+    prisma.campaignMember.updateMany({
+      where: { campaignId: membership.campaignId },
+      data:  { active: false },
+    }),
+  ])
+
+  revalidatePath('/')
+}
+
+// ─── deleteCampaign ───────────────────────────────────────
+// Mestre exclui permanentemente a campanha e todos os dados.
+
+export async function deleteCampaign() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode excluir a campanha')
+
+  // Prisma cascateia via onDelete: Cascade no schema
+  await prisma.campaign.delete({
+    where: { id: membership.campaignId },
+  })
+
+  revalidatePath('/')
+}

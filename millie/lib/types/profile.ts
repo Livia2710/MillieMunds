@@ -16,6 +16,7 @@ export type ProfileCharacter = Character & {
   pv:       number
   pvMax:    number
   pm:       number
+  birthRank: string
   pmMax:    number
   stats:    ProfileStats
   inventory: InventoryItem[]

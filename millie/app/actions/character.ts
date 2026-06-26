@@ -287,6 +287,10 @@ export async function getMasterPageData() {
                 },
               },
               tarotDraws: { orderBy: { drawnAt: 'desc' } },
+              conditions: {
+                where: { removedAt: null},
+                select: { id: true, type: true},
+              }
             },
           },
         },
@@ -316,6 +320,11 @@ export async function getMasterPageData() {
       evolutions: char.race.evolutions,
     },
     tarotDraws: char.tarotDraws,
+    pv:               char.pv,
+    pvMax:            char.pvMax,
+    xp:               char.xp,
+    maxXp:            char.maxXp,
+    activeConditions: char.conditions,
   }))
 
   const players = campaign.members

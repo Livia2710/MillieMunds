@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import type { ProfileCharacter } from '@/lib/types/profile'
 import ConditionBadges from './ConditionBadges'
-import type { AnyCondition } from '@/app/actions/condition'
+import type { AutoCondition } from '@/lib/utils/conditions'
 
 type ActiveCondition = {
   id: string

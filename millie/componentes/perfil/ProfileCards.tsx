@@ -5,7 +5,8 @@ import Image from 'next/image'
 import { ProfileCharacter } from '@/lib/types/profile'
 import { PrimaryButton } from '../PrimaryButton'
 import { getSpecialCards, saveSpecialCard, useSpecialCard, updateCharacterPoints } from '@/app/actions/character'
-import { calcAutoConditions } from '@/lib/utils/conditions'
+import { calcAutoConditions, CONDITION_LABELS, CONDITION_COLORS } from '@/lib/utils/conditions'
+import type { AutoCondition } from '@/lib/utils/conditions'
 
 interface ProfileCardsProps {
   character: ProfileCharacter
@@ -51,11 +52,6 @@ const TIPO_LABEL: Record<'VALETE' | 'CAVALEIRO', string> = {
   CAVALEIRO: 'Cavaleiro',
 }
 
-// ── condições automáticas derivadas do PV ─────────────────
-type AutoCondition = {
-  label: string
-  color: string
-}
 
 export default function ProfileCards({ character }: ProfileCardsProps) {
   const [isFlipped, setIsFlipped]       = useState(false)
@@ -297,15 +293,18 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
                 />
               </div>
 
-              {/* badges de condição automática */}
               {autoConditions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {autoConditions.map((c) => (
+                  {autoConditions.map((condition) => (
                     <span
-                      key={c.label}
-                      className={`text-[10px] font-title uppercase tracking-widest border px-2 py-0.5 ${c.color}`}
+                      key={condition}
+                      className="text-[10px] font-title uppercase tracking-widest border px-2 py-0.5"
+                      style={{
+                        color:       CONDITION_COLORS[condition],
+                        borderColor: CONDITION_COLORS[condition] + '40',
+                      }}
                     >
-                      {c.label}
+                      {CONDITION_LABELS[condition]}
                     </span>
                   ))}
                 </div>

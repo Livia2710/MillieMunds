@@ -48,6 +48,8 @@ model User {
   username     String?
   avatar       String?
   bio          String?
+  preferences  Json?
+  notifications Json?
   createdAt    DateTime         @default(now())
   passwordHash String?
   accounts     Account[]
@@ -187,6 +189,19 @@ model RaceSkill {
   branch        String  // passiva | aprimoramento | ativa | reacao
   levelRequired Int     @default(1)
   isInnate      Boolean @default(true)
+  characterSkills CharacterRaceSkill[]
+}
+
+model CharacterRaceSkill {
+  id           String    @id @default(cuid())
+  characterId  String
+  raceSkillId  String
+  currentLevel Int       @default(0)
+  uses         Int       @default(0)
+  character    Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  raceSkill    RaceSkill @relation(fields: [raceSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, raceSkillId])
 }
 
 // para qual raça cada caminho de evolução leva
@@ -249,6 +264,7 @@ model Character {
   race         Race          @relation(fields: [raceId], references: [id])
   campaign     Campaign      @relation(fields: [campaignId], references: [id])
   skills       Skill[]
+  innateSkills CharacterRaceSkill[]
   tarotDraws   TarotDraw[]
   specialCards SpecialCard[]
 

@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import type { Skill, ElementMeta } from "@/lib/types/skill";
-import { useSkill } from "@/app/actions/skill";
+import { useInnateSkill, useSkill } from "@/app/actions/skill";
 
 type SkillNodeProps = {
   skill: Skill & { uses?: number; isInnate?: boolean };
   meta: ElementMeta;
   characterLevel: number;
   birthRank: string;
+  characterId: string;
 };
 
 // Tabela local — espelha calcSkillUsesRequired de rank.ts
@@ -26,7 +27,7 @@ function usesRequired(birthRank: string, currentLevel: number): number {
   return table[currentLevel] ?? table[table.length - 1];
 }
 
-export function SkillNode({ skill, meta, characterLevel, birthRank }: SkillNodeProps) {
+export function SkillNode({ skill, meta, characterLevel, birthRank, characterId }: SkillNodeProps) {
   const [expanded,    setExpanded]    = useState(false);
   const [feedback,    setFeedback]    = useState<string | null>(null);
   const [isPending,   startTransition] = useTransition();
@@ -40,21 +41,23 @@ export function SkillNode({ skill, meta, characterLevel, birthRank }: SkillNodeP
   const usePct      = isMaxed ? 100 : Math.min((uses / needed) * 100, 100);
 
   // habilidades inatas não têm id de Skill no banco — botão desabilitado por ora
-  const canUse = !isLocked && !isMaxed && !skill.isInnate;
+  const canUse = !isLocked && !isMaxed;
 
   function handleUse() {
     if (!canUse) return;
     startTransition(async () => {
       try {
-        const result = await useSkill(skill.id);
+        const result = skill.isInnate
+          ? await useInnateSkill(skill.id, characterId)
+          : await useSkill(skill.id);
         if (result.leveledUp) {
           setFeedback(`Subiu para nível ${result.newLevel}!`);
         } else {
           setFeedback(`${result.uses}/${result.usesRequired} usos`);
         }
         setTimeout(() => setFeedback(null), 2500);
-      } catch (e: any) {
-        setFeedback(e.message);
+      } catch (error: unknown) {
+        setFeedback(error instanceof Error ? error.message : "Erro ao registrar uso.");
         setTimeout(() => setFeedback(null), 2500);
       }
     });

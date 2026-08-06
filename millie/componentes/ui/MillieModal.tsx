@@ -63,16 +63,7 @@ export default function MillieModal({
           maxWidth,
         ].join(" ")}
       >
-        {/* Cantos ornamentais */}
-        <Image src="/assets/svgs/corner-left-top.svg" alt="" width={60} height={60}
-          className="pointer-events-none absolute left-0 top-0 h-12 w-12" />
-        <Image src="/assets/svgs/corner-right-top.svg" alt="" width={60} height={60}
-          className="pointer-events-none absolute right-0 top-0 h-12 w-12" />
-        <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={60} height={60}
-          className="pointer-events-none absolute bottom-0 left-0 h-12 w-12" />
-        <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={60} height={60}
-          className="pointer-events-none absolute bottom-0 right-0 h-12 w-12" />
-
+  
         {/* Header */}
         <div className="flex items-center justify-between border-b border-bege-escuro/30 px-6 py-4">
           <h2 className="font-title text-sm uppercase tracking-[0.2em] text-bege-claro">

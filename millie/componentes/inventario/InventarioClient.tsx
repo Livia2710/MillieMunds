@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import NoCampaign from '@/componentes/NoCampaign'
 import InventoryGrid from '@/componentes/inventario/InventoryGrid'
+import EntregarItemModal from '@/componentes/inventario/EntregarItemModal'
 import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
 import { unlockItem } from '@/app/actions/inventory'
@@ -34,13 +35,15 @@ type Props = {
   items: Item[]
   isMaster: boolean
   hasCampaign: boolean
+  playerCharacters: { id: string; name: string }[]
 }
 
-export default function InventarioClient({ items, isMaster, hasCampaign }: Props) {
+export default function InventarioClient({ items, isMaster, hasCampaign, playerCharacters }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
+  const [itemToAssign, setItemToAssign] = useState<InventoryItem | null>(null)
 
   function handleUnlock(itemId: string) {
     startTransition(async () => {
@@ -114,7 +117,18 @@ const visible = isMaster ? normalized : normalized.filter((i) => !i.isLocked)
   return (
     <div className="relative block min-h-screen w-full bg-roxo-escuro shadow-header">
       <PageCorners />
-      <InventoryGrid items={visible} isMaster={isMaster} onUnlock={handleUnlock} />
+      <InventoryGrid
+        items={visible}
+        isMaster={isMaster}
+        onUnlock={handleUnlock}
+        onAssign={setItemToAssign}
+      />
+      <EntregarItemModal
+        key={itemToAssign?.id ?? 'none'}
+        item={itemToAssign}
+        players={playerCharacters}
+        onClose={() => setItemToAssign(null)}
+      />
     </div>
   )
 }

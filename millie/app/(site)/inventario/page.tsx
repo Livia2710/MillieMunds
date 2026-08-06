@@ -1,11 +1,12 @@
-import { getItemsByActiveCampaign } from '@/app/actions/inventory'
+import { getItemsByActiveCampaign, getPlayerCharactersForActiveCampaign } from '@/app/actions/inventory'
 import { getActiveCampaign } from '@/app/actions/campaign'
 import InventarioClient from '@/componentes/inventario/InventarioClient'
 
 export default async function InventarioPage() {
-  const [items, activeCampaign] = await Promise.all([
+  const [items, activeCampaign, playerCharacters] = await Promise.all([
     getItemsByActiveCampaign(),
     getActiveCampaign(),
+    getPlayerCharactersForActiveCampaign(),
   ])
 
   const isMaster = activeCampaign?.role === 'MASTER'
@@ -15,6 +16,7 @@ export default async function InventarioPage() {
       items={items}
       isMaster={isMaster}
       hasCampaign={!!activeCampaign}
+      playerCharacters={playerCharacters}
     />
   )
 }

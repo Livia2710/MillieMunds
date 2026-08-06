@@ -20,6 +20,7 @@ export async function getSkillsByCharacter(characterId: string) {
     include: {
       race: { include: { skills: true } },
       skills: true,
+      innateSkills: true,
     },
   })
 
@@ -37,18 +38,21 @@ export async function getSkillsByCharacter(characterId: string) {
 
   const firstUnlock = calcFirstSkillUnlock(char.birthRank)
 
-  const innate = char.race.skills.map((rs) => ({
+  const innate = char.race.skills.map((rs) => {
+    const progress = char.innateSkills.find((entry) => entry.raceSkillId === rs.id)
+    return {
     id:                     rs.id,
     name:                   rs.name,
     description:            rs.description,
     branch:                 rs.branch,
-    currentLevel:           0,
+    currentLevel:           progress?.currentLevel ?? 0,
     maxLevel:               3,
     isUnlocked:             char.level >= Math.max(rs.levelRequired, firstUnlock),
     requiredCharacterLevel: Math.max(rs.levelRequired, firstUnlock),
-    uses:                   0,
+    uses:                   progress?.uses ?? 0,
     isInnate:               true,
-  }))
+    }
+  })
 
   const custom = char.skills.map((s) => ({
     id:                     s.id,
@@ -186,4 +190,47 @@ export async function useSkill(skillId: string) {
 
 export async function upgradeSkill(skillId: string) {
   return useSkill(skillId)
+}
+
+export async function useInnateSkill(raceSkillId: string, characterId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('NÃ£o autenticado')
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, playerId: session.user.id },
+    include: { race: { include: { skills: { where: { id: raceSkillId } } } } },
+  })
+  if (!character || !character.race.skills[0]) throw new Error('Habilidade inata nÃ£o encontrada')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, campaignId: character.campaignId, active: true },
+    select: { id: true },
+  })
+  if (!membership) throw new Error('Campanha ativa nÃ£o encontrada')
+
+  const raceSkill = character.race.skills[0]
+  const requiredLevel = Math.max(raceSkill.levelRequired, calcFirstSkillUnlock(character.birthRank))
+  if (character.level < requiredLevel) throw new Error('Habilidade ainda nÃ£o desbloqueada')
+
+  const progress = await prisma.characterRaceSkill.upsert({
+    where: { characterId_raceSkillId: { characterId, raceSkillId } },
+    create: { characterId, raceSkillId },
+    update: {},
+  })
+  if (progress.currentLevel >= 3) throw new Error('Habilidade jÃ¡ estÃ¡ no nÃ­vel mÃ¡ximo')
+
+  const usesRequired = calcSkillUsesRequired(character.birthRank, progress.currentLevel)
+  const newUses = progress.uses + 1
+  const leveledUp = newUses >= usesRequired
+
+  const updated = await prisma.characterRaceSkill.update({
+    where: { id: progress.id },
+    data: {
+      uses: leveledUp ? 0 : newUses,
+      currentLevel: leveledUp ? progress.currentLevel + 1 : progress.currentLevel,
+    },
+  })
+
+  revalidatePath('/habilidades')
+  return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
 }

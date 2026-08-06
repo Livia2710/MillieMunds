@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode,} from "react";
+import { createContext, useCallback, useContext, useState, useEffect, ReactNode,} from "react";
+import { useSession } from "next-auth/react";
 import { getUserCampaigns, createCampaign as actionCreateCampaign, joinCampaign as actionJoinCampaign, switchCampaign as actionSwitchCampaign,} from "@/app/actions/campaign";
 
 export type UserCampaign = {
@@ -26,18 +27,21 @@ type CampaignContextType = {
 const CampaignContext = createContext<CampaignContextType | null>(null);
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession();
   const [campaigns, setCampaigns] = useState<UserCampaign[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchCampaigns() {
+  const fetchCampaigns = useCallback(async () => {
     const data = await getUserCampaigns();
     setCampaigns(data ?? []);
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
-    fetchCampaigns();
-  }, []);
+    if (status !== "authenticated" || !session?.user?.id) return;
+
+    void fetchCampaigns();
+  }, [fetchCampaigns, session?.user?.id, status]);
 
   const activeCampaign = campaigns.find((c) => c.active) ?? null;
 

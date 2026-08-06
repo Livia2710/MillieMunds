@@ -5,6 +5,7 @@ import BookCover from "./BookCover";
 
 type InventoryCardProps = {
   item: InventoryItem;
+  onAssign?: (item: InventoryItem) => void;
 };
 
 const rarityCrests: Record<string, string> = {
@@ -16,12 +17,9 @@ const rarityCrests: Record<string, string> = {
   mitico: "/assets/svgs/Mitico.svg",
 };
 
-export default function InventoryCard({ item }: InventoryCardProps) {
-  if (item.isLocked) {
-    return null;
-  }
-
+export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
   return (
+    <div className="relative">
     <Link href={`/inventario/${item.slug}`} className="block">
       <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card transition-colors hover:border-bege-medio">
         
@@ -71,5 +69,15 @@ export default function InventoryCard({ item }: InventoryCardProps) {
 
       </article>
     </Link>
+    {onAssign && (
+      <button
+        type="button"
+        onClick={() => onAssign(item)}
+        className="absolute left-2 top-2 z-20 border border-dourado/60 bg-roxo-escuro/95 px-2 py-1 font-title text-[9px] uppercase tracking-wider text-dourado transition-colors hover:bg-roxo"
+      >
+        Entregar
+      </button>
+    )}
+    </div>
   );
 }

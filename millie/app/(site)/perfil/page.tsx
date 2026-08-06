@@ -37,7 +37,7 @@ export default async function ProfilePage() {
       pmMax:     rawCharacter.pmMax,
       birthRank: rawCharacter.birthRank,
       stats:     rawCharacter.stats,
-      inventory: [],
+      inventory: rawCharacter.inventory as unknown as ProfileCharacter['inventory'],
     }
 
     const cat = rawCharacter.category

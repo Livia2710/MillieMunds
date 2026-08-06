@@ -10,6 +10,7 @@ type SkillTreeProps = {
   meta: ElementMeta;
   characterLevel: number;
   birthRank: string;
+  characterId: string;
   visible: boolean;
 };
 
@@ -20,7 +21,7 @@ const BRANCH_CONFIG = [
   { key: "aprimoramento" as const, label: "Aprimoramento",   description: "Amplificações de outras habilidades",     delay: "360ms" },
 ];
 
-export function SkillTree({ tree, meta, characterLevel, birthRank, visible }: SkillTreeProps) {
+export function SkillTree({ tree, meta, characterLevel, birthRank, characterId, visible }: SkillTreeProps) {
   return (
     <div className="flex w-full flex-col items-center">
 
@@ -44,7 +45,7 @@ export function SkillTree({ tree, meta, characterLevel, birthRank, visible }: Sk
                 {skills.length > 0 ? (
                   skills.map((skill, i) => (
                     <div key={skill.id} className="flex flex-col items-center gap-3">
-                      <SkillNode skill={skill} meta={meta} characterLevel={characterLevel} birthRank={birthRank} />
+                      <SkillNode skill={skill} meta={meta} characterLevel={characterLevel} birthRank={birthRank} characterId={characterId} />
 
                       {/* Linha entre nós do mesmo galho */}
                       {i < skills.length - 1 && (

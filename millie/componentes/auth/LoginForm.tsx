@@ -35,7 +35,7 @@ export default function LoginForm({ onGoToRegister }: LoginFormProps) {
     if (result?.error) {
       setError("E-mail ou senha incorretos.");
     } else {
-      router.push("/");
+      router.replace("/");
       router.refresh();
     }
   }

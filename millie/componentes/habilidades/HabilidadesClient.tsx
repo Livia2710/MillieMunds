@@ -91,6 +91,7 @@ export default function HabilidadesClient({ character, tree }: HabilidadesClient
               meta={meta}
               characterLevel={character.level}
               birthRank={character.birthRank}
+              characterId={character.id}
               visible={treeVisible}
             />
           </>

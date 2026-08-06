@@ -14,11 +14,12 @@ type InventoryGridProps = {
   items: InventoryItem[];
   isMaster: boolean;
   onUnlock?: (itemId: string) => void;
+  onAssign?: (item: InventoryItem) => void;
 };
 
 const ITEMS_PER_PAGE = 12;
 
-export default function InventoryGrid({ items, isMaster, onUnlock }: InventoryGridProps) {
+export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: InventoryGridProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<InventoryCategoryFilter>("todos");
   const [rarity, setRarity] = useState<InventoryRarityFilter>("todos");
@@ -181,7 +182,7 @@ export default function InventoryGrid({ items, isMaster, onUnlock }: InventoryGr
           {paginatedItems.length > 0 ? (
             <div className="grid grid-cols-3 gap-3 md:grid-cols-4 md:gap-5 lg:grid-cols-6">
               {paginatedItems.map((item) => (
-                <InventoryCard key={item.id} item={item} />
+                <InventoryCard key={item.id} item={item} onAssign={isMaster ? onAssign : undefined} />
               ))}
             </div>
           ) : (

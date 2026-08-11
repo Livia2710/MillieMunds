@@ -1,18 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react"; // Adicionado useState aqui
+import { useRef, useState } from "react"; 
 import Image from "next/image";
 import type { World } from "@/lib/types/world";
 import { MundoBook } from "./MundoBook";
 import { MundoSummary } from "./MundoSummary";
+import { Pencil } from "lucide-react";
+import EditarMundoModal from "../modais/EditarMundoModal";
 
 type MundoReaderProps = {
   world: World;
+  isMaster: boolean;
 };
 
-export function MundoReader({ world }: MundoReaderProps) {
+export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
   const desktopBookRef = useRef<any>(null);
   const mobileBookRef = useRef<any>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Criamos o estado para rastrear a página física atual do livro
   const [currentPage, setCurrentPage] = useState(0);
@@ -69,6 +73,17 @@ export function MundoReader({ world }: MundoReaderProps) {
         className="pointer-events-none absolute bottom-0 right-0 h-19 w-19 md:h-25 md:w-25"
       />
 
+      {isMaster && (
+        <button
+          type="button"
+          onClick={() => setIsEditOpen(true)}
+          className="absolute right-6 top-6 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/80 hover:border-bege-medio md:right-10 md:top-8"
+          aria-label="Editar mundo"
+        >
+          <Pencil size={14} strokeWidth={1.5} className="text-bege-escuro" />
+        </button>
+      )}
+
       {/* DESKTOP / TABLET */}
       <div className="relative z-10 hidden grid-cols-[220px_1fr] gap-10 md:grid">
         <MundoSummary
@@ -88,6 +103,18 @@ export function MundoReader({ world }: MundoReaderProps) {
       <div className="relative z-10 md:hidden">
         <MundoBook ref={mobileBookRef} world={world} />
       </div>
+
+      <EditarMundoModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        world={{
+          id: world.id,
+          name: world.name,
+          description: world.description,
+          coverColor: world.coverColor ?? null,
+          chapters: world.chapters.map((ch) => ({ title: ch.title, content: ch.content })),
+        }}
+      />
     </section>
   );
 }

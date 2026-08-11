@@ -16,6 +16,8 @@ export default async function MundoPage({ params }: Props) {
   })
   if (!membership) notFound()
 
+  const isMaster = membership.role === 'MASTER'
+  
   const raw = await prisma.world.findFirst({
     where: { slug, campaignId: membership.campaignId },
     include: { chapters: { orderBy: { order: 'asc' } } },
@@ -37,5 +39,5 @@ export default async function MundoPage({ params }: Props) {
     })),
   }
 
-  return <MundoReader world={world} />
+  return <MundoReader world={world} isMaster={isMaster} />
 }

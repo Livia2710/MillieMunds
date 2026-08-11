@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Lock } from "lucide-react";
+import { Lock, Pencil, Trash2 } from "lucide-react";
 
 type WorldCardProps = {
   name: string;
@@ -7,7 +7,7 @@ type WorldCardProps = {
   image?: string;
   coverColor?: string;
   isLocked?: boolean;
-  forceReveal?: boolean; // Adicionado para forçar a revelação do conteúdo
+  forceReveal?: boolean;  
 };
 
 export function WorldCard({

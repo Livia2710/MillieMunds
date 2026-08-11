@@ -72,3 +72,65 @@ export async function createWorld(data: {
 
   revalidatePath('/')
 }
+
+export async function updateWorld(worldId: string, data: {
+  name: string
+  description: string
+  coverColor: string
+  chapters: { title: string; content: string }[]
+}) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Sem campanha ativa como Mestre')
+
+  const world = await prisma.world.findFirst({
+    where: { id: worldId, campaignId: membership.campaignId },
+  })
+  if (!world) throw new Error('Mundo não encontrado nesta campanha')
+
+  await prisma.$transaction([
+    prisma.chapter.deleteMany({ where: { worldId } }),
+    prisma.world.update({
+      where: { id: worldId },
+      data: {
+        name: data.name,
+        description: data.description,
+        coverColor: data.coverColor,
+        chapters: {
+          create: data.chapters
+            .filter((ch) => ch.title.trim())
+            .map((ch, i) => ({ title: ch.title, content: ch.content, order: i })),
+        },
+      },
+    }),
+  ])
+
+  revalidatePath('/')
+  revalidatePath(`/mundos/${world.slug}`)
+}
+
+export async function deleteWorld(worldId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Sem campanha ativa como Mestre')
+
+  const world = await prisma.world.findFirst({
+    where: { id: worldId, campaignId: membership.campaignId },
+  })
+  if (!world) throw new Error('Mundo não encontrado nesta campanha')
+
+  await prisma.$transaction([
+    prisma.chapter.deleteMany({ where: { worldId } }),
+    prisma.world.delete({ where: { id: worldId } }),
+  ])
+
+  revalidatePath('/')
+}

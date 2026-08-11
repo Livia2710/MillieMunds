@@ -14,7 +14,7 @@ export default function ClosedBook({ activating = false }: ClosedBookProps) {
         }}
       >
         <Image
-          src="/assets/svgs/carta.svg"
+          src="/assets/svgs/Carta.svg"
           fill
           alt="Moldura decorativa"
           className="absolute z-10"

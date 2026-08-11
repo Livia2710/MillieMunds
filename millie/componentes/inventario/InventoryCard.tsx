@@ -1,7 +1,15 @@
+"use client"; // ADICIONAR — necessário agora por causa dos hooks abaixo
+
+import { useState, useTransition } from "react"; 
+import { useRouter } from "next/navigation"; 
 import Image from "next/image";
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import type { InventoryItem } from "@/lib/types/inventory";
 import BookCover from "./BookCover";
+import { unlockItem } from "@/app/actions/inventory"; 
+import { useCampaign } from "@/lib/contexts/CampaignContext"; 
+import ConfirmModal from "@/componentes/modais/ConfirmModal"; 
 
 type InventoryCardProps = {
   item: InventoryItem;
@@ -18,10 +26,40 @@ const rarityCrests: Record<string, string> = {
 };
 
 export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
+  const { isMaster } = useCampaign(); 
+  const router = useRouter(); 
+  const [isPending, startTransition] = useTransition(); 
+  const [confirmOpen, setConfirmOpen] = useState(false); 
+
+  const hideContent = !!item.isLocked && !isMaster; 
+
+  function handleUnlock() { 
+    startTransition(async () => {
+      await unlockItem(item.id);
+      router.refresh();
+      setConfirmOpen(false);
+    });
+  }
   return (
     <div className="relative">
     <Link href={`/inventario/${item.slug}`} className="block">
       <article className="arcane-hover relative aspect-square overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-3 shadow-card transition-colors hover:border-bege-medio">
+      {item.isLocked && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();   // impede o <Link> pai de navegar
+            e.stopPropagation();
+            if (isMaster) setConfirmOpen(true);
+          }}
+          className={`absolute top-2 left-2 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/80 ${
+            isMaster ? "cursor-pointer hover:border-bege-medio" : "cursor-default"
+          }`}
+          aria-label={isMaster ? "Desbloquear item" : "Item bloqueado"}
+        >
+          <Lock size={11} strokeWidth={1.5} className="text-bege-escuro" />
+        </button>
+      )}
         
         {/* Brasão de Raridade posicionado elegantemente no topo superior direito */}
         <div className="absolute top-2 right-2 w-4 h-4 z-10 opacity-80 group-hover:opacity-100 transition-opacity">
@@ -41,7 +79,7 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
         {/* Nome do item na parte inferior esquerda se não for livro */}
         {item.category !== "livro" && (
           <span className="absolute bottom-2 left-3 z-10 font-title text-[10px] text-bege-escuro truncate max-w-[70%]">
-            {item.name}
+            {hideContent ? "?????" : item.name}
           </span>
         )}
 
@@ -49,20 +87,13 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
         <div className="flex h-full w-full items-center justify-center pb-2">
           {item.category === "livro" ? (
             <div className="h-[80%] w-[60%] shadow-card">
-              <BookCover book={item} hideText={true} />
+              <BookCover book={item} hideText={true} isLocked={item.isLocked} forceReveal={isMaster} /> 
             </div>
-          ) : item.image ? (
-            <Image
-              src={item.image}
-              alt={item.name}
-              width={140}
-              height={140}
-              className="h-[68%] w-[68%] object-contain"
-              priority
-            />
+          ) : item.image && !hideContent ? (
+            <Image src={item.image} alt={item.name} width={140} height={140} className="h-[68%] w-[68%] object-contain" priority />
           ) : (
             <span className="px-2 text-center font-title text-[10px] uppercase tracking-wider text-bege-medio/40">
-              {item.name}
+              {hideContent ? "?????" : item.name}
             </span>
           )}
         </div>
@@ -78,6 +109,15 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
         Entregar
       </button>
     )}
+
+    <ConfirmModal
+      isOpen={confirmOpen}
+      onClose={() => setConfirmOpen(false)}
+      onConfirm={handleUnlock}
+      title="Liberar Item"
+      message={`Tem certeza que quer liberar "${item.name}" para os jogadores? Essa ação não pode ser desfeita.`}
+      confirmLabel={isPending ? "Aguarde..." : "Liberar"}
+    />
     </div>
   );
 }

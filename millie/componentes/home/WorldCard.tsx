@@ -1,25 +1,37 @@
 import Image from "next/image";
+import { Lock } from "lucide-react";
 
 type WorldCardProps = {
   name: string;
   description: string;
   image?: string;
+  coverColor?: string;
   isLocked?: boolean;
+  forceReveal?: boolean; // Adicionado para forçar a revelação do conteúdo
 };
 
 export function WorldCard({
   name,
   description,
   image,
+  coverColor,
   isLocked = false,
+  forceReveal = false,
 }: WorldCardProps) {
-  const displayName = isLocked ? "?????" : name;
-  const displayDescription = isLocked ? "?????" : description;
+  const hideContent = isLocked && !forceReveal; // Determina se o conteúdo deve ser ocultado
+  const displayName = hideContent ? "?????" : name;
+  const displayDescription = hideContent ? "?????" : description;
 
   return (
     /* Mantida a proporção de carta perfeita e o limite de largura para a responsividade no celular */
     <article className="relative mx-auto aspect-11/15 w-full max-w-60 overflow-hidden rounded-xl text-bege-escuro">
       
+      {isLocked && (
+      <div className="absolute right-2.5 top-2.5 z-30 flex h-7 w-7 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/70">
+        <Lock size={13} strokeWidth={1.5} className="text-bege-escuro" />
+      </div>
+    )}
+
       {/* Moldura SVG: Fica por cima de tudo no z-20 */}
       <Image
         src="/assets/svgs/moldura.svg"
@@ -30,7 +42,7 @@ export function WorldCard({
       />
 
       {/* Imagem de Fundo: Ajustada com padding e rounded para embutir e cortar o que ficava fora da moldura */}
-      {image && !isLocked && (
+      {image && !hideContent && (
         <Image
           src={image}
           alt={name}
@@ -40,9 +52,12 @@ export function WorldCard({
         />
       )}
 
-      {/* Camada de cor de fundo escurecida: Também recebe o mesmo recuo para não vazar a cor nas quinas transparentes */}
-      <div className="absolute inset-0 z-10 bg-roxo-escuro/45 m-1.5 rounded-[14px]" />
-
+          {coverColor && !image && (
+      <div
+        className="absolute inset-0 z-[5] m-1.5 rounded-[14px]"
+        style={{ backgroundColor: coverColor }}
+      />
+)}
       {/* Conteúdo de Texto e Ícones */}
       <div className="relative z-30 flex h-full flex-col items-center justify-center px-6 py-4 text-center">
         <Image

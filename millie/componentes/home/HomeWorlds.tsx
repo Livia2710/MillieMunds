@@ -9,6 +9,7 @@ import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
 import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
 import { unlockWorld } from "@/app/actions/world";
 import { useRouter } from "next/navigation";
+import ConfirmModal from "@/componentes/modais/ConfirmModal";
 
 type World = {
   id: string;
@@ -16,6 +17,7 @@ type World = {
   name: string;
   description: string | null;
   coverImage: string | null;
+  coverColor: string | null;
   isLocked: boolean;
 };
 
@@ -31,6 +33,7 @@ export function HomeWorlds({ worlds, isMaster, hasCampaign }: Props) {
   const [isPending, startTransition] = useTransition();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [worldToUnlock, setWorldToUnlock] = useState<{ id: string; name: string } | null>(null);
 
   function scrollWorlds(direction: "left" | "right") {
     if (!carouselRef.current) return;
@@ -96,14 +99,15 @@ export function HomeWorlds({ worlds, isMaster, hasCampaign }: Props) {
                           name={world.name}
                           description={world.description ?? ""}
                           image={world.coverImage ?? undefined}
+                          coverColor={world.coverColor ?? undefined}
                           isLocked
+                          forceReveal={isMaster}
                         />
                         {isMaster && (
                           <button
-                            onClick={() => handleUnlock(world.id)}
+                            onClick={() => setWorldToUnlock({ id: world.id, name: world.name })}
                             disabled={isPending}
-                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-title text-sm text-bege-claro border border-bege-escuro uppercase tracking-wider"
-                          >
+                            >
                             Liberar para Jogadores
                           </button>
                         )}
@@ -114,6 +118,7 @@ export function HomeWorlds({ worlds, isMaster, hasCampaign }: Props) {
                           name={world.name}
                           description={world.description ?? ""}
                           image={world.coverImage ?? undefined}
+                          coverColor={world.coverColor ?? undefined}
                           isLocked={false}
                         />
                       </Link>
@@ -141,6 +146,14 @@ export function HomeWorlds({ worlds, isMaster, hasCampaign }: Props) {
 
       <CriarCampanhaModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
       <EntrarCampanhaModal open={isJoinOpen} onClose={() => setIsJoinOpen(false)} />
+      <ConfirmModal
+        isOpen={!!worldToUnlock}
+        onClose={() => setWorldToUnlock(null)}
+        onConfirm={() => handleUnlock(worldToUnlock!.id)}
+        title="Liberar Mundo"
+        message={`Tem certeza que quer liberar "${worldToUnlock?.name}" para os jogadores? Essa ação não pode ser desfeita.`}
+        confirmLabel="Liberar"
+      />
     </>
   );
 }

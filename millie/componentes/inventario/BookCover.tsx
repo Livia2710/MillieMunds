@@ -6,9 +6,12 @@ type BookInventoryItem = Extract<InventoryItem, { category: "livro" }>;
 type BookCoverProps = {
   book: BookInventoryItem;
   hideText?: boolean; // Nova propriedade opcional para controlar os textos
+  isLocked?: boolean; // Nova propriedade opcional para indicar se o livro está bloqueado
+  forceReveal?: boolean; // Nova propriedade opcional para forçar a revelação do conteúdo
 };
 
-export default function BookCover({ book, hideText = false }: BookCoverProps) {
+export default function BookCover({ book, hideText = false, isLocked = false, forceReveal = false }: BookCoverProps) {
+  const hideContent = isLocked && !forceReveal; // Determina se o conteúdo deve ser ocultado
   return (
     <div className="relative aspect-3/4 w-full overflow-hidden border border-bege-escuro/40">
       {book.coverType === "image" ? (
@@ -33,16 +36,15 @@ export default function BookCover({ book, hideText = false }: BookCoverProps) {
 
       {/* Só renderiza o container de textos e o overlay escuro se hideText for falso */}
       {!hideText && (
-        <div className="absolute inset-0 flex flex-col justify-between p-5 bg-black/20 text-center">
-          <h1 className="mt-5 font-title uppercase text-bege-claro">
-            {book.name}
-          </h1>
-
-          <p className="font-title text-sm text-bege-medio">
-            {book.author ?? "Autor desconhecido"}
-          </p>
-        </div>
-      )}
+      <div className="absolute inset-0 flex flex-col justify-between p-5 bg-black/20 text-center">
+        <h1 className="mt-5 font-title uppercase text-bege-claro">
+          {hideContent ? "?????" : book.name} {/* MODIFICADO */}
+        </h1>
+        <p className="font-title text-sm text-bege-medio">
+          {hideContent ? "?????" : (book.author ?? "Autor desconhecido")} {/* MODIFICADO */}
+        </p>
+      </div>
+    )}
     </div>
   );
 }

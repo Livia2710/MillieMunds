@@ -73,7 +73,7 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
       <button
         type="button"
         onClick={() => onAssign(item)}
-        className="absolute left-2 top-2 z-20 border border-dourado/60 bg-roxo-escuro/95 px-2 py-1 font-title text-[9px] uppercase tracking-wider text-dourado transition-colors hover:bg-roxo"
+        className="absolute left-2 top-2 z-20 border border-dourado/60 bg-roxo-escuro/95 px-2 py-1 font-title text-[9px]  tracking-wider text-dourado transition-colors hover:bg-roxo"
       >
         Entregar
       </button>

@@ -5,8 +5,7 @@ import { prisma } from '@/lib/prisma'
 import type { BaseRank, RacePath } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
-import { calcRankByLevel, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
-
+import { calcCurrentRank, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
 
 // ─── helper: shape de retorno compartilhado ───────────────
 function formatCharacter(char: any, campaignItems: any[]) {
@@ -14,7 +13,7 @@ function formatCharacter(char: any, campaignItems: any[]) {
     ...char,
     race: char.race.name,
     element: char.element as CharacterElement,
-    rank: calcRankByLevel(char.level),   // rank derivado do nível, não do campo
+    rank: calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted),
     category: char.category as CharacterCategory,
     stats: {
       agilidade:    char.agilidade,
@@ -121,6 +120,7 @@ export async function createCharacter(data: {
   element: string
   worldSlug: string
   image?: string
+  level: number
   year?: number
   subject?: string
   occupation?: string
@@ -159,6 +159,7 @@ export async function createCharacter(data: {
       raceId:      data.raceId,
       campaignId:  membership.campaignId,
       image:       data.image,
+      level:       data.level,
       year:        data.year,
       subject:     data.subject,
       occupation:  data.occupation,
@@ -254,7 +255,8 @@ export async function getUniverses() {
               id:      true,
               name:    true,
               element: true,
-              baseRank: true,   // necessário para o form calcular o multiplicador
+              baseRank: true, 
+              isCorrupted: true,
             },
           },
         },
@@ -308,7 +310,7 @@ export async function getMasterPageData() {
     category:      char.category,
     image:         char.image,
     level:         char.level,
-    rank:          calcRankByLevel(char.level),
+    rank:          calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted),
     racePath:      char.racePath,
     evolvedRaceId: char.evolvedRaceId,
     playerId:      char.playerId,

@@ -133,3 +133,53 @@ export function calcSkillUsesRequired(birthRank: string, currentLevel: number): 
   const table = SKILL_USES_TABLE[birthRank] ?? SKILL_USES_TABLE['D']
   return table[currentLevel] ?? table[table.length - 1]
 }
+
+// ─── CRIAÇÃO DE PERSONAGEM ──────────────────────────────
+// Regra fixa do livro: SEMPRE 25 pontos, 1–10 por atributo, independente da raça.
+// A cada 5 níveis acima de 1, ganha +1 ponto pra distribuir (Mestre define o nível na criação).
+
+export function getCreationAttrMin(): number {
+  return 1
+}
+
+export function getCreationTotalPoints(level: number): number {
+  const safeLevel = Math.max(1, level)
+  return 25 + Math.floor((safeLevel - 1) / 5)
+}
+
+// ─── RANK ATUAL (nível + herança racial) ────────────────
+// O Rank nunca regride abaixo do birthRank da raça, mas sobe com o nível.
+// Raças marcadas isCorrupted travam permanentemente no birthRank.
+
+const RANK_ORDER = ['E', 'D', 'C', 'B', 'A', 'S']
+
+export function calcCurrentRank(level: number, birthRank: string, isCorrupted: boolean): string {
+  if (isCorrupted) return birthRank
+  const levelRank = calcRankByLevel(level)
+  const birthIdx = RANK_ORDER.indexOf(birthRank)
+  const levelIdx = RANK_ORDER.indexOf(levelRank)
+  return RANK_ORDER[Math.max(birthIdx, levelIdx)]
+}
+
+// ─── NÍVEL POR ANO LETIVO (ALUNO) ────────────────────────
+const YEAR_TO_LEVEL: Record<number, number> = {
+  1: 1,
+  2: 50,
+  3: 100,
+  4: 150,
+  5: 200,
+}
+
+export function calcLevelByYear(year: number): number {
+  return YEAR_TO_LEVEL[year] ?? 1
+}
+
+// ─── NÍVEL DE PERIGO POR NÍVEL (MONSTRO) ─────────────────
+// Segue a mesma régua de 50 em 50 níveis do Rank.
+export function calcDangerLevelByLevel(level: number): string {
+  if (level >= 201) return 'Lendário'   // nome provisório pro tier 200+, troque se quiser outro
+  if (level >= 151) return 'Calamidade'
+  if (level >= 101) return 'Avançado'
+  if (level >= 51)  return 'Intermediário'
+  return 'Iniciante'
+}

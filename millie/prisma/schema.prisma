@@ -168,6 +168,9 @@ model Race {
   name            String
   element         String
   baseRank        BaseRank        @default(D)
+  isCorrupted     Boolean         @default(false)  
+  description     String?         @db.Text          
+  image           String?                           
   canAscend       Boolean         @default(false)
   canCorrupt      Boolean         @default(false)
   universeWorldId String

@@ -5,14 +5,6 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Iniciando seed...')
 
-  const escola = await prisma.universe.upsert({
-    where: { name: 'Escola dos Mil Mundos' },
-    update: {},
-    create: { name: 'Escola dos Mil Mundos' },
-  })
-
-  console.log('✅ Universo criado:', escola.name)
-
   // ─── HELPERS ─────────────────────────────────────────────────────────────
 
   type RaceInput = {
@@ -23,11 +15,21 @@ async function main() {
     canCorrupt: boolean
   }
 
-  async function criarMundo(nome: string, racas: RaceInput[]) {
-    const mundo = await prisma.universeWorld.upsert({
-      where: { name_universeId: { name: nome, universeId: escola.id } },
+  async function criarUniverso(nome: string) {
+    const universo = await prisma.universe.upsert({
+      where: { name: nome },
       update: {},
-      create: { name: nome, universeId: escola.id },
+      create: { name: nome },
+    })
+    console.log('✅ Universo criado:', universo.name)
+    return universo
+  }
+
+  async function criarMundo(universo: { id: string }, nome: string, racas: RaceInput[]) {
+    const mundo = await prisma.universeWorld.upsert({
+      where: { name_universeId: { name: nome, universeId: universo.id } },
+      update: {},
+      create: { name: nome, universeId: universo.id },
     })
     for (const raca of racas) {
       await prisma.race.upsert({
@@ -51,9 +53,11 @@ async function main() {
     return mundo
   }
 
+  // busca um mundo pelo nome (nomes de mundo são únicos no conjunto de dados atual,
+  // então não precisamos mais restringir por universo)
   async function getRace(nome: string, mundoNome: string) {
     const mundo = await prisma.universeWorld.findFirst({
-      where: { name: mundoNome, universeId: escola.id },
+      where: { name: mundoNome },
     })
     if (!mundo) throw new Error(`Mundo não encontrado: ${mundoNome}`)
     const race = await prisma.race.findFirst({
@@ -90,11 +94,23 @@ async function main() {
   }
 
   // =========================================================================
+  // UNIVERSOS
+  // =========================================================================
+
+  const primordial     = await criarUniverso('Primordial — Sem Fixo')
+  const gaia            = await criarUniverso('Gaia') 
+  const bestiarius       = await criarUniverso('Bestiarius')
+  const quatroEstacoes  = await criarUniverso('Dimensão das Quatro Estações')
+  const claArlatala      = await criarUniverso('Clã Arlatala')
+  const arcan             = await criarUniverso('Arcan')
+  const veyron             = await criarUniverso('Veyron')
+
+  // =========================================================================
   // MUNDOS E RAÇAS
   // =========================================================================
 
   // ─── PRIMORDIAL ───────────────────────────────────────────────────────────
-  await criarMundo('Primordial — Sem mundo fixo', [
+  await criarMundo(primordial, 'Primordial — Sem mundo fixo', [
     // ── DALALILAZ (Terra | S) — linhagens ──
     { name: 'Dalalilaz — Zlaz (Linhagem Dourada)',          element: 'terra',  baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Dalalilaz — Ialaaila (Prata Viva)',            element: 'terra',  baseRank: 'S', canAscend: false, canCorrupt: false },
@@ -122,13 +138,13 @@ async function main() {
     { name: 'Xcacinlax — Uilaarlataaila (Jamanta)',         element: 'agua',   baseRank: 'S', canAscend: false, canCorrupt: false },
 
     // ── LATAUIZ (Luz | S) — sete ordens ──
-    { name: 'Latauiz — Ilacainctacainla (Portadores da Lei)',  element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Calaxaiindladc (Olhos da Verdade)',     element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Tolarinlodlac (Guardiões da Memória)', element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Dinloinlactacainla (Generais da Luz)', element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Biztadlade (Incorruptíveis)',           element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Aicaricalatasla (Bastiões Sagrados)',   element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Latauiz — Calaaindladc (Juízes Silenciosos)',     element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Ilacainctacainla (Paciência)',       element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Calaxaiindladc (Castidade)',         element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Tolarinlodlac (Humildade)',          element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Dinloinlactacainla (Diligência)',    element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Biztadlade (Bondade)',               element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Aicaricalatasla (Temperança)',       element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Latauiz — Calaaindladc (Caridade)',            element: 'luz', baseRank: 'S', canAscend: false, canCorrupt: false },
 
     // ── DCARZTAINZ (Trevas | S) — sete Iccaladzx ──
     { name: 'Dcarztainz — Inala (Ira)',                     element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
@@ -151,32 +167,20 @@ async function main() {
     { name: 'Cxiinainaizx — Vento do Vazio',                element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Cxiinainaizx — Vento do Destino',              element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Cxiinainaizx — Vento da Voz',                  element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
+  ])
 
-    // ── Clã Arlatala ──
-    { name: 'Gnomos', element: 'terra', baseRank: 'D', canAscend: false, canCorrupt: false },
-
-    // ── Crysalis — castas ──
-    { name: 'Crysalis — Rainha (Abelha / Vespa Dourada)', element: 'terra', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Belta (Mariposa)',                 element: 'terra', baseRank: 'C', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Synaptor (Formiga-Carpinteira)',   element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Biogra (Vespa-Tecelã)',            element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Mantis (Louva-a-Deus)',            element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Titeus (Besouro-Hércules)',        element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Aniso (Libélula)',                 element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Crysalis — Coccine (Joaninha)',               element: 'terra', baseRank: 'D', canAscend: true,  canCorrupt: false },
-
-    // ── Trevas — raças sem mundo fixo ──
-    { name: 'Matriarca Voraz',   element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Ecoantes',          element: 'trevas', baseRank: 'D', canAscend: true,  canCorrupt: false },
-    { name: 'Gárgula Paranoica', element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Fúrias',            element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Necroth',           element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false },
-    { name: 'Diabretes',         element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false },
+  // ─── CLÃ ARLATALA ─────────────────────────────────────────────────────────
+  await criarMundo(claArlatala, 'Clã Arlatala', [
+    { name: 'Gnomos',    element: 'terra', baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Phixie',    element: 'agua', baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Duendes',   element: 'luz', baseRank: 'D', canAscend: true,  canCorrupt: false },
+    { name: 'Fadas',     element: 'luz',   baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Diabretes', element: 'trevas',   baseRank: 'D', canAscend: false, canCorrupt: false },
   ])
 
   // ─── GAIA ─────────────────────────────────────────────────────────────────
-  await criarMundo('Gaia', [
-    { name: 'Ciclopes',          element: 'terra',  baseRank: 'C', canAscend: false, canCorrupt: false },
+  await criarMundo(gaia, 'Gaia', [
+    { name: 'Ciclopes',          element: 'terra',  baseRank: 'C', canAscend: true, canCorrupt: false },
     { name: 'Borum',             element: 'terra',  baseRank: 'D', canAscend: true,  canCorrupt: false },
     { name: 'Minotauros',        element: 'terra',  baseRank: 'C', canAscend: true,  canCorrupt: false },
     { name: 'Dríade',            element: 'terra',  baseRank: 'C', canAscend: true,  canCorrupt: false },
@@ -193,37 +197,38 @@ async function main() {
   ])
 
   // ─── BESTIARIUS ───────────────────────────────────────────────────────────
-  await criarMundo('Bestiarius', [
+  await criarMundo(bestiarius, 'Bestiarius', [
     { name: 'Ninfa Menor',          element: 'terra',  baseRank: 'E', canAscend: true,  canCorrupt: false },
-    { name: 'Ninfa Maior',          element: 'terra',  baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Ninfa Maior',          element: 'terra',  baseRank: 'D', canAscend: true, canCorrupt: false },
     { name: 'Kilin',                element: 'terra',  baseRank: 'B', canAscend: true,  canCorrupt: false },
     { name: 'Tiamat',               element: 'terra',  baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Reptilianos',          element: 'terra',  baseRank: 'C', canAscend: true,  canCorrupt: false },
     { name: 'Draconatos',           element: 'terra',  baseRank: 'B', canAscend: true,  canCorrupt: false },
-    { name: 'Dracônicos',           element: 'terra',  baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Dracônicos',           element: 'terra',  baseRank: 'A', canAscend: true, canCorrupt: false }, //Os Dracônicos podem evoluir fcaarcmz(força), arcaaazar(vigor), finzlocaila(inteligencia) , axla(agilidade) e o raro Bialatacaz(sorte), depedendendo do seu maior atributo,
     { name: 'Celestiais',           element: 'luz',    baseRank: 'A', canAscend: false, canCorrupt: true  },
     { name: 'Caídos',               element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Terrores',             element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Terrores',             element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false }, //Tecnicamente ele é um parasita então ele pode "ascender"?Creio que não, já que é o hospedeiro que se torna um ecoante.
     { name: 'Ecoantes',             element: 'trevas', baseRank: 'D', canAscend: true,  canCorrupt: false },
     { name: 'Gárgulas Incompletas', element: 'trevas', baseRank: 'B', canAscend: true,  canCorrupt: true  },
-    { name: 'Gárgula Vigilante',    element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Gárgula',              element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Gárgula Paranoica',    element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Dhampirs',             element: 'trevas', baseRank: 'B', canAscend: true,  canCorrupt: true  },
     { name: 'Vampiros',             element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Fúrias',               element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Rainha da Seda',       element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Matriarca Voraz',      element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false }, //Apesar de ser um raça, é considerado um monstro em Bestiarius.
   ])
 
   // ─── DIMENSÃO DAS QUATRO ESTAÇÕES ─────────────────────────────────────────
-  await criarMundo('Dimensão das Quatro Estações', [
-    { name: 'Elfos da Primavera', element: 'terra', baseRank: 'B', canAscend: true,  canCorrupt: false },
+  await criarMundo(quatroEstacoes, 'Dimensão das Quatro Estações', [
+    { name: 'Elfos da Primavera', element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Elfos do Inverno',   element: 'agua',  baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Elfos do Verão',     element: 'luz',   baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Fadas',              element: 'luz',   baseRank: 'D', canAscend: false, canCorrupt: false },
     { name: 'Elfos do Outono',    element: 'fogo',  baseRank: 'B', canAscend: false, canCorrupt: false },
   ])
 
   // ─── ARCAN — CAMADA NOAH ──────────────────────────────────────────────────
-  await criarMundo('Arcan — Camada Noah', [
+  await criarMundo(arcan, 'Noah', [
     { name: 'Druidas',                              element: 'terra', baseRank: 'C', canAscend: true,  canCorrupt: false },
     { name: 'Humanos de Noah — Linhagem Esmeralda', element: 'terra', baseRank: 'C', canAscend: true,  canCorrupt: false },
     { name: 'Nagas',                                element: 'terra', baseRank: 'B', canAscend: true,  canCorrupt: false },
@@ -238,87 +243,157 @@ async function main() {
   ])
 
   // ─── ARCAN — RIOS CÓSMICOS ────────────────────────────────────────────────
-  await criarMundo('Arcan — Rios Cósmicos', [
+  await criarMundo(arcan, 'Rios Cósmicos', [
     { name: 'Imugi', element: 'terra', baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
   // ─── ARCAN — CELESTIA ─────────────────────────────────────────────────────
-  await criarMundo('Arcan — Celestia', [
+  await criarMundo(arcan, 'Arcan — Celestia', [
     { name: 'Ishins',              element: 'luz', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Mensageiros Divinos', element: 'luz', baseRank: 'D', canAscend: true,  canCorrupt: false },
+    { name: 'Mensageiros Divinos', element: 'luz', baseRank: 'D', canAscend: false, canCorrupt: false },
     { name: 'Hashmalins',          element: 'luz', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Duendes',             element: 'luz', baseRank: 'D', canAscend: true,  canCorrupt: false },
-    { name: 'Ofanins',             element: 'luz', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Ofanins',             element: 'luz', baseRank: 'B', canAscend: true, canCorrupt: false }, //Um ofanim pode evoluir para um shenzal
     { name: 'Shenzais',            element: 'luz', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Elohins',             element: 'luz', baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Malakins',            element: 'luz', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Malakins',            element: 'luz', baseRank: 'A', canAscend: true, canCorrupt: false }, //evolui para um aicaricalatasla - temperança.
+  ])
+
+   // ─── ARCAN — ABISMO ─────────────────────────────────────────────────────
+  await criarMundo(arcan, 'Arcan — Abismo', [
+    { name: 'Poymon ',         element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Beal',            element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Barthas',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Aymoymon',        element: 'trevas', baseRank: 'S', canAscend: true, canCorrupt: false }, 
+    { name: 'Asmoday',         element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Bulfas',          element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Bune',            element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 
+    { name: 'Berith ',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Esqui',           element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Gusion',          element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Eligos',          element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 
+    { name: 'Flauros',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Foras',           element: 'trevas', baseRank: 'C', canAscend: false, canCorrupt: false },
+    { name: 'Veal',            element: 'trevas', baseRank: 'S', canAscend: true, canCorrupt: false }, 
+    { name: 'Purson ',         element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Barbatos',        element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Amon',            element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Buer',            element: 'trevas', baseRank: 'C', canAscend: true, canCorrupt: false }, 
+    { name: 'Oriens',          element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+    { name: 'Marbas',          element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Agares',          element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 
+    { name: 'Andras ',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Balam',           element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Sitri',           element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Zepar',           element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 
+    { name: 'Valefor',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Leraje',          element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Paymon',          element: 'trevas', baseRank: 'S', canAscend: true, canCorrupt: false }, 
+    { name: 'Orobas',          element: 'trevas', baseRank: 'A', canAscend: true, canCorrupt: false }, 
+    { name: 'Alloces',         element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Vapula',          element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Naberius',        element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 
+  
   ])
 
   // ─── VEYRON — SISTEMA SOLAR ───────────────────────────────────────────────
-  await criarMundo('Veyron — Sistema Solar', [
+  await criarMundo(veyron, 'Sistema Solar', [
     { name: 'Thaluris', element: 'agua',  baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Venaris',  element: 'agua',  baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Abissais', element: 'vento', baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
   // ─── VEYRON — SISTEMA ARBORIS ─────────────────────────────────────────────
-  await criarMundo('Veyron — Sistema Arboris', [
+  await criarMundo(veyron, 'Sistema Arboris', [
     { name: 'Floran Menor', element: 'terra', baseRank: 'E', canAscend: true,  canCorrupt: false },
     { name: 'Floran Maior', element: 'terra', baseRank: 'D', canAscend: false, canCorrupt: false },
     { name: 'Sylvan',       element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Thalassins',   element: 'agua',  baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Kranors',      element: 'vento', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Sylarinos',    element: 'vento', baseRank: 'C', canAscend: false, canCorrupt: false },
+  ])
+
+  // ─── VEYRON — SISTEMA AVIAN ─────────────────────────────────────────────
+  await criarMundo(veyron, 'Sistema Avian', [
+    { name: 'Kranor',      element: 'vento', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Durnak',      element: 'trevas',baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Sylarino',    element: 'vento', baseRank: 'C', canAscend: false, canCorrupt: false },
+  ])
+
+  // ─── VEYRON — SISTEMA AURIEL ─────────────────────────────────────────────
+   await criarMundo(veyron, 'Sistema Auriel', [
+    { name: 'Solaria',      element: 'luz', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Auran',        element: 'luz', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Astra',        element: 'luz', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Lumina',       element: 'luz', baseRank: 'B', canAscend: false, canCorrupt: false },
   ])
 
   // ─── VEYRON — PRÓXIMA CENTAURI ────────────────────────────────────────────
-  await criarMundo('Veyron — Próxima Centauri', [
+  await criarMundo(veyron, 'Próxima Centauri', [
     { name: 'Tallans',  element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Voltaris', element: 'agua',  baseRank: 'B', canAscend: false, canCorrupt: false },
   ])
 
   // ─── VEYRON — GALÁXIA DE ANDRÔMEDA ───────────────────────────────────────
-  await criarMundo('Veyron — Galáxia de Andrômeda', [
+  await criarMundo(veyron, 'Galáxia de Andrômeda', [
     { name: 'Cotuns',         element: 'terra',  baseRank: 'A', canAscend: false, canCorrupt: false },
-    { name: 'Jotun',          element: 'terra',  baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Rotus',          element: 'terra',  baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Jotun',          element: 'terra',  baseRank: 'B', canAscend: true, canCorrupt: false },
+    { name: 'Rotus',          element: 'terra',  baseRank: 'B', canAscend: true, canCorrupt: false },
     { name: 'Lykos',          element: 'luz',    baseRank: 'B', canAscend: true,  canCorrupt: false },
     { name: 'Lykostella',     element: 'luz',    baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Aracnes',        element: 'trevas', baseRank: 'B', canAscend: true,  canCorrupt: true  },
     { name: 'Rainha da Seda', element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Matriarca Voraz',   element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
-  // ─── VEYRON — GALÁXIA VIRGO ───────────────────────────────────────────────
-  await criarMundo('Veyron — Galáxia Virgo', [
-    { name: 'Durnak',   element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Nihil',    element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
-    { name: 'Kranors',  element: 'vento',  baseRank: 'B', canAscend: false, canCorrupt: false },
-    { name: 'Sylarinos', element: 'vento', baseRank: 'C', canAscend: false, canCorrupt: false },
+  // ─── VEYRON — Sistema Crysalis ───────────────────────────────────────────────
+  await criarMundo(veyron, 'Sistema Crysalis', [
+    { name: 'Rainha (Abelha / Vespa Dourada)', element: 'terra', baseRank: 'A', canAscend: false, canCorrupt: false },
+    { name: 'Belita (Mariposa)',               element: 'terra', baseRank: 'C', canAscend: false, canCorrupt: false },
+    { name: 'Synaptor (Formiga-Carpinteira)',  element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Biogra (Vespa-Tecelã)',            element: 'terra', baseRank: 'B', canAscend: true, canCorrupt: false },
+    { name: 'Mantis (Louva-a-Deus)',            element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Titeus (Besouro-Hércules)',        element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Aniso (Libélula)',                 element: 'terra', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Coccine (Joaninha)',               element: 'terra', baseRank: 'D', canAscend: false,  canCorrupt: false },
   ])
 
   // ─── VEYRON — GALÁXIA CATA-VENTOS ────────────────────────────────────────
-  await criarMundo('Veyron — Galáxia Cata-Ventos', [
+  await criarMundo(veyron, 'Veyron — Galáxia Cata-Ventos', [
     { name: 'Astrelions', element: 'luz',    baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Umbras',     element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Exelion',    element: 'fogo',   baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Harmonis',   element: 'vento',  baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
-  // ─── VEYRON — VIA LÁCTEA ──────────────────────────────────────────────────
-  await criarMundo('Veyron — Via Láctea', [
+  // ─── VEYRON — SISTEMA KEPLER ──────────────────────────────────────────────────
+  await criarMundo(veyron, 'Sistema Kepler', [
     { name: 'Amados do Cosmo', element: 'luz',    baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Renari',          element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
+   // ─── VEYRON — SISTEMA NIHIL ──────────────────────────────────────────────────
+  await criarMundo(veyron, 'Sistema Nihil', [
+    { name: 'Nihil', element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
+  ])
+
+  // ─── VEYRON — SISTEMA RENARI ──────────────────────────────────────────────────
+  await criarMundo(veyron, 'Sistema Renari', [
+    { name: 'Renari - Pyrrthus',  element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Renari - Aurion',    element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Renari - Veyra',     element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Renari - Vulcana',   element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+    { name: 'Renari - Luminis',   element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
+
+  ])
+
   // ─── VEYRON — NUVEM DE MAGALHÃES ──────────────────────────────────────────
-  await criarMundo('Veyron — Nuvem de Magalhães', [
+  await criarMundo(veyron, 'Veyron — Nuvem de Magalhães', [
     { name: 'Sytari',    element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Necrorbis', element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false },
+    { name: 'Necroth',   element: 'trevas', baseRank: 'D', canAscend: false, canCorrupt: false }, //Um Necroth é o que acontece quando um Necrorbis encontra um cadáver adequado e o consome, tornando-se um Necroth.O Rank corresponde ao rank do cadaver original.
     { name: 'Drahvoks',  element: 'fogo',   baseRank: 'A', canAscend: false, canCorrupt: false },
   ])
 
   // ─── VEYRON — NEBULOSA CIMERIANA ──────────────────────────────────────────
-  await criarMundo('Veyron — Nebulosa Cimeriana', [
+  await criarMundo(veyron, 'Veyron — Nebulosa Cimeriana', [
     { name: 'Androides', element: 'vento', baseRank: 'D', canAscend: true,  canCorrupt: false },
     { name: 'Techs',     element: 'vento', baseRank: 'B', canAscend: false, canCorrupt: false },
   ])
@@ -334,22 +409,23 @@ async function main() {
   await criarEvolucao('Goblins', 'Gaia', 'Hobgoblins', 'ASCENSAO')
   await criarEvolucao('Goblins', 'Gaia', 'Diabretes',  'CORRUPCAO')
 
-  // ── BORUM → MINOTAURO → JOTUN ou ROTUS ──
-  await criarEvolucao('Borum',      'Gaia', 'Minotauros', 'ASCENSAO')
-  await criarEvolucao('Minotauros', 'Gaia', 'Jotun',      'ASCENSAO')
-  await criarEvolucao('Minotauros', 'Gaia', 'Rotus',      'ASCENSAO')
+  // ── BORUM → MINOTAURO ──
+  await criarEvolucao('Borum', 'Gaia', 'Minotauros', 'ASCENSAO')
 
-  // ── DRÍADE / DRUIDA / ESMERALDA / ELFO DA PRIMAVERA → SYLVAN ──
-  await criarEvolucao('Dríade',                              'Gaia',                         'Sylvan', 'ASCENSAO')
-  await criarEvolucao('Druidas',                             'Arcan — Camada Noah',          'Sylvan', 'ASCENSAO')
-  await criarEvolucao('Humanos de Noah — Linhagem Esmeralda','Arcan — Camada Noah',          'Sylvan', 'ASCENSAO')
-  await criarEvolucao('Elfos da Primavera',                  'Dimensão das Quatro Estações', 'Sylvan', 'ASCENSAO')
+  // ── JOTUN/ROTUS → COTUN ──
+  await criarEvolucao('Jotun', 'Galáxia de Andrômeda', 'Cotuns', 'ASCENSAO')
+  await criarEvolucao('Rotus', 'Galáxia de Andrômeda', 'Cotuns', 'ASCENSAO')
 
-  // ── FLORAN ──
-  await criarEvolucao('Floran Menor', 'Veyron — Sistema Arboris', 'Floran Maior', 'ASCENSAO')
-
-  // ── NINFA ──
+  // ── CADEIA DO VERDE: Ninfa → Dríade → Sylvan / Elfo da Primavera (fim) ──
   await criarEvolucao('Ninfa Menor', 'Bestiarius', 'Ninfa Maior', 'ASCENSAO')
+  await criarEvolucao('Ninfa Maior', 'Bestiarius', 'Dríade',      'ASCENSAO') // ADICIONADO
+  await criarEvolucao('Dríade', 'Gaia', 'Sylvan',              'ASCENSAO')
+  await criarEvolucao('Dríade', 'Gaia', 'Elfos da Primavera',  'ASCENSAO') // ADICIONADO
+  await criarEvolucao('Druidas', 'Noah', 'Elfos da Primavera', 'ASCENSAO') // MODIFICADO (era Sylvan)
+  await criarEvolucao('Humanos de Noah — Linhagem Esmeralda', 'Noah', 'Sylvan', 'ASCENSAO')
+ 
+  // ── FLORAN ──
+  await criarEvolucao('Floran Menor', 'Sistema Arboris', 'Floran Maior', 'ASCENSAO') // mundo corrigido
 
   // ── CENTAURO → KILIN → TIAMAT ──
   await criarEvolucao('Centauros', 'Gaia',       'Kilin',  'ASCENSAO')
@@ -360,22 +436,22 @@ async function main() {
   await criarEvolucao('Draconatos',  'Bestiarius', 'Dracônicos', 'ASCENSAO')
 
   // ── NAGA → IMUGI ──
-  await criarEvolucao('Nagas', 'Arcan — Camada Noah', 'Imugi', 'ASCENSAO')
+  await criarEvolucao('Nagas', 'Noah', 'Imugi', 'ASCENSAO') // mundo corrigido
 
   // ── HUMANOS DE GELIDA → ELFOS DO INVERNO ──
-  await criarEvolucao('Humanos de Gelida — Linhagem Safira', 'Arcan — Camada Noah', 'Elfos do Inverno', 'ASCENSAO')
+  await criarEvolucao('Humanos de Gelida — Linhagem Safira', 'Noah', 'Elfos do Inverno', 'ASCENSAO') // mundo corrigido
 
   // ── LYKOS → LYKOSTELLA ──
-  await criarEvolucao('Lykos', 'Veyron — Galáxia de Andrômeda', 'Lykostella', 'ASCENSAO')
+  await criarEvolucao('Lykos', 'Galáxia de Andrômeda', 'Lykostella', 'ASCENSAO')
 
   // ── ARACNE ──
-  await criarEvolucao('Aracnes', 'Veyron — Galáxia de Andrômeda', 'Rainha da Seda',  'ASCENSAO')
-  await criarEvolucao('Aracnes', 'Veyron — Galáxia de Andrômeda', 'Matriarca Voraz', 'CORRUPCAO')
+  await criarEvolucao('Aracnes', 'Galáxia de Andrômeda', 'Rainha da Seda',  'ASCENSAO')
+  await criarEvolucao('Aracnes', 'Galáxia de Andrômeda', 'Matriarca Voraz', 'CORRUPCAO')
 
-  // ── ECOANTE → GÁRGULA INCOMPLETA → VIGILANTE ou PARANOICA ──
-  await criarEvolucao('Ecoantes',            'Bestiarius', 'Gárgulas Incompletas', 'ASCENSAO')
-  await criarEvolucao('Gárgulas Incompletas','Bestiarius', 'Gárgula Vigilante',    'ASCENSAO')
-  await criarEvolucao('Gárgulas Incompletas','Bestiarius', 'Gárgula Paranoica',    'CORRUPCAO')
+  // ── ECOANTE → GÁRGULA INCOMPLETA → NORMAL ou PARANOICA ──
+  await criarEvolucao('Ecoantes',             'Bestiarius', 'Gárgulas Incompletas', 'ASCENSAO')
+  await criarEvolucao('Gárgulas Incompletas', 'Bestiarius', 'Gárgula',    'ASCENSAO')
+  await criarEvolucao('Gárgulas Incompletas', 'Bestiarius', 'Gárgula Paranoica',    'CORRUPCAO')
 
   // ── DHAMPIR ──
   await criarEvolucao('Dhampirs', 'Bestiarius', 'Vampiros', 'ASCENSAO')
@@ -390,22 +466,20 @@ async function main() {
   await criarEvolucao('Selvagens', 'Gaia', 'Selvagem Treinado', 'ASCENSAO')
 
   // ── KITSUNE → KOHAKU ──
-  await criarEvolucao('Kitsune', 'Arcan — Camada Noah', 'Kohaku', 'ASCENSAO')
+  await criarEvolucao('Kitsune', 'Noah', 'Kohaku', 'ASCENSAO') // mundo corrigido
 
-  // ── MENSAGEIRO DIVINO / DUENDE → OFANIN ──
-  await criarEvolucao('Mensageiros Divinos', 'Arcan — Celestia', 'Ofanins', 'ASCENSAO')
-  await criarEvolucao('Duendes',             'Arcan — Celestia', 'Ofanins', 'ASCENSAO')
+  // ── DUENDE → OFANIN → SHENZAI ──
+  await criarEvolucao('Duendes', 'Clã Arlatala', 'Ofanins', 'ASCENSAO') // mundo corrigido
+  await criarEvolucao('Ofanins', 'Arcan — Celestia', 'Shenzais', 'ASCENSAO', 100) // ADICIONADO
+
+  // ── MALAKIN → LATAUIZ (TEMPERANÇA) ──
+  await criarEvolucao('Malakins', 'Arcan — Celestia', 'Latauiz — Aicaricalatasla (Temperança)', 'ASCENSAO', 100) // ADICIONADO
 
   // ── ANDROIDE → TECH ──
   await criarEvolucao('Androides', 'Veyron — Nebulosa Cimeriana', 'Techs', 'ASCENSAO')
 
-  // ── CRYSALIS COCCINE → RAINHA (ascensão rara) ──
-  await criarEvolucao(
-    'Crysalis — Coccine (Joaninha)',
-    'Primordial — Sem mundo fixo',
-    'Crysalis — Rainha (Abelha / Vespa Dourada)',
-    'ASCENSAO'
-  )
+  // ── CRYSALIS: só a Biogra pode virar Rainha, e é raríssimo ──
+  await criarEvolucao('Biogra (Vespa-Tecelã)', 'Sistema Crysalis', 'Rainha (Abelha / Vespa Dourada)', 'ASCENSAO', 195) // ADICIONADO
 
   console.log('\n🎉 Seed concluído!')
 }

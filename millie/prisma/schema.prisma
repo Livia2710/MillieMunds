@@ -99,6 +99,8 @@ model Campaign {
   description String?
   inviteCode  String           @unique @default(cuid())
   masterId    String
+  archived    Boolean          @default(false)   
+  archivedAt  DateTime?     
   createdAt   DateTime         @default(now())
   members     CampaignMember[]
   worlds      World[]

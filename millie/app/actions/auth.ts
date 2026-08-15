@@ -115,3 +115,13 @@ export async function updatePassword(currentPassword: string, newPassword: strin
     data: { passwordHash: newHash },
   })
 }
+
+export async function getUserProfile() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+
+  return prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { username: true, avatar: true, email: true },
+  })
+}

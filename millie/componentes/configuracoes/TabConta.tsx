@@ -7,12 +7,12 @@ import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import MillieInput from "@/componentes/ui/MillieInput";
 import { ConfigSection, ConfigActionButton } from "./shared";
 
-export default function TabConta() {
-  const { data: session, update } = useSession();
+export default function TabConta({ initial }: { initial: { username: string | null; avatar: string | null; email: string } | null }) {
+  const { update } = useSession();
   const [isPending, startTransition] = useTransition();
 
-  const [username, setUsername] = useState(session?.user?.name ?? "");
-  const [avatar, setAvatar] = useState(session?.user?.image ?? "");
+  const [username, setUsername] = useState(initial?.username ?? "");
+  const [avatar, setAvatar] = useState(initial?.avatar ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [feedback, setFeedback] = useState<{ type: "ok" | "erro"; msg: string } | null>(null);
@@ -61,7 +61,7 @@ export default function TabConta() {
 
       <div className="flex flex-col gap-1 border-b border-bege-escuro/10 pb-5">
         <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">Email</p>
-        <p className="font-title text-sm text-bege-claro/60">{session?.user?.email}</p>
+        <p className="font-title text-sm text-bege-claro/60">{initial?.email}</p>
         <p className="mt-1 text-[11px] text-bege-escuro/40">O email não pode ser alterado.</p>
       </div>
 

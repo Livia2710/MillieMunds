@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateUserSettings, getUserSettings } from "@/app/actions/auth";
+import { updateUserSettings } from "@/app/actions/auth";
 import { ConfigSection, ToggleRow, ConfigActionButton } from "./shared";
 import { UserPreferences } from "@/lib/types/settings";
+import { usePreferences } from "@/lib/contexts/PreferencesContext";
 
 export default function TabPreferencias({ initial }: { initial: UserPreferences }) {
   const [prefs, setPrefs] = useState<UserPreferences>(initial);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const { setPreferences } = usePreferences();
 
   function setField<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) {
-    setPrefs((p) => ({ ...p, [key]: value }));
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    setPreferences(next); // aplica na hora — some a camada de papel sem precisar salvar
   }
 
   function handleSave() {

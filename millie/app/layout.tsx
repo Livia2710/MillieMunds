@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Providers } from "@/lib/providers";
 import { EB_Garamond } from "next/font/google";
+import { getUserSettings } from "@/app/actions/auth";
+import SiteBackgroundPaper from "../componentes/SiteBackgroundPaper";
 import "./globals.css";
 
 const ebGaramond = EB_Garamond({
@@ -14,16 +16,18 @@ export const metadata: Metadata = {
   description: "Escola dos Mil Mundos",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { preferences } = await getUserSettings();
+
   return (
     <html lang="pt-BR">
       <body className={ebGaramond.variable}>
-        <Providers>
+        <Providers initialPreferences={preferences}>
           <div className="site-background" aria-hidden="true" />
           <div className="site-shell">{children}</div>
-          <div className="site-background-paper" aria-hidden="true" />
+          <SiteBackgroundPaper />
         </Providers>
       </body>
     </html>

@@ -11,6 +11,7 @@ import TabNotificacoes from "./TabNotificacoes";
 import TabBiblioteca from "./TabBiblioteca";
 import TabCampanha from "./TabCampanha";
 
+type Profile = { username: string | null; avatar: string | null; email: string } | null;
 type ConfigTab = "conta" | "preferencias" | "notificacoes" | "biblioteca" | "campanha";
 type Settings = { preferences: UserPreferences; notifications: NotificationPreferences };
 
@@ -22,7 +23,7 @@ const TABS: { key: ConfigTab; label: string; icon: React.ReactNode }[] = [
   { key: "campanha", label: "Campanha", icon: <Trash2 size={15} strokeWidth={1.5} /> },
 ];
 
-export default function ConfiguracoesClient({ settings }: { settings: Settings }) {
+export default function ConfiguracoesClient({ settings, profile }: { settings: Settings; profile: Profile }) {
   const [activeTab, setActiveTab] = useState<ConfigTab>("conta");
 
   return (
@@ -56,7 +57,7 @@ export default function ConfiguracoesClient({ settings }: { settings: Settings }
         </nav>
 
         <div className="flex-1 min-w-0">
-          {activeTab === "conta" && <TabConta />}
+          {activeTab === "conta" && <TabConta initial={profile} />}
           {activeTab === "preferencias" && <TabPreferencias initial={settings.preferences} />}
           {activeTab === "notificacoes" && <TabNotificacoes initial={settings.notifications} />}
           {activeTab === "biblioteca" && <TabBiblioteca />}

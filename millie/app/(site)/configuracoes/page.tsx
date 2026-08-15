@@ -1,14 +1,15 @@
 import Image from "next/image";
 import ConfiguracoesClient from "@/componentes/configuracoes/ConfiguracoesClient";
-import { getUserSettings } from "@/app/actions/auth";
+import { getUserSettings, getUserProfile } from "@/app/actions/auth";
 
 export default async function ConfiguracoesPage() {
   const settings = await getUserSettings();
+  const profile = await getUserProfile();
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-roxo-escuro shadow-header">
       <PageCorners />
       <div className="relative z-10 w-full max-w-3xl mx-auto px-4 py-10 pt-16 sm:px-6 md:px-12 md:py-14">
-        <ConfiguracoesClient settings={settings} />
+        <ConfiguracoesClient settings={settings} profile={profile} />
       </div>
     </div>
   );

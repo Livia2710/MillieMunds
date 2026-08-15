@@ -31,16 +31,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: 'jwt' },   // ← IMPORTANTE com Credentials
   callbacks: {
-  async jwt({ token, user }) {
+  async jwt({ token, user, trigger }) {
     if (user) {
       token.id = user.id
 
-      // Busca username aqui — jwt roda no Node, não no Edge
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { username: true, email: true }
+      if (user || trigger === 'update') {
+        const dbUser = await prisma.user.findUnique({
+        where: { id: (user?.id ?? token.id) as string },
+        select: { username: true, email: true , avatar: true }
       })
       token.username = dbUser?.username ?? dbUser?.email ?? ''
+      token.avatar = dbUser?.avatar ?? null
+      }
     }
     return token
   },
@@ -48,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     if (token?.id) {
       session.user.id = token.id as string
       session.user.name = token.username as string
+      session.user.image = token.avatar as string | null
     }
     return session
   }

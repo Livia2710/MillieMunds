@@ -1,4 +1,5 @@
 import { PrismaClient } from '../lib/generated/prisma'
+import { raceDescriptions } from '../lib/raceDescription'
 
 const prisma = new PrismaClient()
 
@@ -38,6 +39,7 @@ async function main() {
           baseRank: raca.baseRank as any,
           canAscend: raca.canAscend,
           canCorrupt: raca.canCorrupt,
+          description: raceDescriptions[raca.name] ?? null,
         },
         create: {
           name: raca.name,
@@ -45,6 +47,7 @@ async function main() {
           baseRank: raca.baseRank as any,
           canAscend: raca.canAscend,
           canCorrupt: raca.canCorrupt,
+          description: raceDescriptions[raca.name] ?? null,
           universeWorldId: mundo.id,
         },
       })

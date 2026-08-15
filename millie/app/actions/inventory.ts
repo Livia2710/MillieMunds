@@ -261,3 +261,57 @@ export async function getItemBySlug(slug: string) {
     include: { chapters: { orderBy: { order: 'asc' } } },
   })
 }
+
+// ─── deleteInventoryItem ────────────────────────────────────
+export async function deleteInventoryItem(itemId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+    select: { campaignId: true },
+  })
+  if (!membership) throw new Error('Sem campanha ativa como Mestre')
+
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: itemId, campaignId: membership.campaignId },
+    select: { id: true },
+  })
+  if (!item) throw new Error('Item não encontrado nesta campanha')
+
+  // ItemChapter não tem onDelete: Cascade no schema — remove manualmente antes
+  await prisma.itemChapter.deleteMany({ where: { itemId } })
+  await prisma.inventoryItem.delete({ where: { id: item.id } })
+
+  revalidatePath('/inventario')
+}
+
+// ─── updateInventoryItem ────────────────────────────────────
+// Edição de superfície: nome, quantidade e imagem.
+export async function updateInventoryItem(
+  itemId: string,
+  data: { name: string; quantity: number; image?: string }
+) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+    select: { campaignId: true },
+  })
+  if (!membership) throw new Error('Sem campanha ativa como Mestre')
+
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: itemId, campaignId: membership.campaignId },
+    select: { id: true },
+  })
+  if (!item) throw new Error('Item não encontrado nesta campanha')
+
+  await prisma.inventoryItem.update({
+    where: { id: item.id },
+    data: { name: data.name, quantity: data.quantity, image: data.image },
+  })
+
+  revalidatePath('/inventario')
+  revalidatePath(`/inventario/${itemId}`)
+}

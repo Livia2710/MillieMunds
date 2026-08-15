@@ -257,6 +257,7 @@ export async function getUniverses() {
               element: true,
               baseRank: true, 
               isCorrupted: true,
+              description: true,
             },
           },
         },
@@ -604,4 +605,98 @@ export async function updateCharacterPoints(
     pv: newPv ?? char.pv,
     pm: newPm ?? char.pm,
   }
+}
+
+// ─── deleteCharacter ───────────────────────────────────────
+// Apenas o Mestre pode excluir. Skill não tem onDelete: Cascade
+// no schema, então precisa ser removida manualmente antes.
+export async function deleteCharacter(characterId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode excluir personagens')
+
+  const char = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    select: { id: true },
+  })
+  if (!char) throw new Error('Personagem não encontrado nesta campanha')
+
+  await prisma.skill.deleteMany({ where: { characterId } })
+  await prisma.character.delete({ where: { id: characterId } })
+
+  revalidatePath('/personagens')
+  revalidatePath('/mestre')
+}
+
+// ─── updateCharacterHistory ────────────────────────────────
+// Pode editar: o próprio jogador dono do personagem, ou o Mestre.
+export async function updateCharacterHistory(characterId: string, story: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const char = await prisma.character.findFirst({
+    where: {
+      id: characterId,
+      OR: [
+        { playerId: session.user.id },
+        { campaign: { members: { some: { userId: session.user.id, role: 'MASTER' } } } },
+      ],
+    },
+    select: { id: true },
+  })
+  if (!char) throw new Error('Você não tem permissão para editar este personagem')
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: { story },
+  })
+
+  revalidatePath(`/personagens/${characterId}`)
+}
+
+// ─── updateCharacter ────────────────────────────────────────
+// Edição de superfície: nome, imagem e o campo específico da
+// categoria. Raça/elemento/atributos ficam fixos após a criação.
+export async function updateCharacter(
+  characterId: string,
+  data: {
+    name: string
+    image?: string
+    year?: number
+    subject?: string
+    occupation?: string
+  }
+) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode editar personagens')
+
+  const char = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    select: { id: true },
+  })
+  if (!char) throw new Error('Personagem não encontrado nesta campanha')
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: {
+      name: data.name,
+      image: data.image,
+      year: data.year,
+      subject: data.subject,
+      occupation: data.occupation,
+    },
+  })
+
+  revalidatePath('/personagens')
+  revalidatePath(`/personagens/${characterId}`)
+  revalidatePath('/mestre')
 }

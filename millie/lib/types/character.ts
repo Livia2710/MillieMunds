@@ -14,6 +14,7 @@ interface BaseCharacter {
   race: string;
   worldSlug: string; // Mundo Natal
   isLocked?: boolean;
+  story?: string;
 }
 
 // Extensões específicas para cada categoria

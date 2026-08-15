@@ -11,6 +11,7 @@ export type Skill = {
   maxLevel: number;
   isUnlocked: boolean;
   requiredCharacterLevel: number;
+  levelEffects?: string[];
 };
 
 export type RaceSkillTree = {

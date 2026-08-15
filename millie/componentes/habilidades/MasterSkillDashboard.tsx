@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Search, ArrowLeft } from "lucide-react";
 import type { ProfileCharacter } from "@/lib/types/profile";
@@ -54,31 +54,36 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
   };
 
   const filtered = useMemo(() => {
-    return characters.filter((char) => {
-      const matchSearch   = char.name.toLowerCase().includes(filters.search.toLowerCase());
-      const matchElement  = filters.element  === "todos" || char.element  === filters.element;
-      const matchRank     = filters.rank     === "todos" || char.rank     === filters.rank;
-      const matchCategory = filters.category === "todos" || char.category === filters.category;
-      return matchSearch && matchElement && matchRank && matchCategory;
-    });
-  }, [characters, filters]);
+  return characters.filter((char) => {
+    const matchesTab     = activeTab === "jogadores" ? char.playerId !== null : char.playerId === null;
+    const matchSearch    = char.name.toLowerCase().includes(filters.search.toLowerCase());
+    const matchElement   = filters.element  === "todos" || char.element  === filters.element;
+    const matchRank      = filters.rank     === "todos" || char.rank     === filters.rank;
+    const matchCategory  = filters.category === "todos" || char.category === filters.category;
+    return matchesTab && matchSearch && matchElement && matchRank && matchCategory;
+  });
+}, [characters, filters, activeTab]);
 
-  useEffect(() => {
-    if (!selectedChar) return
-    setTree(null)
-    setTreeLoading(true)
-    getSkillsByCharacter(selectedChar.id).then((data) => {
-      if (!data) return
-      setTree({
-        race:    data.race,
-        element: data.element as CharacterElement,
-        skills:  data.skills.map((s) => ({
+  const fetchTree = useCallback(() => {
+  if (!selectedChar) return
+  setTree(null)
+  setTreeLoading(true)
+  getSkillsByCharacter(selectedChar.id).then((data) => {
+    if (!data) return
+    setTree({
+      race:    data.race,
+      element: data.element as CharacterElement,
+      skills:  data.skills.map((s) => ({
         ...s,
         branch: s.branch as SkillBranch,
       })),
-      })
-    }).finally(() => setTreeLoading(false))
-  }, [selectedChar])
+    })
+  }).finally(() => setTreeLoading(false))
+}, [selectedChar])
+
+useEffect(() => {
+  fetchTree()
+}, [fetchTree])
 
   // ── Visão da árvore de um personagem específico ──
   if (selectedChar) {
@@ -148,6 +153,7 @@ export default function MasterSkillDashboard({ characters }: MasterSkillDashboar
             birthRank={selectedChar.birthRank}
             characterId={selectedChar.id}
             visible={true}
+            onSkillChanged={fetchTree}
           />
         ) : (
           <p className="py-12 text-center font-title text-sm uppercase tracking-wider text-bege-escuro/40">

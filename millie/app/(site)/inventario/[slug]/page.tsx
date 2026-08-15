@@ -18,8 +18,7 @@ export default async function InventoryDetailsPage({ params }: Props) {
     name: raw.name,
     rarity: raw.rarity as InventoryRarity,
     quantity: raw.quantity,
-    image: undefined as string | undefined,
-    description: '',
+    image: raw.image ?? undefined,
     worldSlug: raw.worldSlug ?? '',
     isLocked: raw.isLocked,
   }

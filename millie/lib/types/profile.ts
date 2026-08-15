@@ -10,6 +10,7 @@ export interface ProfileStats {
 }
 
 export type ProfileCharacter = Character & {
+  playerId: string | null
   level:    number
   xp:       number
   maxXp:    number

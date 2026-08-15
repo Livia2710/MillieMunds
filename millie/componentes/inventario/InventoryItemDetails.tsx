@@ -104,11 +104,7 @@ export default function InventoryItemDetails({
             height={24}
             className="mt-3 opacity-70"
           />
-
-          <p className=" mt-5 max-w-2xl text-base leading-7 text-bege-medio/90 md:text-lg md:leading-8">
-            {item.description}
-          </p>
-
+          
           <div className=" mt-8 border-t border-bege-escuro/30 pt-6 grid gap-3">
 
             <DetailLine

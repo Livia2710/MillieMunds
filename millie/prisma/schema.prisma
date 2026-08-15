@@ -236,6 +236,8 @@ model Character {
   occupation  String? // npc
   dangerLevel String? // monstro
 
+  story       String? @db.Text
+
   // progressão
   level Int @default(1)
   xp    Int @default(0)
@@ -295,7 +297,8 @@ model Skill {
   maxLevel               Int       @default(3)
   isUnlocked             Boolean   @default(false)
   requiredCharacterLevel Int
-  uses     Int @default(0) 
+  uses                   Int       @default(0) 
+  levelEffects           String[]  @default([])
   characterId            String
   character              Character @relation(fields: [characterId], references: [id])
 }

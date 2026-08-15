@@ -48,7 +48,6 @@ interface BaseInventoryItem {
   rarity: InventoryRarity;
   quantity: number;
   image?: string;
-  description: string;
   worldSlug: string;
   isLocked?: boolean;
 }

@@ -60,7 +60,6 @@ export default function InventarioClient({ items, isMaster, hasCampaign, playerC
     rarity: item.rarity as InventoryRarity,
     quantity: item.quantity,
     image: item.image ?? undefined,
-    description: '',
     worldSlug: item.worldSlug ?? '',
     isLocked: item.isLocked,
   }

@@ -65,6 +65,7 @@ export async function getSkillsByCharacter(characterId: string) {
     requiredCharacterLevel: s.requiredCharacterLevel,
     uses:                   s.uses,
     isInnate:               false,
+    levelEffects:           s.levelEffects,
   }))
 
   return {
@@ -91,6 +92,7 @@ export async function createSkill(data: {
   element: string
   maxLevel: number
   requiredCharacterLevel: number
+  levelEffects?: string[]
 }) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
@@ -113,6 +115,7 @@ export async function createSkill(data: {
        isUnlocked: char ? char.level >= data.requiredCharacterLevel : false,
       currentLevel:           0,
       uses:                   0,
+      levelEffects:           data.levelEffects?.filter((t) => t.trim()) ?? [],
     },
   })
 
@@ -233,4 +236,62 @@ export async function useInnateSkill(raceSkillId: string, characterId: string) {
 
   revalidatePath('/habilidades')
   return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
+}
+// ─── updateSkill ────────────────────────────────────────────
+// Mestre edita uma habilidade criada por ele (não se aplica a RaceSkill, que é inata)
+export async function updateSkill(skillId: string, data: {
+  name: string
+  description: string
+  branch: string
+  element: string
+  maxLevel: number
+  requiredCharacterLevel: number
+  levelEffects?: string[]
+}) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode editar habilidades')
+
+  const skill = await prisma.skill.findFirst({
+    where: { id: skillId, character: { campaignId: membership.campaignId } },
+    select: { id: true },
+  })
+  if (!skill) throw new Error('Habilidade não encontrada nesta campanha')
+
+  await prisma.skill.update({
+    where: { id: skillId },
+    data: {
+      name:                   data.name,
+      description:            data.description,
+      branch:                 data.branch,
+      element:                data.element,
+      maxLevel:               data.maxLevel,
+      requiredCharacterLevel: data.requiredCharacterLevel,
+      levelEffects:           data.levelEffects?.filter((t) => t.trim()) ?? [],
+    },
+  })
+
+  revalidatePath('/habilidades')
+}
+
+// ─── deleteSkill ────────────────────────────────────────────
+export async function deleteSkill(skillId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode excluir habilidades')
+
+  const result = await prisma.skill.deleteMany({
+    where: { id: skillId, character: { campaignId: membership.campaignId } },
+  })
+  if (result.count === 0) throw new Error('Habilidade não encontrada nesta campanha')
+
+  revalidatePath('/habilidades')
 }

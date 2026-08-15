@@ -11,6 +11,7 @@ import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { WORLD_COVER_COLORS, DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
 import type { InventoryRarity } from "@/lib/types/inventory";
 import { createInventoryItem } from "@/app/actions/inventory";
+import MillieImageUpload from "../ui/MillieImageUpload";
 
 type Props = { isOpen: boolean; onClose: () => void }
 type ChapterDraft = { title: string; content: string }
@@ -90,7 +91,7 @@ export default function CriarLivroModal({ isOpen, onClose }: Props) {
               <div className="mb-0.5 h-10 w-10 shrink-0 border border-bege-escuro/40" style={{ backgroundColor: coverColor }} />
             </div>
           ) : (
-            <MillieInput label="URL da Imagem" placeholder="/assets/images/inventory/grimorio.jpg" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} />
+            <MillieImageUpload label="Imagem da Capa" value={coverImage} onChange={setCoverImage} aspectRatio="card"/>
           )}
         </div>
 

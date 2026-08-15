@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react" // Corrigido: adicionado useEffect
+import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import MillieModal from "@/componentes/ui/MillieModal"
@@ -41,6 +41,7 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
   const [maxLevel, setMaxLevel] = useState("3")
   const [requiredLevel, setRequiredLevel] = useState("1") // Corrigido: alterado para string para o input HTML
   const [error, setError] = useState("")
+  const [levelEffects, setLevelEffects] = useState<string[]>(["", "", ""]) // Novo estado para efeitos por nível
 
   const selectedMeta = ELEMENT_META[element]
 
@@ -53,6 +54,7 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
     setRequiredLevel("1")
     setCharacterId("")
     setError("")
+    setLevelEffects(["", "", ""])
     onClose()
   }
 
@@ -77,6 +79,7 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
           element,
           maxLevel: Number(maxLevel),
           requiredCharacterLevel: Number(requiredLevel),
+          levelEffects: levelEffects.filter((t) => t.trim()),
         })
         router.refresh()
         handleClose()
@@ -84,6 +87,19 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
         setError(err instanceof Error ? err.message : "Erro ao criar habilidade.")
       }
     })
+  }
+
+  useEffect(() => {
+    const n = Number(maxLevel)
+    setLevelEffects((prev) => {
+      const next = [...prev]
+      while (next.length < n) next.push("")
+      return next.slice(0, n)
+    })
+  }, [maxLevel])
+
+  function updateLevelEffect(index: number, value: string) {
+    setLevelEffects((prev) => prev.map((t, i) => (i === index ? value : t)))
   }
 
   useEffect(() => {

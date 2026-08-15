@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2 } from "lucide-react";
 import type { Skill, ElementMeta } from "@/lib/types/skill";
-import { useInnateSkill, useSkill } from "@/app/actions/skill";
+import { useInnateSkill, useSkill, deleteSkill } from "@/app/actions/skill";
+import { useCampaign } from "@/lib/contexts/CampaignContext";
+import ConfirmModal from "@/componentes/modais/ConfirmModal";
+import EditarHabilidadeModal from "@/componentes/modais/EditarHabilidadeModal";
 
 type SkillNodeProps = {
   skill: Skill & { uses?: number; isInnate?: boolean };
@@ -10,9 +15,9 @@ type SkillNodeProps = {
   characterLevel: number;
   birthRank: string;
   characterId: string;
+  onSkillChanged?: () => void;
 };
 
-// Tabela local — espelha calcSkillUsesRequired de rank.ts
 const USES_TABLE: Record<string, number[]> = {
   E: [60, 100, 150],
   D: [45,  75, 120],
@@ -27,10 +32,15 @@ function usesRequired(birthRank: string, currentLevel: number): number {
   return table[currentLevel] ?? table[table.length - 1];
 }
 
-export function SkillNode({ skill, meta, characterLevel, birthRank, characterId }: SkillNodeProps) {
+export function SkillNode({ skill, meta, characterLevel, birthRank, characterId, onSkillChanged }: SkillNodeProps) {
+  const { isMaster } = useCampaign();
+  const router = useRouter();
   const [expanded,    setExpanded]    = useState(false);
   const [feedback,    setFeedback]    = useState<string | null>(null);
   const [isPending,   startTransition] = useTransition();
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const isLocked = !skill.isUnlocked || characterLevel < skill.requiredCharacterLevel;
   const isMaxed  = skill.currentLevel >= skill.maxLevel;
@@ -40,8 +50,12 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
   const needed      = usesRequired(birthRank, skill.currentLevel);
   const usePct      = isMaxed ? 100 : Math.min((uses / needed) * 100, 100);
 
-  // habilidades inatas não têm id de Skill no banco — botão desabilitado por ora
   const canUse = !isLocked && !isMaxed;
+  const canManage = isMaster && !skill.isInnate;
+
+  // efeito já alcançado (nível atual) e o próximo, se existir
+  const currentEffect = skill.currentLevel > 0 ? skill.levelEffects?.[skill.currentLevel - 1] : undefined;
+  const nextEffect = !isMaxed ? skill.levelEffects?.[skill.currentLevel] : undefined;
 
   function handleUse() {
     if (!canUse) return;
@@ -63,10 +77,18 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
     });
   }
 
+  function handleDelete() {
+    startDeleteTransition(async () => {
+      await deleteSkill(skill.id);
+      router.refresh();
+      onSkillChanged?.();
+      setConfirmDeleteOpen(false);
+    });
+  }
+
   return (
     <div className="flex flex-col items-center gap-1.5">
 
-      {/* Nó clicável — abre/fecha painel */}
       <button
         type="button"
         onClick={() => !isLocked && setExpanded((v) => !v)}
@@ -107,7 +129,6 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
           </span>
         )}
 
-        {/* Tooltip desktop */}
         <div
           className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 w-44 -translate-x-1/2
                      rounded border border-bege-escuro/30 bg-roxo-escuro p-3
@@ -132,10 +153,14 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
               {uses}/{needed} usos para evoluir
             </p>
           )}
+          {currentEffect && (
+            <p className="mt-2 text-[10px] italic leading-relaxed text-bege-claro/70">
+              "{currentEffect}"
+            </p>
+          )}
         </div>
       </button>
 
-      {/* Bolinhas de nível */}
       <div className="flex gap-1">
         {levelDots.map((filled, i) => (
           <div
@@ -150,7 +175,6 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
         ))}
       </div>
 
-      {/* Barra de progresso de usos */}
       {!isLocked && !isMaxed && (
         <div className="w-12 md:w-14 h-0.5 rounded-full overflow-hidden bg-roxo">
           <div
@@ -160,7 +184,6 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
         </div>
       )}
 
-      {/* Nome */}
       <p
         className="max-w-[72px] text-center font-title text-[9px] uppercase tracking-wide leading-tight md:max-w-[80px] md:text-[10px]"
         style={{ color: isLocked ? "#6b6b7b" : meta.glow }}
@@ -168,18 +191,40 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
         {skill.name}
       </p>
 
-      {/* Painel expandido — mobile ao toque, desktop também */}
       {expanded && !isLocked && (
         <div
-          className="mt-1 w-44 rounded border p-3 text-left"
+          className="mt-1 w-48 rounded border p-3 text-left"
           style={{
             borderColor:     `${meta.color}40`,
             backgroundColor: "#1a0f22ee",
           }}
         >
-          <p className="mb-1 font-title text-[10px] uppercase tracking-wider" style={{ color: meta.color }}>
-            {skill.name}
-          </p>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="font-title text-[10px] uppercase tracking-wider" style={{ color: meta.color }}>
+              {skill.name}
+            </p>
+            {canManage && (
+              <div className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-bege-escuro/40 text-bege-escuro hover:border-bege-medio"
+                  aria-label="Editar habilidade"
+                >
+                  <Pencil size={10} strokeWidth={1.5} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-bege-escuro/40 text-bege-escuro hover:border-red-400"
+                  aria-label="Excluir habilidade"
+                >
+                  <Trash2 size={10} strokeWidth={1.5} />
+                </button>
+              </div>
+            )}
+          </div>
+
           <p className="text-[10px] leading-relaxed text-bege-claro/75">{skill.description}</p>
 
           <p className="mt-2 font-mono text-[9px] text-bege-escuro/50">
@@ -192,14 +237,23 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
             </p>
           )}
 
-          {/* Feedback de uso */}
+          {currentEffect && (
+            <p className="mt-2 text-[9px] italic leading-relaxed text-bege-claro/70">
+              Efeito atual: "{currentEffect}"
+            </p>
+          )}
+          {nextEffect && (
+            <p className="mt-1 text-[9px] italic leading-relaxed text-bege-escuro/40">
+              Próximo (nível {skill.currentLevel + 1}): "{nextEffect}"
+            </p>
+          )}
+
           {feedback && (
             <p className="mt-1.5 font-title text-[9px] uppercase tracking-wider" style={{ color: meta.glow }}>
               {feedback}
             </p>
           )}
 
-          {/* Botão registrar uso */}
           {canUse && (
             <button
               type="button"
@@ -221,6 +275,25 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId 
             </p>
           )}
         </div>
+      )}
+
+      {canManage && (
+        <>
+          <EditarHabilidadeModal
+            isOpen={editOpen}
+            onClose={() => setEditOpen(false)}
+            skill={skill}
+            onSaved={onSkillChanged}
+          />
+          <ConfirmModal
+            isOpen={confirmDeleteOpen}
+            onClose={() => setConfirmDeleteOpen(false)}
+            onConfirm={handleDelete}
+            title="Excluir Habilidade"
+            message={`Tem certeza que quer excluir "${skill.name}"? Essa ação não pode ser desfeita.`}
+            confirmLabel={isDeleting ? "Aguarde..." : "Excluir"}
+          />
+        </>
       )}
     </div>
   );

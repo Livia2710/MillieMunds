@@ -1,12 +1,16 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { Character } from "@/lib/types/character";
+import { updateCharacterHistory } from "@/app/actions/character";
 
 type Props = {
   character: Character;
+  canEditStory?: boolean;
 };
 
 const rankCoatOfArms: Record<string, string> = {
@@ -62,8 +66,25 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function CharacterDetails({ character }: Props) {
+export default function CharacterDetails({ character, canEditStory = false }: Props) {
   const specificFields = getSpecificFields(character);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [isEditingStory, setIsEditingStory] = useState(false);
+  const [storyDraft, setStoryDraft] = useState(character.story ?? "");
+
+  function handleSaveStory() {
+    startTransition(async () => {
+      await updateCharacterHistory(character.id, storyDraft);
+      router.refresh();
+      setIsEditingStory(false);
+    });
+  }
+
+  function handleCancelStory() {
+    setStoryDraft(character.story ?? "");
+    setIsEditingStory(false);
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -165,15 +186,59 @@ export default function CharacterDetails({ character }: Props) {
             </div>
           </section>
 
-          {/* Placeholder bio */}
-          <section className="relative mt-6 rounded-[10px] border border-bege-escuro/25 bg-roxo/40 px-6 py-5 shadow-header">
-            <h2 className="mb-3 font-title text-xs uppercase tracking-[0.25em] text-bege-escuro">
-              História
-            </h2>
-            <p className="font-body text-sm leading-relaxed text-bege-medio/70 italic">
-              Nenhuma história registrada ainda.
-            </p>
-          </section>
+          {/* História */}
+                {/* Substitui a seção "Placeholder bio" por esta */}
+      <section className="relative mt-6 rounded-[10px] border border-bege-escuro/25 bg-roxo/40 px-6 py-5 shadow-header">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-title text-xs uppercase tracking-[0.25em] text-bege-escuro">
+            História
+          </h2>
+
+          {canEditStory && !isEditingStory && (
+            <button
+              type="button"
+              onClick={() => setIsEditingStory(true)}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-bege-escuro/40 text-bege-escuro hover:border-bege-medio"
+              aria-label="Editar história"
+            >
+              <Pencil size={12} strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
+
+        {isEditingStory ? (
+          <div className="space-y-3">
+            <textarea
+              value={storyDraft}
+              onChange={(e) => setStoryDraft(e.target.value)}
+              rows={6}
+              className="w-full resize-none border border-bege-escuro/30 bg-roxo-escuro/60 p-3 font-body text-sm leading-relaxed text-bege-claro/90 outline-none focus:border-bege-medio"
+              placeholder="Escreva a história deste personagem..."
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelStory}
+                className="flex items-center gap-1 border border-bege-escuro/40 px-3 py-1.5 font-title text-xs uppercase tracking-wider text-bege-medio hover:border-bege-medio"
+              >
+                <X size={12} /> Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStory}
+                disabled={isPending}
+                className="flex items-center gap-1 border border-dourado/60 px-3 py-1.5 font-title text-xs uppercase tracking-wider text-dourado hover:bg-roxo disabled:opacity-50"
+              >
+                <Check size={12} /> {isPending ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={`font-body text-sm leading-relaxed ${character.story ? "text-bege-claro/90" : "text-bege-medio/70 italic"}`}>
+            {character.story || "Nenhuma história registrada ainda."}
+          </p>
+        )}
+      </section>
         </div>
       </div>
     </div>

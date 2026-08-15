@@ -19,7 +19,7 @@ export default async function HabilidadesPage() {
       <HabilidadesPageClient
         isMaster={true}
         hasCampaign={true}
-        characters={characters as any}
+        characters={characters}
       />
     )
   }

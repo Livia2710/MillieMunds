@@ -30,6 +30,7 @@ type Race = {
   element: string;
   baseRank: string;
   isCorrupted: boolean;
+  description?: string | null;
 };
 
 type UniverseWorld = {
@@ -154,6 +155,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const worlds = selectedUniverse?.worlds ?? [];
   const selectedWorld = worlds.find((w) => w.id === worldId);
   const races = selectedWorld?.races ?? [];
+  const selectedRaceData = races.find((r) => r.id === raceId); 
 
   const startLevel = category === "aluno"
     ? calcLevelByYear(Number(year))
@@ -321,6 +323,14 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
               value={raceId}
               onChange={(e) => setRaceId(e.target.value)}
             />
+
+            {selectedRaceData?.description && (
+            <div className="border border-bege-escuro/20 bg-roxo-escuro/40 p-3">
+              <p className="font-title text-xs text-bege-medio/70 leading-relaxed">
+                {selectedRaceData.description}
+              </p>
+            </div>
+            )}
           </>
         )}
 

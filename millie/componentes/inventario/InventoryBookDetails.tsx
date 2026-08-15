@@ -50,10 +50,6 @@ export default function InventoryBookDetails({
               height={20}
               className="mx-auto mt-3 md:mx-0"
             />
-
-            <p className="mt-5 leading-8 text-bege-medio/90">
-              {book.description}
-            </p>
           </div>
 
           {/* SELECT CAPITULOS */}

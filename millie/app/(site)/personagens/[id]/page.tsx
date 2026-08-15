@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation"
 import Image from "next/image"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
 import { getCharacterById } from "@/app/actions/character"
 import CharacterDetails from "@/componentes/personagens/CharacterDetails"
 import type { Character, CharacterRank, CharacterElement, CharacterCategory } from "@/lib/types/character"
@@ -11,7 +13,20 @@ export default async function CharacterDetailsPage({ params }: Props) {
   const raw = await getCharacterById(id)
   if (!raw) notFound()
 
-  // Normaliza para o union type discriminado
+  const session = await auth()
+
+  let canEditStory = false
+  if (session?.user?.id) {
+    if (raw.playerId === session.user.id) {
+      canEditStory = true
+    } else {
+      const membership = await prisma.campaignMember.findFirst({
+        where: { userId: session.user.id, active: true, role: "MASTER" },
+      })
+      canEditStory = !!membership
+    }
+  }
+
   const base = {
     id: raw.id,
     name: raw.name,
@@ -21,6 +36,7 @@ export default async function CharacterDetailsPage({ params }: Props) {
     race: raw.race as string,
     worldSlug: raw.worldSlug,
     isLocked: raw.isLocked,
+    story: raw.story ?? undefined,
   }
 
   let character: Character
@@ -38,7 +54,7 @@ export default async function CharacterDetailsPage({ params }: Props) {
   return (
     <div className="relative min-h-screen w-full bg-roxo-escuro p-6 shadow-header md:p-10">
       <PageCorners />
-      <CharacterDetails character={character} />
+      <CharacterDetails character={character} canEditStory={canEditStory} />
     </div>
   )
 }

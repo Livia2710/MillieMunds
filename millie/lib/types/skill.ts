@@ -43,7 +43,7 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-fogo",
     borderClass: "border-fogo",
     glowClass: "text-fogo-glow",
-    svgPath: "/assets/svgs/fogo.svg",
+    svgPath: "/assets/svgs/elemento/fogo.svg",
   },
   agua: {
     element: "agua",
@@ -54,7 +54,7 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-agua",
     borderClass: "border-agua",
     glowClass: "text-agua-glow",
-    svgPath: "/assets/svgs/agua.svg",
+    svgPath: "/assets/svgs/elemento/agua.svg",
   },
   terra: {
     element: "terra",
@@ -65,7 +65,7 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-terra",
     borderClass: "border-terra",
     glowClass: "text-terra-glow",
-    svgPath: "/assets/svgs/terra.svg",
+    svgPath: "/assets/svgs/elemento/terra.svg",
   },
   vento: {
     element: "vento",
@@ -76,7 +76,7 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-vento",
     borderClass: "border-vento",
     glowClass: "text-vento-glow",
-    svgPath: "/assets/svgs/vento.svg",
+    svgPath: "/assets/svgs/elemento/vento.svg",
   },
   luz: {
     element: "luz",
@@ -87,7 +87,7 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-luz",
     borderClass: "border-luz",
     glowClass: "text-luz-glow",
-    svgPath: "/assets/svgs/luz.svg",
+    svgPath: "/assets/svgs/elemento/luz.svg",
   },
   trevas: {
     element: "trevas",
@@ -98,6 +98,6 @@ export const ELEMENT_META: Record<CharacterElement, ElementMeta> = {
     bgClass: "bg-trevas",
     borderClass: "border-trevas",
     glowClass: "text-trevas-glow",
-    svgPath: "/assets/svgs/trevas.svg",
+    svgPath: "/assets/svgs/elemento/trevas.svg",
   },
 };

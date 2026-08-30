@@ -14,22 +14,22 @@ type Props = {
 };
 
 const rankCoatOfArms: Record<string, string> = {
-  S: "/assets/svgs/S.svg",
-  A: "/assets/svgs/A.svg",
-  B: "/assets/svgs/B.svg",
-  C: "/assets/svgs/C.svg",
-  D: "/assets/svgs/D.svg",
-  E: "/assets/svgs/E.svg",
-  V: "/assets/svgs/V.svg",
+  S: "/assets/svgs/rank/S.svg",
+  A: "/assets/svgs/rank/A.svg",
+  B: "/assets/svgs/rank/B.svg",
+  C: "/assets/svgs/rank/C.svg",
+  D: "/assets/svgs/rank/D.svg",
+  E: "/assets/svgs/rank/E.svg",
+  V: "/assets/svgs/rank/V.svg",
 };
 
 const elementIcon: Record<string, string> = {
-  fogo: "/assets/svgs/fogo.svg",
-  agua: "/assets/svgs/agua.svg",
-  terra: "/assets/svgs/terra.svg",
-  vento: "/assets/svgs/vento.svg",
-  luz: "/assets/svgs/luz.svg",
-  trevas: "/assets/svgs/trevas.svg",
+  fogo: "/assets/svgs/elemento/fogo.svg",
+  agua: "/assets/svgs/elemento/agua.svg",
+  terra: "/assets/svgs/elemento/terra.svg",
+  vento: "/assets/svgs/elemento/vento.svg",
+  luz: "/assets/svgs/elemento/luz.svg",
+  trevas: "/assets/svgs/elemento/trevas.svg",
 };
 
 const elementLabel: Record<string, string> = {

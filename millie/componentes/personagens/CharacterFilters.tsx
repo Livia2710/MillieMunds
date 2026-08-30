@@ -38,13 +38,13 @@ const ranks: { label: string; value: RankFilter }[] = [
 ];
 
 const rankCoatOfArms: Record<string, string> = {
-  S: "/assets/svgs/S.svg",
-  A: "/assets/svgs/A.svg",
-  B: "/assets/svgs/B.svg",
-  C: "/assets/svgs/C.svg",
-  D: "/assets/svgs/D.svg",
-  E: "/assets/svgs/E.svg",
-  V: "/assets/svgs/V.svg",
+  S: "/assets/svgs/rank/S.svg",
+  A: "/assets/svgs/rank/A.svg",
+  B: "/assets/svgs/rank/B.svg",
+  C: "/assets/svgs/rank/C.svg",
+  D: "/assets/svgs/rank/D.svg",
+  E: "/assets/svgs/rank/E.svg",
+  V: "/assets/svgs/rank/V.svg",
 };
 
 const buttonBaseClass =

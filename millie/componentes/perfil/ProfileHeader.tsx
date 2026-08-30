@@ -100,7 +100,7 @@ export default function ProfileHeader({
               <div className="flex flex-col items-center md:items-start">
                 <span className="block text-[10px] text-bege-escuro/40 uppercase tracking-widest mb-1">Rank</span>
                 <div className="relative w-6 h-6">
-                  <Image src={`/assets/svgs/${character.rank}.svg`} alt={`Rank ${character.rank}`} fill />
+                  <Image src={`/assets/svgs/rank/${character.rank}.svg`} alt={`Rank ${character.rank}`} fill />
                 </div>
               </div>
             </div>

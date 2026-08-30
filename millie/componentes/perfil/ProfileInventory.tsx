@@ -11,12 +11,12 @@ interface ProfileInventoryProps {
 
 // Mapeamento dos brasões de raridade oficiais do projeto baseado nos SVGs públicos
 const rarityCrests: Record<string, string> = {
-  comum: "/assets/svgs/Comum.svg",
-  incomum: "/assets/svgs/Incomum.svg",
-  raro: "/assets/svgs/Raro.svg",
-  epico: "/assets/svgs/Epico.svg",
-  lendario: "/assets/svgs/Lendario.svg",
-  mitico: "/assets/svgs/Mitico.svg",
+  comum: "/assets/svgs/raridade/Comum.svg",
+  incomum: "/assets/svgs/raridade/Incomum.svg",
+  raro: "/assets/svgs/raridade/Raro.svg",
+  epico: "/assets/svgs/raridade/Epico.svg",
+  lendario: "/assets/svgs/raridade/Lendario.svg",
+  mitico: "/assets/svgs/raridade/Mitico.svg",
 };
 
 export default function ProfileInventory({ character }: ProfileInventoryProps) {

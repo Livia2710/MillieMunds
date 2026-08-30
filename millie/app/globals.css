@@ -76,6 +76,7 @@
 html, 
 body {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -124,7 +125,12 @@ button {
   position: relative;
   z-index: 1;
   min-height: 100dvh;
-  padding: clamp(24px, 5.2vw, 50px);
+  padding: clamp(12px, 4vw, 50px);
+}
+
+@media (max-width: 640px) {
+  button, input, select, textarea { font-size: max(16px, 1em); }
+  .site-background-paper { background-size: auto 100%; }
 }
 
 .arcane-hover {
@@ -428,4 +434,14 @@ button {
   filter: blur(3px);
   animation: snake-v-fwd 9s ease-in-out infinite;
   animation-delay: -0.3s;
+}
+
+/* ─── Preferência: desativar animações ─── */
+.no-animations,
+.no-animations * {
+  animation-duration: 0.001ms !important;
+  animation-delay: -0.001ms !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
 }

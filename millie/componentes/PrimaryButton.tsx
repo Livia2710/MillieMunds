@@ -8,7 +8,7 @@ type PrimaryButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function PrimaryButton({ children, className = "", ...props }: PrimaryButtonProps) {
     return (
         <button type="button" 
-        className={`arcane-hover relative h-16 w-80 overflow-hidden border border-bege-escuro/30 font-title text-2xl uppercase tracking-[0.22em] text-bege-escuro shadow-header transition ${className}`}
+        className={`arcane-hover relative h-14 w-full max-w-80 overflow-hidden border border-bege-escuro/30 px-4 font-title text-base uppercase tracking-[0.16em] text-bege-escuro shadow-header transition sm:h-16 sm:text-2xl sm:tracking-[0.22em] ${className}`}
         {...props}>
         
         <Image

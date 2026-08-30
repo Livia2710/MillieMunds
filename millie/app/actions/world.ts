@@ -3,6 +3,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireUserId } from '@/lib/authorization'
 
 export async function getWorldsByActiveCampaign() {
   const session = await auth()
@@ -23,11 +24,20 @@ export async function getWorldsByActiveCampaign() {
 }
 
 export async function unlockWorld(worldId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
+  const userId = await requireUserId()
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId, active: true, role: 'MASTER' },
+    select: { campaignId: true },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode liberar mundos')
+  const world = await prisma.world.findFirst({
+    where: { id: worldId, campaignId: membership.campaignId },
+    select: { id: true },
+  })
+  if (!world) throw new Error('Mundo não encontrado nesta campanha')
 
   await prisma.world.update({
-    where: { id: worldId },
+    where: { id: world.id },
     data: { isLocked: false }
   })
 

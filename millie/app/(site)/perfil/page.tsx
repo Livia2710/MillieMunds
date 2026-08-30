@@ -36,6 +36,7 @@ export default async function ProfilePage() {
       pm:        rawCharacter.pm,
       pmMax:     rawCharacter.pmMax,
       birthRank: rawCharacter.birthRank,
+      playerId:  rawCharacter.playerId,
       stats:     rawCharacter.stats,
       inventory: rawCharacter.inventory as unknown as ProfileCharacter['inventory'],
     }

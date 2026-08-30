@@ -22,7 +22,7 @@ export default async function RootLayout({
   const { preferences } = await getUserSettings();
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={preferences.animacoesInterface ? "" : "no-animations"}>
       <body className={ebGaramond.variable}>
         <Providers initialPreferences={preferences}>
           <div className="site-background" aria-hidden="true" />

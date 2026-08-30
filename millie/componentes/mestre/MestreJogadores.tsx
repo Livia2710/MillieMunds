@@ -120,7 +120,7 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
                     {char && (
                       <>
                         <div className="relative w-6 h-6 opacity-60">
-                          <Image src={`/assets/svgs/${char.rank}.svg`} alt={char.rank} fill className="object-contain" />
+                          <Image src={`/assets/svgs/rank/${char.rank}.svg`} alt={char.rank} fill className="object-contain" />
                         </div>
                         <button
                           onClick={() => setLeituraChar({ id: char.id, name: char.name })}

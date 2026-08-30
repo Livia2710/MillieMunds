@@ -103,9 +103,13 @@ export async function getMyCharacter() {
 export async function unlockCharacter(characterId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, active: true, role: 'MASTER' }, select: { campaignId: true } })
+  if (!membership) throw new Error('Apenas o Mestre pode liberar personagens')
+  const character = await prisma.character.findFirst({ where: { id: characterId, campaignId: membership.campaignId }, select: { id: true } })
+  if (!character) throw new Error('Personagem não encontrado nesta campanha')
 
   await prisma.character.update({
-    where: { id: characterId },
+    where: { id: character.id },
     data: { isLocked: false },
   })
 
@@ -206,11 +210,20 @@ export async function createPlayerCharacter(data: {
   if (!session?.user?.id) throw new Error('Não autenticado')
 
   const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true },
+    where: { userId: session.user.id, active: true, role: 'PLAYER' },
   })
   if (!membership) throw new Error('Sem campanha ativa')
 
-  // sanidade: recalcula PV e PM no servidor — não confia nos valores do cliente
+  if (!['aluno', 'professor', 'npc'].includes(data.category)) throw new Error('Categoria inválida')
+  const attributes = [data.agilidade, data.inteligencia, data.forca, data.vigor, data.sorte]
+  if (attributes.some((value) => !Number.isInteger(value) || value < 1 || value > 10) || attributes.reduce((sum, value) => sum + value, 0) !== 25) {
+    throw new Error('Os atributos devem ser inteiros entre 1 e 10, totalizando 25 pontos')
+  }
+  const race = await prisma.race.findUnique({ where: { id: data.raceId }, select: { baseRank: true, element: true } })
+  if (!race) throw new Error('Raça inválida')
+  const existingCharacter = await prisma.character.findFirst({ where: { campaignId: membership.campaignId, playerId: session.user.id }, select: { id: true } })
+  if (existingCharacter) throw new Error('Você já possui um personagem nesta campanha')
+  // Recalcula campos derivados e usa a raça cadastrada como fonte de verdade.
   const pvCalc  = 10 + data.vigor        * 2
   const pmCalc  = 10 + data.inteligencia * 2
 
@@ -218,9 +231,9 @@ export async function createPlayerCharacter(data: {
     data: {
       name:        data.name,
       category:    data.category,
-      element:     data.element,
+      element:     race.element,
       worldSlug:   data.worldSlug,
-      birthRank:    data.birthRank,
+      birthRank:    race.baseRank,
       isLocked:    false,
       raceId:      data.raceId,
       campaignId:  membership.campaignId,
@@ -368,6 +381,10 @@ export async function getMasterPageData() {
 export async function getSpecialCards(characterId: string) {
   const session = await auth()
   if (!session?.user?.id) return []
+  const character = await prisma.character.findFirst({ where: { id: characterId, campaign: { members: { some: { userId: session.user.id, active: true } } } }, select: { playerId: true, campaignId: true } })
+  if (!character) return []
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, campaignId: character.campaignId, active: true }, select: { role: true } })
+  if (!membership || (membership.role !== 'MASTER' && character.playerId !== session.user.id)) return []
 
   return prisma.specialCard.findMany({
     where: { characterId },
@@ -378,24 +395,29 @@ export async function getSpecialCards(characterId: string) {
 export async function saveSpecialCard(characterId: string, cardType: 'VALETE' | 'CAVALEIRO') {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  if (!['VALETE', 'CAVALEIRO'].includes(cardType)) throw new Error('Carta especial inválida')
+  const character = await prisma.character.findFirst({ where: { id: characterId, playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true } } } }, select: { id: true } })
+  if (!character) throw new Error('Personagem não encontrado para este jogador')
 
   // garante unicidade: só 1 de cada tipo disponível por vez
   const existing = await prisma.specialCard.findFirst({
-    where: { characterId, cardType, isAvailable: true },
+    where: { characterId: character.id, cardType, isAvailable: true },
   })
   if (existing) throw new Error(`Você já tem um ${cardType} guardado.`)
 
   return prisma.specialCard.create({
-    data: { characterId, cardType },
+    data: { characterId: character.id, cardType },
   })
 }
 
 export async function useSpecialCard(cardId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  const card = await prisma.specialCard.findFirst({ where: { id: cardId, isAvailable: true, character: { playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true } } } } }, select: { id: true } })
+  if (!card) throw new Error('Carta especial indisponível')
 
   return prisma.specialCard.update({
-    where: { id: cardId },
+    where: { id: card.id },
     data: { isAvailable: false, usedAt: new Date() },
   })
 }
@@ -414,6 +436,7 @@ export async function addXp(characterId: string, amount: number) {
     where: { userId: session.user.id, active: true, role: 'MASTER' },
   })
   if (!membership) throw new Error('Apenas o Mestre pode conceder XP')
+  if (!Number.isInteger(amount) || amount < 1 || amount > 100_000) throw new Error('Quantidade de XP inválida')
 
   // busca o personagem com a raça atual (evoluída ou original)
   const char = await prisma.character.findFirst({

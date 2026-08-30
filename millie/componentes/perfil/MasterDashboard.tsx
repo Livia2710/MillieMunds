@@ -100,7 +100,7 @@ export default function MasterDashboard() {
               </div>
 
               <div className="relative w-6 h-6 shrink-0 opacity-70 group-hover:opacity-100 transition-all">
-                <Image src={`/assets/svgs/${char.rank}.svg`} alt={`Rank ${char.rank}`} fill className="object-contain" />
+                <Image src={`/assets/svgs/rank/${char.rank}.svg`} alt={`Rank ${char.rank}`} fill className="object-contain" />
               </div>
             </Link>
           ))}

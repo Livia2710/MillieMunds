@@ -7,6 +7,7 @@ import { SkillTree } from "./SkillTree";
 import type { ProfileCharacter } from "@/lib/types/profile";
 import type { RaceSkillTree } from "@/lib/types/skill";
 import { ELEMENT_META } from "@/lib/types/skill";
+import { usePreferences } from "@/lib/contexts/PreferencesContext";
 
 type HabilidadesClientProps = {
   character: ProfileCharacter;
@@ -14,7 +15,8 @@ type HabilidadesClientProps = {
 };
 
 export default function HabilidadesClient({ character, tree }: HabilidadesClientProps) {
-  const [treeVisible, setTreeVisible] = useState(false);
+  const { preferences } = usePreferences();
+  const [treeVisible, setTreeVisible] = useState(!preferences.animacoesInterface);
 
   const handleAnimationComplete = useCallback(() => {
     setTreeVisible(true);
@@ -25,7 +27,6 @@ export default function HabilidadesClient({ character, tree }: HabilidadesClient
   return (
     <main className="relative z-10 min-h-screen px-4 py-8 md:px-16 md:py-14">
 
-      {/* Cabeçalho */}
       <div className="mb-8 text-center md:mb-10">
         <p className="font-title text-xs uppercase tracking-[0.24em] text-bege-escuro md:text-sm md:tracking-[0.28em]">
           {character.name} — {character.race}
@@ -39,23 +40,23 @@ export default function HabilidadesClient({ character, tree }: HabilidadesClient
         />
       </div>
 
-      {/* Animação da roleta */}
-      <div
-        style={{
-          opacity: treeVisible ? 0 : 1,
-          height: treeVisible ? 0 : "auto",
-          overflow: "hidden",
-          transition: "opacity 500ms ease, height 500ms ease",
-          pointerEvents: treeVisible ? "none" : "auto",
-        }}
-      >
-        <ElementOrbit
-          characterElement={character.element}
-          onAnimationComplete={handleAnimationComplete}
-        />
-      </div>
+      {/* Animação da roleta — só existe se as animações estiverem ativas */}
+      {preferences.animacoesInterface && !treeVisible && (
+        <div
+          style={{
+            opacity: treeVisible ? 0 : 1,
+            height: treeVisible ? 0 : "auto",
+            overflow: "hidden",
+            transition: "opacity 500ms ease, height 500ms ease",
+          }}
+        >
+          <ElementOrbit
+            characterElement={character.element}
+            onAnimationComplete={handleAnimationComplete}
+          />
+        </div>
+      )}
 
-      {/* Árvore */}
       <div
         className="mx-auto max-w-4xl"
         style={{
@@ -65,7 +66,6 @@ export default function HabilidadesClient({ character, tree }: HabilidadesClient
       >
         {treeVisible && (
           <>
-            {/* Stat bar */}
             <div
               className="mb-8 flex flex-wrap items-center justify-center gap-4 rounded-sm border px-4 py-3 md:gap-6 md:px-6"
               style={{

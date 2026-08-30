@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import MillieModal from '@/componentes/ui/MillieModal'
 import { PrimaryButton } from '@/componentes/PrimaryButton'
-import { submitTarotCards } from '@/app/actions/tarot'
+import { drawTarotCard, submitTarotCards } from '@/app/actions/tarot'
+import { MAJOR_ARCANA_LABELS, type MajorArcanaSlug } from '@/lib/tarot'
 
 type Props = {
   isOpen: boolean
@@ -14,37 +15,11 @@ type Props = {
   question: string
 }
 
-const NAIPES  = ['paus', 'copas', 'espadas', 'ouro'] as const
-const VALORES = ['as', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'valete', 'cavaleiro', 'rainha', 'rei'] as const
-
 type Carta = {
   id: string
   name: string
   src: string
   slug: string
-  isJoker: boolean
-  peso: number
-}
-
-// baralho + coringa
-const BARALHO: Carta[] = [
-  ...NAIPES.flatMap((naipe) =>
-    VALORES.map((valor) => ({
-      id:      `${valor}-${naipe}`,
-      name:    `${valor.charAt(0).toUpperCase() + valor.slice(1)} de ${naipe.charAt(0).toUpperCase() + naipe.slice(1)}`,
-      src:     `/assets/images/cartas/arcano_menor/${valor}-${naipe}.png`,
-      slug:    `${valor}-${naipe}`,
-      isJoker: false,
-      peso:    ['rei', 'rainha', 'cavaleiro', 'valete'].includes(valor) ? 3 : 10,
-    }))
-  ),
-  { id: 'coringa', name: 'Coringa', src: '/assets/images/cartas/arcano_menor/coringa.png', slug: 'coringa', isJoker: true, peso: 2 },
-]
-
-function sortearCarta(): Carta {
-  const pesoTotal = BARALHO.reduce((t, c) => t + c.peso, 0)
-  let sorteio = Math.random() * pesoTotal
-  return BARALHO.find((c) => { sorteio -= c.peso; return sorteio <= 0 }) ?? BARALHO[0]
 }
 
 type CartaRevelada = Carta & { flipped: boolean }
@@ -59,23 +34,31 @@ export default function TarotReadingModal({ isOpen, onClose, drawId, readingType
   function handleTirar() {
     if (isAnimating || cartas.length >= total) return
     setIsAnimating(true)
-
-    const nova = { ...sortearCarta(), flipped: false }
-    setCartas((prev) => [...prev, nova])
-
-    setTimeout(() => {
-      setCartas((prev) =>
-        prev.map((c, i) => i === prev.length - 1 ? { ...c, flipped: true } : c)
-      )
-      setTimeout(() => setIsAnimating(false), 700)
-    }, 100)
+    startTransition(async () => {
+      try {
+        const { card } = await drawTarotCard(drawId)
+        const slug = card as MajorArcanaSlug
+        const nova: CartaRevelada = {
+          id: slug,
+          name: MAJOR_ARCANA_LABELS[slug],
+          src: `/assets/images/cartas/arcano_maior/${slug}.png`,
+          slug,
+          flipped: false,
+        }
+        setCartas((prev) => [...prev, nova])
+        setTimeout(() => {
+          setCartas((prev) => prev.map((c, i) => i === prev.length - 1 ? { ...c, flipped: true } : c))
+          setTimeout(() => setIsAnimating(false), 700)
+        }, 100)
+      } catch {
+        setIsAnimating(false)
+      }
+    })
   }
 
   function handleConfirmar() {
-    const slugs   = cartas.map((c) => c.slug)
-    const hadJoker = cartas.some((c) => c.isJoker)
     startTransition(async () => {
-      await submitTarotCards({ drawId, cards: slugs, hadJoker })
+      await submitTarotCards(drawId)
       setSubmitted(true)
     })
   }
@@ -147,7 +130,7 @@ export default function TarotReadingModal({ isOpen, onClose, drawId, readingType
             <div className="flex justify-center gap-3">
               {cartasRestantes > 0 ? (
                 <PrimaryButton onClick={handleTirar} disabled={isAnimating}>
-                  {isAnimating ? 'Revelando...' : 'Tirar Carta'}
+              {isAnimating || isPending ? 'Revelando...' : 'Tirar Arcano'}
                 </PrimaryButton>
               ) : (
                 <PrimaryButton onClick={handleConfirmar} disabled={isPending}>

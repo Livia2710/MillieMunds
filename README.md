@@ -77,9 +77,9 @@ O app cobre o ciclo completo de uma sessão: criar personagem escolhendo raça e
 
 <div align="center">
 
-<img src="./docs/screenshot-home.png" alt="Tela inicial" width="32%" />
-<img src="./docs/screenshot-personagem.png" alt="Ficha de personagem" width="32%" />
-<img src="./docs/screenshot-tarot.png" alt="Tela de personagem" width="32%" />
+<img src="./millie/docs/screenshot-home.png" alt="Tela inicial" width="32%" />
+<img src="./millie/docs/screenshot-personagem.png" alt="Ficha de personagem" width="32%" />
+<img src="./millie/docs/screenshot-tarot.png" alt="Tela de personagem" width="32%" />
 
 <sub>Castelo inicial · Ficha de personagem · Tela de personagem</sub>
 

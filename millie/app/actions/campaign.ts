@@ -101,7 +101,7 @@ export async function getUserCampaigns() {
   if (!session?.user?.id) return null
 
   const memberships = await prisma.campaignMember.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, campaign: { archived: false } },
     include: { campaign: true },
     orderBy: { joinedAt: 'asc' },
   })

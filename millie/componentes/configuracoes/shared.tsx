@@ -13,9 +13,9 @@ export function ConfigSection({ title, children }: { title: string; children: Re
 }
 
 export function ToggleRow({
-  label, description, checked, onChange,
+  label, description, checked, onChange, disabled = false,
 }: {
-  label: string; description: string; checked: boolean; onChange: (v: boolean) => void;
+  label: string; description: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-bege-escuro/10 pb-4">
@@ -27,9 +27,12 @@ export function ToggleRow({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-all
-          ${checked ? "border-bege-medio bg-bege-medio/20" : "border-bege-escuro/40 bg-transparent"}`}
+          ${checked ? "border-bege-medio bg-bege-medio/20" : "border-bege-escuro/40 bg-transparent"}
+          disabled:cursor-not-allowed disabled:opacity-40`}
       >
         <div
           className={`absolute top-0.5 h-3.5 w-3.5 rounded-full transition-all

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { User, Sliders, Bell, BookOpen, Trash2 } from "lucide-react";
-import { updateUserSettings, getUserSettings } from "@/app/actions/auth";
-import { NotificationPreferences,UserPreferences } from "@/lib/types/settings";
+import { UserPreferences } from "@/lib/types/settings";
 import TabConta from "./TabConta";
 import TabPreferencias from "./TabPreferencias";
 import TabNotificacoes from "./TabNotificacoes";
@@ -13,7 +12,7 @@ import TabCampanha from "./TabCampanha";
 
 type Profile = { username: string | null; avatar: string | null; email: string } | null;
 type ConfigTab = "conta" | "preferencias" | "notificacoes" | "biblioteca" | "campanha";
-type Settings = { preferences: UserPreferences; notifications: NotificationPreferences };
+type Settings = { preferences: UserPreferences };
 
 const TABS: { key: ConfigTab; label: string; icon: React.ReactNode }[] = [
   { key: "conta", label: "Conta", icon: <User size={15} strokeWidth={1.5} /> },
@@ -59,7 +58,7 @@ export default function ConfiguracoesClient({ settings, profile }: { settings: S
         <div className="flex-1 min-w-0">
           {activeTab === "conta" && <TabConta initial={profile} />}
           {activeTab === "preferencias" && <TabPreferencias initial={settings.preferences} />}
-          {activeTab === "notificacoes" && <TabNotificacoes initial={settings.notifications} />}
+          {activeTab === "notificacoes" && <TabNotificacoes />}
           {activeTab === "biblioteca" && <TabBiblioteca />}
           {activeTab === "campanha" && <TabCampanha />}
         </div>

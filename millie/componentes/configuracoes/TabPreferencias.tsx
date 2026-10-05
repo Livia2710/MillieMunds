@@ -9,9 +9,12 @@ import { useToast } from "@/componentes/ui/ToastProvider";
 
 export default function TabPreferencias({ initial }: { initial: UserPreferences }) {
   const [prefs, setPrefs] = useState<UserPreferences>(initial);
+  const [savedPrefs, setSavedPrefs] = useState<UserPreferences>(initial);
   const [isPending, startTransition] = useTransition();
   const { setPreferences } = usePreferences();
   const toast = useToast();
+  const isDirty = prefs.animacoesInterface !== savedPrefs.animacoesInterface
+    || prefs.texturaPapel !== savedPrefs.texturaPapel;
 
   function setField<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) {
     const next = { ...prefs, [key]: value };
@@ -23,8 +26,11 @@ export default function TabPreferencias({ initial }: { initial: UserPreferences 
     startTransition(async () => {
       try {
         await updateUserSettings({ preferences: prefs });
+        setSavedPrefs(prefs);
         toast.success("Preferências salvas.");
       } catch (e: any) {
+        setPrefs(savedPrefs);
+        setPreferences(savedPrefs);
         toast.error(e instanceof Error ? e.message : "Não foi possível salvar as preferências.");
       }
     });
@@ -37,18 +43,21 @@ export default function TabPreferencias({ initial }: { initial: UserPreferences 
         description="Inclui a animação de órbita na tela de Habilidades e transições de página."
         checked={prefs.animacoesInterface}
         onChange={(v) => setField("animacoesInterface", v)}
+        disabled={isPending}
       />
       <ToggleRow
         label="Efeito de textura de papel"
         description="Camada overlay de papel sobre toda a interface."
         checked={prefs.texturaPapel}
         onChange={(v) => setField("texturaPapel", v)}
+        disabled={isPending}
       />
       <ToggleRow
-        label="Sons de interface"
-        description="Sons ao virar cartas e interagir com elementos arcanos. (em breve)"
+        label="Sons de interface (em breve)"
+        description="Ainda não há sons conectados às ações da interface; esta opção ficará disponível quando a função estiver implementada."
         checked={prefs.sonsInterface}
-        onChange={(v) => setField("sonsInterface", v)}
+        onChange={() => undefined}
+        disabled
       />
 
       <div className="mt-6 border-t border-bege-escuro/20 pt-6 opacity-50 pointer-events-none">
@@ -61,7 +70,7 @@ export default function TabPreferencias({ initial }: { initial: UserPreferences 
         </div>
       </div>
 
-      <ConfigActionButton label={isPending ? "Salvando..." : "Salvar preferências"} onClick={handleSave} disabled={isPending} />
+      <ConfigActionButton label={isPending ? "Salvando..." : "Salvar preferências"} onClick={handleSave} disabled={isPending || !isDirty} />
     </ConfigSection>
   );
 }

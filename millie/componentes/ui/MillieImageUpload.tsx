@@ -9,6 +9,8 @@ type Props = {
   value?: string
   onChange: (url: string) => void
   onClear?: () => void
+  onUploadingChange?: (uploading: boolean) => void
+  disabled?: boolean
   aspectRatio?: "square" | "portrait" | "card"
 }
 
@@ -17,6 +19,8 @@ export default function MillieImageUpload({
   value,
   onChange,
   onClear,
+  onUploadingChange,
+  disabled = false,
   aspectRatio = "square",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -30,6 +34,7 @@ export default function MillieImageUpload({
   }[aspectRatio]
 
   async function handleFile(file: File) {
+    if (disabled || uploading) return
     if (!file.type.startsWith("image/")) {
       setError("Apenas imagens são aceitas.")
       return
@@ -41,6 +46,7 @@ export default function MillieImageUpload({
 
     setError("")
     setUploading(true)
+    onUploadingChange?.(true)
 
     try {
       const form = new FormData()
@@ -55,6 +61,7 @@ export default function MillieImageUpload({
       setError(err instanceof Error ? err.message : "Erro no upload.")
     } finally {
       setUploading(false)
+      onUploadingChange?.(false)
     }
   }
 
@@ -77,8 +84,9 @@ export default function MillieImageUpload({
           <Image src={value} alt="Preview" fill className="object-cover" />
           <button
             type="button"
+            disabled={disabled || uploading}
             onClick={() => { onChange(""); onClear?.() }}
-            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center bg-roxo-escuro/80 border border-bege-escuro/40 text-bege-medio hover:text-bege-claro transition-colors"
+            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center bg-roxo-escuro/80 border border-bege-escuro/40 text-bege-medio hover:text-bege-claro transition-colors disabled:cursor-not-allowed disabled:opacity-40"
           >
             <X size={14} />
           </button>
@@ -87,8 +95,9 @@ export default function MillieImageUpload({
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          onClick={() => inputRef.current?.click()}
-          className={`relative w-full ${aspectClass} flex flex-col items-center justify-center gap-2 border border-dashed border-bege-escuro/40 bg-roxo-escuro/20 cursor-pointer hover:border-bege-medio/60 hover:bg-roxo-escuro/30 transition-all`}
+          onClick={() => !disabled && !uploading && inputRef.current?.click()}
+          aria-disabled={disabled || uploading}
+          className={`relative w-full ${aspectClass} flex flex-col items-center justify-center gap-2 border border-dashed border-bege-escuro/40 bg-roxo-escuro/20 transition-all ${disabled || uploading ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-bege-medio/60 hover:bg-roxo-escuro/30"}`}
         >
           {uploading ? (
             <p className="font-title text-[10px] uppercase tracking-widest text-bege-escuro/50 animate-pulse">
@@ -106,8 +115,9 @@ export default function MillieImageUpload({
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             className="hidden"
+            disabled={disabled || uploading}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
           />
         </div>

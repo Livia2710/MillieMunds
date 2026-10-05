@@ -97,7 +97,13 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-3 border-b border-bege-escuro/20 pb-4 justify-center">
-            <div className="h-10 w-10 rounded-full border border-bege-escuro/40 bg-roxo" />
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-bege-escuro/40 bg-roxo text-sm font-title uppercase text-bege-medio">
+              {session?.user?.image ? (
+                <Image src={session.user.image} alt={`Foto de ${username}`} fill sizes="40px" className="object-cover" />
+              ) : (
+                username.trim().charAt(0) || "?"
+              )}
+            </div>
             <div>
               <p className="font-title text-md uppercase tracking-[0.14em] text-bege-claro">
                 {username}

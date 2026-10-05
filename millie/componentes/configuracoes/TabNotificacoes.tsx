@@ -1,43 +1,29 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { updateUserSettings } from "@/app/actions/auth";
-import { ConfigSection, ToggleRow, ConfigActionButton } from "./shared";
-import { NotificationPreferences } from "@/lib/types/settings";
-import { useToast } from "@/componentes/ui/ToastProvider";
+import { ConfigSection } from "./shared";
 
-export default function TabNotificacoes({ initial }: { initial: NotificationPreferences }) {
-  const [notifs, setNotifs] = useState<NotificationPreferences>(initial);
-  const [isPending, startTransition] = useTransition();
-  const toast = useToast();
+const CATEGORIES = [
+  "Novas sessões de campanha",
+  "Itens adicionados ao inventário",
+  "Habilidades desbloqueadas",
+  "Atualizações do sistema",
+];
 
-  function setField<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {
-    setNotifs((n) => ({ ...n, [key]: value }));
-  }
-
-  function handleSave() {
-    startTransition(async () => {
-      try {
-        await updateUserSettings({ notifications: notifs });
-        toast.success("Notificações salvas.");
-      } catch (e: any) {
-        toast.error(e instanceof Error ? e.message : "Não foi possível salvar as notificações.");
-      }
-    });
-  }
-
+export default function TabNotificacoes() {
   return (
     <ConfigSection title="Notificações">
-      <ToggleRow label="Novas sessões de campanha" description="Quando o Mestre agendar ou iniciar uma nova sessão."
-        checked={notifs.novasSessoes} onChange={(v) => setField("novasSessoes", v)} />
-      <ToggleRow label="Itens adicionados ao inventário" description="Quando o Mestre adicionar um item ao seu inventário."
-        checked={notifs.itensAdicionados} onChange={(v) => setField("itensAdicionados", v)} />
-      <ToggleRow label="Habilidades desbloqueadas" description="Quando você subir de nível e desbloquear novas habilidades."
-        checked={notifs.habilidadesDesbloqueadas} onChange={(v) => setField("habilidadesDesbloqueadas", v)} />
-      <ToggleRow label="Atualizações do sistema" description="Novos conteúdos, raças e mundos adicionados ao Millie Munds."
-        checked={notifs.atualizacoesSistema} onChange={(v) => setField("atualizacoesSistema", v)} />
-
-      <ConfigActionButton label={isPending ? "Salvando..." : "Salvar notificações"} onClick={handleSave} disabled={isPending} />
+      <p className="text-sm leading-relaxed text-bege-claro/60">
+        O Millie ainda não envia notificações. As preferências ficarão disponíveis quando os avisos estiverem implementados;
+        por enquanto, nenhuma opção aparece como ativada sem produzir efeito.
+      </p>
+      <ul className="space-y-3 border-t border-bege-escuro/10 pt-4" aria-label="Tipos de notificação planejados">
+        {CATEGORIES.map((category) => (
+          <li key={category} className="flex items-center justify-between gap-4 text-sm text-bege-escuro/40">
+            <span>{category}</span>
+            <span className="shrink-0 font-title text-[9px] uppercase tracking-widest">Em breve</span>
+          </li>
+        ))}
+      </ul>
     </ConfigSection>
   );
 }

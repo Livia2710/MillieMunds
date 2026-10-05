@@ -611,8 +611,7 @@ export async function applyRaceEvolution(
       evolvedRaceId: targetRace.id,
       raceId:        targetRace.id,  // raça ativa agora é a nova
       maxXp:         newMaxXp,
-      },
-    })
+    },
   })
   if (updated.count === 0) throw new Error('Este personagem já escolheu um caminho')
 

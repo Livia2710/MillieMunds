@@ -5,8 +5,10 @@ import { prisma } from './lib/prisma'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { clearRateLimit, consumeRateLimit, rateLimitKey, requestIp } from './lib/rateLimit'
+import authConfig from './auth.config'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
@@ -51,16 +53,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },   // ← IMPORTANTE com Credentials
   callbacks: {
   async jwt({ token, user, trigger }) {
-    if (user) {
-      token.id = user.id
+    if (user) token.id = user.id
 
-      if (user || trigger === 'update') {
+    // `useSession().update()` chega com trigger === 'update'. Busca os valores
+    // atuais no banco e não confia em dados de perfil enviados pelo cliente.
+    if (user || trigger === 'update') {
+      const userId = user?.id ?? token.id
+      if (typeof userId === 'string') {
         const dbUser = await prisma.user.findUnique({
-        where: { id: (user?.id ?? token.id) as string },
-        select: { username: true, email: true , avatar: true }
-      })
-      token.username = dbUser?.username ?? dbUser?.email ?? ''
-      token.avatar = dbUser?.avatar ?? null
+          where: { id: userId },
+          select: { username: true, email: true, avatar: true },
+        })
+        token.username = dbUser?.username ?? dbUser?.email ?? ''
+        token.avatar = dbUser?.avatar ?? null
       }
     }
     return token

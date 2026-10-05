@@ -10,20 +10,24 @@ import { useCampaign } from "@/lib/contexts/CampaignContext";
 export default function TabCampanha() {
     const router = useRouter()
     const toast = useToast()
-    const { refreshCampaigns } = useCampaign()
+    const { refreshCampaigns, isMaster, loading: campaignsLoading, hasCampaign } = useCampaign()
     const [isPending, startTransition] = useTransition()
     // confirmação de dois cliques para ações destrutivas
     const [confirming, setConfirming] = useState<'arquivar' | string | null>(null)
     const [archivedCampaigns, setArchivedCampaigns] = useState<{ id: string; name: string }[]>([])
 
     useEffect(() => {
-      getArchivedCampaigns().then(setArchivedCampaigns).catch(() => setArchivedCampaigns([]))
-    }, [])
+      getArchivedCampaigns().then(setArchivedCampaigns).catch(() => {
+        toast.error('Não foi possível carregar as campanhas arquivadas.')
+        setArchivedCampaigns([])
+      })
+    }, [toast])
   
     function handleLeave() {
       startTransition(async () => {
         try {
           await leaveCampaign()
+          await refreshCampaigns()
           toast.success('Você saiu da campanha.')
           router.push('/')
         } catch (e: any) {
@@ -40,6 +44,7 @@ export default function TabCampanha() {
       startTransition(async () => {
         try {
           await archiveCampaign()
+          await refreshCampaigns()
           setConfirming(null)
           toast.success('Campanha arquivada. Você poderá restaurá-la depois.')
           setTimeout(() => router.push('/'), 1500)
@@ -90,19 +95,23 @@ export default function TabCampanha() {
         <div className="flex flex-col gap-3 mb-8">
           <DangerRow
             label="Sair da campanha"
-            description="Você sai como jogador, mas o personagem e o progresso permanecem salvos pelo Mestre."
-            buttonLabel={isPending ? 'Saindo...' : 'Sair'}
+            description={isMaster
+              ? 'O Mestre não pode sair diretamente. Transfira a liderança no painel antes de deixar a campanha.'
+              : 'Você sai da campanha; o Mestre mantém os dados e o progresso dos personagens.'}
+            buttonLabel={isPending ? 'Saindo...' : isMaster ? 'Ação indisponível' : 'Sair'}
             variant="soft"
             onClick={handleLeave}
-            disabled={isPending}
+            disabled={isPending || campaignsLoading || !hasCampaign || isMaster}
           />
           <DangerRow
             label="Transferir liderança"
-            description="Passa o papel de Mestre para outro jogador da campanha. Disponível no painel do Mestre."
-            buttonLabel="Ir ao painel"
+            description={isMaster
+              ? 'Passa o papel de Mestre para outro jogador da campanha no painel.'
+              : 'Somente o Mestre pode transferir a liderança.'}
+            buttonLabel={isMaster ? 'Ir ao painel' : 'Ação indisponível'}
             variant="soft"
             onClick={() => router.push('/mestre')}
-            disabled={isPending}
+            disabled={isPending || campaignsLoading || !hasCampaign || !isMaster}
           />
         </div>
   
@@ -114,7 +123,7 @@ export default function TabCampanha() {
   
           {confirming && (
             <p className="mb-3 font-title text-[10px] uppercase tracking-widest text-red-400/70">
-              Clique novamente para confirmar · clique em outro para cancelar
+              Clique novamente no botão para confirmar a ação.
             </p>
           )}
   
@@ -125,11 +134,11 @@ export default function TabCampanha() {
               buttonLabel={
                 isPending && confirming === 'arquivar' ? 'Arquivando...'
                 : confirming === 'arquivar' ? 'Confirmar arquivamento?'
-                : 'Arquivar'
+                : isMaster ? 'Arquivar' : 'Ação indisponível'
               }
               variant="danger"
               onClick={handleArchive}
-              disabled={isPending}
+              disabled={isPending || campaignsLoading || !hasCampaign || !isMaster}
             />
           </div>
         </div>

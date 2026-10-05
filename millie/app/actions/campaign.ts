@@ -254,6 +254,42 @@ export async function getArchivedCampaigns() {
   })
 }
 
+export async function restoreArchivedCampaign(campaignId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  campaignId = validatedText(campaignId, 'Campanha', { min: 1, max: 100 })
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.user.id} FOR UPDATE`
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id" = ${campaignId} FOR UPDATE`
+    const campaign = await tx.campaign.findFirst({
+      where: {
+        id: campaignId,
+        masterId: session.user.id,
+        archived: true,
+        members: { some: { userId: session.user.id, role: 'MASTER' } },
+      },
+      select: { id: true },
+    })
+    if (!campaign) throw new Error('Campanha arquivada não encontrada ou sem permissão')
+
+    await tx.campaignMember.updateMany({
+      where: { userId: session.user.id, active: true },
+      data: { active: false },
+    })
+    await tx.campaign.update({ where: { id: campaign.id }, data: { archived: false, archivedAt: null } })
+    const masterMembership = await tx.campaignMember.updateMany({
+      where: { campaignId: campaign.id, userId: session.user.id, role: 'MASTER' },
+      data: { active: true },
+    })
+    if (masterMembership.count !== 1) throw new Error('Não foi possível reativar a associação do Mestre')
+  })
+
+  revalidatePath('/')
+  revalidatePath('/mestre')
+  revalidatePath('/configuracoes')
+}
+
 // ─── deleteArchivedCampaign ───────────────────────────────
 // Apenas o Mestre. Exclusão permanente — como o schema não tem
 // onDelete: Cascade nessas relações, apagamos manualmente na ordem

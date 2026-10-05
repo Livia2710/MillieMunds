@@ -6,6 +6,7 @@ import { updateProfile, updatePassword } from "@/app/actions/auth";
 import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import MillieInput from "@/componentes/ui/MillieInput";
 import { ConfigSection, ConfigActionButton } from "./shared";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 export default function TabConta({ initial }: { initial: { username: string | null; avatar: string | null; email: string } | null }) {
   const { update } = useSession();
@@ -15,16 +16,16 @@ export default function TabConta({ initial }: { initial: { username: string | nu
   const [avatar, setAvatar] = useState(initial?.avatar ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
-  const [feedback, setFeedback] = useState<{ type: "ok" | "erro"; msg: string } | null>(null);
+  const toast = useToast();
 
   function handleSaveProfile() {
     startTransition(async () => {
       try {
         await updateProfile({ username, avatar });
         await update();
-        setFeedback({ type: "ok", msg: "Perfil atualizado com sucesso." });
+        toast.success("Perfil atualizado com sucesso.");
       } catch (e: any) {
-        setFeedback({ type: "erro", msg: e.message });
+        toast.error(e instanceof Error ? e.message : "Não foi possível atualizar o perfil.");
       }
     });
   }
@@ -36,9 +37,9 @@ export default function TabConta({ initial }: { initial: { username: string | nu
         await updatePassword(currentPw, newPw);
         setCurrentPw("");
         setNewPw("");
-        setFeedback({ type: "ok", msg: "Senha alterada com sucesso." });
+        toast.success("Senha alterada com sucesso.");
       } catch (e: any) {
-        setFeedback({ type: "erro", msg: e.message });
+        toast.error(e instanceof Error ? e.message : "Não foi possível alterar a senha.");
       }
     });
   }
@@ -82,11 +83,6 @@ export default function TabConta({ initial }: { initial: { username: string | nu
         </div>
       </div>
 
-      {feedback && (
-        <p className={`font-title text-xs uppercase tracking-wider ${feedback.type === "ok" ? "text-terra" : "text-red-400"}`}>
-          {feedback.msg}
-        </p>
-      )}
     </ConfigSection>
   );
 }

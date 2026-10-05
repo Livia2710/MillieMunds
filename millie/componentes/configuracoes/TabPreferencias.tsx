@@ -5,12 +5,13 @@ import { updateUserSettings } from "@/app/actions/auth";
 import { ConfigSection, ToggleRow, ConfigActionButton } from "./shared";
 import { UserPreferences } from "@/lib/types/settings";
 import { usePreferences } from "@/lib/contexts/PreferencesContext";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 export default function TabPreferencias({ initial }: { initial: UserPreferences }) {
   const [prefs, setPrefs] = useState<UserPreferences>(initial);
   const [isPending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<string | null>(null);
   const { setPreferences } = usePreferences();
+  const toast = useToast();
 
   function setField<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) {
     const next = { ...prefs, [key]: value };
@@ -22,10 +23,9 @@ export default function TabPreferencias({ initial }: { initial: UserPreferences 
     startTransition(async () => {
       try {
         await updateUserSettings({ preferences: prefs });
-        setFeedback("Preferências salvas.");
-        setTimeout(() => setFeedback(null), 3000);
+        toast.success("Preferências salvas.");
       } catch (e: any) {
-        setFeedback(e.message);
+        toast.error(e instanceof Error ? e.message : "Não foi possível salvar as preferências.");
       }
     });
   }
@@ -62,7 +62,6 @@ export default function TabPreferencias({ initial }: { initial: UserPreferences 
       </div>
 
       <ConfigActionButton label={isPending ? "Salvando..." : "Salvar preferências"} onClick={handleSave} disabled={isPending} />
-      {feedback && <p className="font-title text-xs uppercase tracking-wider text-terra">{feedback}</p>}
     </ConfigSection>
   );
 }

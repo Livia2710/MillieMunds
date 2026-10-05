@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateUserSettings, getUserSettings } from "@/app/actions/auth";
+import { updateUserSettings } from "@/app/actions/auth";
 import { ConfigSection, ToggleRow, ConfigActionButton } from "./shared";
 import { NotificationPreferences } from "@/lib/types/settings";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 export default function TabNotificacoes({ initial }: { initial: NotificationPreferences }) {
   const [notifs, setNotifs] = useState<NotificationPreferences>(initial);
   const [isPending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const toast = useToast();
 
   function setField<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {
     setNotifs((n) => ({ ...n, [key]: value }));
@@ -18,10 +19,9 @@ export default function TabNotificacoes({ initial }: { initial: NotificationPref
     startTransition(async () => {
       try {
         await updateUserSettings({ notifications: notifs });
-        setFeedback("Notificações salvas.");
-        setTimeout(() => setFeedback(null), 3000);
+        toast.success("Notificações salvas.");
       } catch (e: any) {
-        setFeedback(e.message);
+        toast.error(e instanceof Error ? e.message : "Não foi possível salvar as notificações.");
       }
     });
   }
@@ -38,7 +38,6 @@ export default function TabNotificacoes({ initial }: { initial: NotificationPref
         checked={notifs.atualizacoesSistema} onChange={(v) => setField("atualizacoesSistema", v)} />
 
       <ConfigActionButton label={isPending ? "Salvando..." : "Salvar notificações"} onClick={handleSave} disabled={isPending} />
-      {feedback && <p className="font-title text-xs uppercase tracking-wider text-terra">{feedback}</p>}
     </ConfigSection>
   );
 }

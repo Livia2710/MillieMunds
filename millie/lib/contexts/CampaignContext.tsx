@@ -19,6 +19,7 @@ type CampaignContextType = {
   hasCampaign: boolean;
   isMaster: boolean;
   loading: boolean;
+  refreshCampaigns: () => Promise<void>;
   createCampaign: (name: string, description: string) => Promise<void>;
   joinCampaign: (code: string) => Promise<void>;
   switchCampaign: (id: string) => Promise<void>;
@@ -68,6 +69,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         hasCampaign: !!activeCampaign,
         isMaster: activeCampaign?.role === "MASTER",
         loading,
+        refreshCampaigns: fetchCampaigns,
         createCampaign,
         joinCampaign,
         switchCampaign,

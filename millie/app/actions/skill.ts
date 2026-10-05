@@ -2,8 +2,29 @@
 
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireActiveMembership, requireUserId } from '@/lib/authorization'
 import { revalidatePath } from 'next/cache'
 import { calcFirstSkillUnlock, calcSkillUsesRequired } from '@/lib/utils/rank'
+import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
+
+const SKILL_BRANCHES = ['ativa', 'passiva', 'reacao', 'aprimoramento'] as const
+
+function validateSkillFields(data: unknown) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Dados da habilidade inválidos')
+  const fields = data as Record<string, unknown>
+  const maxLevel = validatedInteger(fields.maxLevel, 'Nível máximo', 1, 10)
+  const levelEffects = fields.levelEffects === undefined ? [] : fields.levelEffects
+  if (!Array.isArray(levelEffects) || levelEffects.length > maxLevel) throw new Error('Efeitos por nível inválidos')
+  return {
+    name: validatedText(fields.name, 'Nome da habilidade', { min: 1, max: 100 }),
+    description: validatedText(fields.description, 'Descrição da habilidade', { max: 5_000, trim: false }),
+    branch: oneOf(fields.branch, 'Ramo da habilidade', SKILL_BRANCHES),
+    element: validatedText(fields.element, 'Elemento', { min: 1, max: 40 }),
+    maxLevel,
+    requiredCharacterLevel: validatedInteger(fields.requiredCharacterLevel, 'Nível necessário', 1, 10_000),
+    levelEffects: levelEffects.map((effect) => validatedText(effect, 'Efeito por nível', { min: 1, max: 2_000 })),
+  }
+}
 
 // ─── getSkillsByCharacter ─────────────────────────────────
 // Retorna as habilidades do personagem mesclando:
@@ -35,6 +56,7 @@ export async function getSkillsByCharacter(characterId: string) {
     },
   })
   if (!membership) return null
+  if (membership.role !== 'MASTER' && char.isLocked && char.playerId !== session.user.id) return null
 
   const firstUnlock = calcFirstSkillUnlock(char.birthRank)
 
@@ -94,28 +116,23 @@ export async function createSkill(data: {
   requiredCharacterLevel: number
   levelEffects?: string[]
 }) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
-
- const char = await prisma.character.findUnique({
-  where: { id: data.characterId },
-  select: { level: true },
-})
-  if (!char) throw new Error('Voce ainda não chegou no nível exigido.')
+  const fields = validateSkillFields(data)
+  const characterId = validatedText(data.characterId, 'Personagem', { min: 1, max: 100 })
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
+  const char = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    select: { level: true },
+  })
+  if (!char) throw new Error('Personagem não encontrado na campanha ativa')
 
   await prisma.skill.create({
     data: {
-      name:                   data.name,
-      description:            data.description,
-      branch:                 data.branch,
-      element:                data.element,
-      maxLevel:               data.maxLevel,
-      requiredCharacterLevel: data.requiredCharacterLevel,
-      characterId:            data.characterId,
-       isUnlocked: char ? char.level >= data.requiredCharacterLevel : false,
+      ...fields,
+      characterId,
+      isUnlocked: char.level >= fields.requiredCharacterLevel,
       currentLevel:           0,
       uses:                   0,
-      levelEffects:           data.levelEffects?.filter((t) => t.trim()) ?? [],
     },
   })
 
@@ -126,13 +143,13 @@ export async function createSkill(data: {
 // Mestre desbloqueia manualmente uma habilidade criada por ele
 
 export async function unlockSkill(skillId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
-
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
+  const skill = await prisma.skill.findFirst({
+    where: { id: skillId, character: { campaignId: membership.campaignId } },
+    select: { id: true },
   })
-  if (!membership) throw new Error('Apenas o Mestre pode desbloquear habilidades')
+  if (!skill) throw new Error('Habilidade não encontrada na campanha ativa')
 
   await prisma.skill.update({
     where: { id: skillId },
@@ -145,47 +162,41 @@ export async function unlockSkill(skillId: string) {
 // ─── useSkill ─────────────────────────────────────────────
 // Jogador registra uso de uma habilidade.
 // Se acumular usos suficientes, sobe de nível automaticamente.
-// Funciona para habilidades inatas (RaceSkill não tem uses — lógica futura)
-// e para habilidades criadas pelo Mestre (Skill com uses no banco).
+// Registra o uso de habilidades criadas pelo Mestre (Skill).
+// Habilidades inatas são tratadas separadamente por useInnateSkill().
 
 export async function useSkill(skillId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'PLAYER')
 
-  const skill = await prisma.skill.findFirst({
-    where: { id: skillId },
-    include: {
-      character: {
-        select: { birthRank: true },
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Skill" WHERE "id" = ${skillId} FOR UPDATE`
+    const skill = await tx.skill.findFirst({
+      where: {
+        id: skillId,
+        character: { campaignId: membership.campaignId, playerId: userId },
       },
-    },
-  })
+      include: { character: { select: { birthRank: true } } },
+    })
+    if (!skill) throw new Error('Habilidade não encontrada para seu personagem na campanha ativa')
+    if (!skill.isUnlocked) throw new Error('Habilidade ainda não desbloqueada')
+    if (skill.currentLevel >= skill.maxLevel) throw new Error('Habilidade já está no nível máximo')
 
-  if (!skill) throw new Error('Habilidade não encontrada')
-  if (!skill.isUnlocked) throw new Error('Habilidade ainda não desbloqueada')
-  if (skill.currentLevel >= skill.maxLevel) throw new Error('Habilidade já está no nível máximo')
-
-  const birthRank     = skill.character.birthRank
-  const usesRequired  = calcSkillUsesRequired(birthRank, skill.currentLevel)
-  const newUses       = skill.uses + 1
-  const shouldLevelUp = newUses >= usesRequired
-
-  await prisma.skill.update({
-    where: { id: skillId },
-    data: {
-      uses:         shouldLevelUp ? 0 : newUses,
-      currentLevel: shouldLevelUp ? skill.currentLevel + 1 : skill.currentLevel,
-    },
+    const usesRequired = calcSkillUsesRequired(skill.character.birthRank, skill.currentLevel)
+    const newUses = skill.uses + 1
+    const leveledUp = newUses >= usesRequired
+    const updated = await tx.skill.update({
+      where: { id: skillId },
+      data: {
+        uses: leveledUp ? 0 : newUses,
+        currentLevel: leveledUp ? skill.currentLevel + 1 : skill.currentLevel,
+      },
+    })
+    return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
   })
 
   revalidatePath('/habilidades')
-
-  return {
-    leveledUp:    shouldLevelUp,
-    newLevel:     shouldLevelUp ? skill.currentLevel + 1 : skill.currentLevel,
-    uses:         shouldLevelUp ? 0 : newUses,
-    usesRequired,
-  }
+  return result
 }
 
 // ─── upgradeSkill ─────────────────────────────────────────
@@ -196,46 +207,45 @@ export async function upgradeSkill(skillId: string) {
 }
 
 export async function useInnateSkill(raceSkillId: string, characterId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('NÃ£o autenticado')
-
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'PLAYER')
   const character = await prisma.character.findFirst({
-    where: { id: characterId, playerId: session.user.id },
+    where: { id: characterId, campaignId: membership.campaignId, playerId: userId },
     include: { race: { include: { skills: { where: { id: raceSkillId } } } } },
   })
   if (!character || !character.race.skills[0]) throw new Error('Habilidade inata nÃ£o encontrada')
-
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, campaignId: character.campaignId, active: true },
-    select: { id: true },
-  })
-  if (!membership) throw new Error('Campanha ativa nÃ£o encontrada')
 
   const raceSkill = character.race.skills[0]
   const requiredLevel = Math.max(raceSkill.levelRequired, calcFirstSkillUnlock(character.birthRank))
   if (character.level < requiredLevel) throw new Error('Habilidade ainda nÃ£o desbloqueada')
 
-  const progress = await prisma.characterRaceSkill.upsert({
-    where: { characterId_raceSkillId: { characterId, raceSkillId } },
-    create: { characterId, raceSkillId },
-    update: {},
-  })
-  if (progress.currentLevel >= 3) throw new Error('Habilidade jÃ¡ estÃ¡ no nÃ­vel mÃ¡ximo')
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.characterRaceSkill.upsert({
+      where: { characterId_raceSkillId: { characterId, raceSkillId } },
+      create: { characterId, raceSkillId },
+      update: {},
+    })
+    await tx.$queryRaw`SELECT "id" FROM "CharacterRaceSkill" WHERE "characterId" = ${characterId} AND "raceSkillId" = ${raceSkillId} FOR UPDATE`
+    const progress = await tx.characterRaceSkill.findUniqueOrThrow({
+      where: { characterId_raceSkillId: { characterId, raceSkillId } },
+    })
+    if (progress.currentLevel >= 3) throw new Error('Habilidade já está no nível máximo')
 
-  const usesRequired = calcSkillUsesRequired(character.birthRank, progress.currentLevel)
-  const newUses = progress.uses + 1
-  const leveledUp = newUses >= usesRequired
-
-  const updated = await prisma.characterRaceSkill.update({
-    where: { id: progress.id },
-    data: {
-      uses: leveledUp ? 0 : newUses,
-      currentLevel: leveledUp ? progress.currentLevel + 1 : progress.currentLevel,
-    },
+    const usesRequired = calcSkillUsesRequired(character.birthRank, progress.currentLevel)
+    const newUses = progress.uses + 1
+    const leveledUp = newUses >= usesRequired
+    const updated = await tx.characterRaceSkill.update({
+      where: { id: progress.id },
+      data: {
+        uses: leveledUp ? 0 : newUses,
+        currentLevel: leveledUp ? progress.currentLevel + 1 : progress.currentLevel,
+      },
+    })
+    return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
   })
 
   revalidatePath('/habilidades')
-  return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
+  return result
 }
 // ─── updateSkill ────────────────────────────────────────────
 // Mestre edita uma habilidade criada por ele (não se aplica a RaceSkill, que é inata)
@@ -248,13 +258,9 @@ export async function updateSkill(skillId: string, data: {
   requiredCharacterLevel: number
   levelEffects?: string[]
 }) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
-
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true, role: 'MASTER' },
-  })
-  if (!membership) throw new Error('Apenas o Mestre pode editar habilidades')
+  const fields = validateSkillFields(data)
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
 
   const skill = await prisma.skill.findFirst({
     where: { id: skillId, character: { campaignId: membership.campaignId } },
@@ -265,13 +271,7 @@ export async function updateSkill(skillId: string, data: {
   await prisma.skill.update({
     where: { id: skillId },
     data: {
-      name:                   data.name,
-      description:            data.description,
-      branch:                 data.branch,
-      element:                data.element,
-      maxLevel:               data.maxLevel,
-      requiredCharacterLevel: data.requiredCharacterLevel,
-      levelEffects:           data.levelEffects?.filter((t) => t.trim()) ?? [],
+      ...fields,
     },
   })
 
@@ -280,13 +280,8 @@ export async function updateSkill(skillId: string, data: {
 
 // ─── deleteSkill ────────────────────────────────────────────
 export async function deleteSkill(skillId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error('Não autenticado')
-
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true, role: 'MASTER' },
-  })
-  if (!membership) throw new Error('Apenas o Mestre pode excluir habilidades')
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
 
   const result = await prisma.skill.deleteMany({
     where: { id: skillId, character: { campaignId: membership.campaignId } },

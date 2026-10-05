@@ -375,3 +375,13 @@ model ItemChapter {
   itemId  String
   item    InventoryItem @relation(fields: [itemId], references: [id])
 }
+
+// Buckets de limite de tentativas compartilhados entre instâncias serverless.
+model SecurityRateLimit {
+  key             String   @id @db.VarChar(80)
+  count           Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  blockedUntil    DateTime?
+
+  @@index([windowStartedAt])
+}

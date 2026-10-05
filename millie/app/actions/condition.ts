@@ -3,7 +3,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { CONDITION_LABELS, type ManualCondition } from '@/lib/utils/conditions'
+import { CONDITION_LABELS, MANUAL_CONDITIONS, type ManualCondition } from '@/lib/utils/conditions'
 import { requireCharacterInActiveCampaign } from '@/lib/authorization'
 
 export async function addCondition(characterId: string, type: ManualCondition) {
@@ -11,15 +11,17 @@ export async function addCondition(characterId: string, type: ManualCondition) {
   if (!session?.user?.id) throw new Error('Não autenticado')
 
   const { membership } = await requireCharacterInActiveCampaign(characterId, session.user.id, 'MASTER')
-  if (!(type in CONDITION_LABELS)) throw new Error('Condição inválida')
+  if (!MANUAL_CONDITIONS.some((condition) => condition === type) || !Object.hasOwn(CONDITION_LABELS, type)) {
+    throw new Error('Condição inválida')
+  }
 
-  const existing = await prisma.characterCondition.findFirst({
-    where: { characterId, type, removedAt: null, character: { campaignId: membership.campaignId } },
-  })
-  if (existing) throw new Error(`Personagem já está com a condição ${CONDITION_LABELS[type]}`)
-
-  await prisma.characterCondition.create({
-    data: { characterId, type },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`
+    const existing = await tx.characterCondition.findFirst({
+      where: { characterId, type, removedAt: null, character: { campaignId: membership.campaignId } },
+    })
+    if (existing) throw new Error(`Personagem já está com a condição ${CONDITION_LABELS[type]}`)
+    await tx.characterCondition.create({ data: { characterId, type } })
   })
 
   revalidatePath('/mestre')

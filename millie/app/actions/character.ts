@@ -6,6 +6,7 @@ import type { BaseRank, RacePath } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
 import { calcCurrentRank, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
+import { oneOf, validatedInteger, validatedText, validateImageUrl } from '@/lib/validation'
 
 // ─── helper: shape de retorno compartilhado ───────────────
 function formatCharacter(char: any, campaignItems: any[]) {
@@ -50,20 +51,28 @@ export async function getCharactersByActiveCampaign() {
 
   if (!membership) return []
 
-  return membership.campaign.characters.map((char) =>
-    formatCharacter(char, membership.campaign.items)
-  )
+  const characters = membership.role === 'MASTER'
+    ? membership.campaign.characters
+    : membership.campaign.characters.filter((char) => !char.isLocked || char.playerId === session.user.id)
+  const items = membership.role === 'MASTER'
+    ? membership.campaign.items
+    : membership.campaign.items.filter((item) => !item.isLocked)
+
+  return characters.map((char) => formatCharacter(char, items))
 }
 
 export async function getCharacterById(id: string) {
   const session = await auth()
   if (!session?.user?.id) return null
 
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true },
+    select: { campaignId: true, role: true },
+  })
+  if (!membership) return null
+
   const char = await prisma.character.findFirst({
-    where: {
-      id,
-      campaign: { members: { some: { userId: session.user.id } } },
-    },
+    where: { id, campaignId: membership.campaignId },
     include: {
       race: true,
       skills: true,
@@ -72,7 +81,11 @@ export async function getCharacterById(id: string) {
   })
 
   if (!char) return null
-  return formatCharacter(char, char.campaign.items)
+  if (membership.role !== 'MASTER' && char.isLocked && char.playerId !== session.user.id) return null
+  const items = membership.role === 'MASTER'
+    ? char.campaign.items
+    : char.campaign.items.filter((item) => !item.isLocked)
+  return formatCharacter(char, items)
 }
 
 export async function getMyCharacter() {
@@ -97,7 +110,7 @@ export async function getMyCharacter() {
   })
 
   if (!char) return null
-  return formatCharacter(char, char.campaign.items)
+  return formatCharacter(char, char.campaign.items.filter((item) => !item.isLocked))
 }
 
 export async function unlockCharacter(characterId: string) {
@@ -145,29 +158,42 @@ export async function createCharacter(data: {
   })
   if (!membership) throw new Error('Sem campanha ativa como Mestre')
 
-  const agilidade    = data.agilidade    ?? 1
-  const inteligencia = data.inteligencia ?? 1
-  const forca        = data.forca        ?? 1
-  const vigor        = data.vigor        ?? 1
-  const sorte        = data.sorte        ?? 1
+  const name = validatedText(data.name, 'Nome do personagem', { min: 2, max: 80 })
+  const category = oneOf(data.category, 'Categoria', ['aluno', 'professor', 'npc', 'monstro'] as const)
+  const element = validatedText(data.element, 'Elemento', { min: 1, max: 40 })
+  const worldSlug = validatedText(data.worldSlug, 'Mundo', { min: 1, max: 120 })
+  const level = validatedInteger(data.level, 'Nível', 1, 10_000)
+  const birthRank = oneOf(data.birthRank ?? 'D', 'Rank de nascença', ['E', 'D', 'C', 'B', 'A', 'S'] as const)
+  const raceId = validatedText(data.raceId, 'Raça', { min: 1, max: 100 })
+  const image = validateImageUrl(data.image, 'Imagem')
+  const year = data.year === undefined ? undefined : validatedInteger(data.year, 'Ano', 1, 5)
+  const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
+  const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
+  const dangerLevel = data.dangerLevel === undefined ? undefined : validatedText(data.dangerLevel, 'Nível de perigo', { max: 40 })
+
+  const agilidade    = validatedInteger(data.agilidade ?? 1, 'Agilidade', 1, 100)
+  const inteligencia = validatedInteger(data.inteligencia ?? 1, 'Inteligência', 1, 100)
+  const forca        = validatedInteger(data.forca ?? 1, 'Força', 1, 100)
+  const vigor        = validatedInteger(data.vigor ?? 1, 'Vigor', 1, 100)
+  const sorte        = validatedInteger(data.sorte ?? 1, 'Sorte', 1, 100)
   const pv           = 10 + vigor        * 2
   const pm           = 10 + inteligencia * 2
 
   await prisma.character.create({
     data: {
-      name:        data.name,
-      category:    data.category,
-      element:     data.element,
-      worldSlug:   data.worldSlug,
-      birthRank: data.birthRank ?? 'D' as BaseRank,
-      raceId:      data.raceId,
+      name,
+      category,
+      element,
+      worldSlug,
+      birthRank: birthRank as BaseRank,
+      raceId,
       campaignId:  membership.campaignId,
-      image:       data.image,
-      level:       data.level,
-      year:        data.year,
-      subject:     data.subject,
-      occupation:  data.occupation,
-      dangerLevel: data.dangerLevel,
+      image,
+      level,
+      year,
+      subject,
+      occupation,
+      dangerLevel,
       agilidade,
       inteligencia,
       forca,
@@ -214,6 +240,13 @@ export async function createPlayerCharacter(data: {
   })
   if (!membership) throw new Error('Sem campanha ativa')
 
+  const name = validatedText(data.name, 'Nome do personagem', { min: 2, max: 80 })
+  const worldSlug = validatedText(data.worldSlug, 'Mundo', { min: 1, max: 120 })
+  const year = data.year === undefined ? undefined : validatedInteger(data.year, 'Ano', 1, 5)
+  const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
+  const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
+  const image = validateImageUrl(data.image, 'Imagem')
+
   if (!['aluno', 'professor', 'npc'].includes(data.category)) throw new Error('Categoria inválida')
   const attributes = [data.agilidade, data.inteligencia, data.forca, data.vigor, data.sorte]
   if (attributes.some((value) => !Number.isInteger(value) || value < 1 || value > 10) || attributes.reduce((sum, value) => sum + value, 0) !== 25) {
@@ -221,37 +254,49 @@ export async function createPlayerCharacter(data: {
   }
   const race = await prisma.race.findUnique({ where: { id: data.raceId }, select: { baseRank: true, element: true } })
   if (!race) throw new Error('Raça inválida')
-  const existingCharacter = await prisma.character.findFirst({ where: { campaignId: membership.campaignId, playerId: session.user.id }, select: { id: true } })
-  if (existingCharacter) throw new Error('Você já possui um personagem nesta campanha')
   // Recalcula campos derivados e usa a raça cadastrada como fonte de verdade.
   const pvCalc  = 10 + data.vigor        * 2
   const pmCalc  = 10 + data.inteligencia * 2
 
-  await prisma.character.create({
-    data: {
-      name:        data.name,
-      category:    data.category,
-      element:     race.element,
-      worldSlug:   data.worldSlug,
-      birthRank:    race.baseRank,
-      isLocked:    false,
-      raceId:      data.raceId,
-      campaignId:  membership.campaignId,
-      playerId:    session.user.id,
-      image:       data.image,
-      year:        data.year,
-      subject:     data.subject,
-      occupation:  data.occupation,
-      agilidade:    data.agilidade,
-      inteligencia: data.inteligencia,
-      forca:        data.forca,
-      vigor:        data.vigor,
-      sorte:        data.sorte,
-      pv:    pvCalc,
-      pvMax: pvCalc,
-      pm:    pmCalc,
-      pmMax: pmCalc,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "CampaignMember" WHERE "id" = ${membership.id} FOR UPDATE`
+    const currentMembership = await tx.campaignMember.findFirst({
+      where: { id: membership.id, userId: session.user.id, active: true, role: 'PLAYER' },
+      select: { id: true },
+    })
+    if (!currentMembership) throw new Error('Sem campanha ativa')
+    const existingCharacter = await tx.character.findFirst({
+      where: { campaignId: membership.campaignId, playerId: session.user.id },
+      select: { id: true },
+    })
+    if (existingCharacter) throw new Error('Você já possui um personagem nesta campanha')
+
+    await tx.character.create({
+      data: {
+        name,
+        category: data.category,
+        element: race.element,
+        worldSlug,
+        birthRank: race.baseRank,
+        isLocked: false,
+        raceId: data.raceId,
+        campaignId: membership.campaignId,
+        playerId: session.user.id,
+        image,
+        year,
+        subject,
+        occupation,
+        agilidade: data.agilidade,
+        inteligencia: data.inteligencia,
+        forca: data.forca,
+        vigor: data.vigor,
+        sorte: data.sorte,
+        pv: pvCalc,
+        pvMax: pvCalc,
+        pm: pmCalc,
+        pmMax: pmCalc,
+      },
+    })
   })
 
   revalidatePath('/perfil')
@@ -396,30 +441,31 @@ export async function saveSpecialCard(characterId: string, cardType: 'VALETE' | 
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
   if (!['VALETE', 'CAVALEIRO'].includes(cardType)) throw new Error('Carta especial inválida')
-  const character = await prisma.character.findFirst({ where: { id: characterId, playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true } } } }, select: { id: true } })
+  const character = await prisma.character.findFirst({ where: { id: characterId, playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true, role: 'PLAYER' } } } }, select: { id: true } })
   if (!character) throw new Error('Personagem não encontrado para este jogador')
 
-  // garante unicidade: só 1 de cada tipo disponível por vez
-  const existing = await prisma.specialCard.findFirst({
-    where: { characterId: character.id, cardType, isAvailable: true },
-  })
-  if (existing) throw new Error(`Você já tem um ${cardType} guardado.`)
-
-  return prisma.specialCard.create({
-    data: { characterId: character.id, cardType },
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`
+    const existing = await tx.specialCard.findFirst({
+      where: { characterId: character.id, cardType, isAvailable: true },
+    })
+    if (existing) throw new Error(`Você já tem um ${cardType} guardado.`)
+    return tx.specialCard.create({ data: { characterId: character.id, cardType } })
   })
 }
 
 export async function useSpecialCard(cardId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
-  const card = await prisma.specialCard.findFirst({ where: { id: cardId, isAvailable: true, character: { playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true } } } } }, select: { id: true } })
+  const card = await prisma.specialCard.findFirst({ where: { id: cardId, isAvailable: true, character: { playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true, role: 'PLAYER' } } } } }, select: { id: true } })
   if (!card) throw new Error('Carta especial indisponível')
 
-  return prisma.specialCard.update({
-    where: { id: card.id },
+  const result = await prisma.specialCard.updateMany({
+    where: { id: card.id, isAvailable: true },
     data: { isAvailable: false, usedAt: new Date() },
   })
+  if (result.count === 0) throw new Error('Carta especial indisponível')
+  return prisma.specialCard.findUnique({ where: { id: card.id } })
 }
 
 // ─── addXp ────────────────────────────────────────────────
@@ -438,59 +484,51 @@ export async function addXp(characterId: string, amount: number) {
   if (!membership) throw new Error('Apenas o Mestre pode conceder XP')
   if (!Number.isInteger(amount) || amount < 1 || amount > 100_000) throw new Error('Quantidade de XP inválida')
 
-  // busca o personagem com a raça atual (evoluída ou original)
-  const char = await prisma.character.findFirst({
-    where: { id: characterId, campaignId: membership.campaignId },
-    include: {
-      race: true,
-    },
-  })
-  if (!char) throw new Error('Personagem não encontrado')
-
-  // se tem raça evoluída, busca o birthRank dela; senão usa a original
-  let currentBirthRank: string = char.race.baseRank
-
-  if (char.evolvedRaceId) {
-    const evolvedRace = await prisma.race.findUnique({
-      where: { id: char.evolvedRaceId },
-      select: { baseRank: true },
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`
+    const char = await tx.character.findFirst({
+      where: { id: characterId, campaignId: membership.campaignId },
+      include: { race: true },
     })
-    if (evolvedRace) currentBirthRank = evolvedRace.baseRank
-  }
+    if (!char) throw new Error('Personagem não encontrado')
 
-  // processa level up em loop — o personagem pode subir vários níveis de uma vez
-  let currentLevel = char.level
-  let currentXp    = char.xp + amount
+    let currentBirthRank: string = char.race.baseRank
+    if (char.evolvedRaceId) {
+      const evolvedRace = await tx.race.findUnique({
+        where: { id: char.evolvedRaceId },
+        select: { baseRank: true },
+      })
+      if (evolvedRace) currentBirthRank = evolvedRace.baseRank
+    }
 
-  while (true) {
-    const xpNeeded = calcXpToNextLevel(currentBirthRank)
-    if (currentXp < xpNeeded) break
-    currentXp    -= xpNeeded
-    currentLevel += 1
-  }
+    let currentLevel = char.level
+    let currentXp = char.xp + amount
+    while (true) {
+      const xpNeeded = calcXpToNextLevel(currentBirthRank)
+      if (currentXp < xpNeeded) break
+      currentXp -= xpNeeded
+      currentLevel += 1
+    }
+    const newMaxXp = calcXpToNextLevel(currentBirthRank)
 
-  const newMaxXp = calcXpToNextLevel(currentBirthRank)
-
-  await prisma.character.update({
-    where: { id: characterId },
-    data: {
-      xp:    currentXp,
-      level: currentLevel,
+    await tx.character.update({
+      where: { id: characterId },
+      data: { xp: currentXp, level: currentLevel, maxXp: newMaxXp },
+    })
+    return {
+      newLevel: currentLevel,
+      newXp: currentXp,
       maxXp: newMaxXp,
-    },
+      leveledUp: currentLevel > char.level,
+      levelsGained: currentLevel - char.level,
+    }
   })
 
   revalidatePath('/personagens')
   revalidatePath('/perfil')
   revalidatePath('/mestre')
 
-  return {
-    newLevel: currentLevel,
-    newXp:    currentXp,
-    maxXp:    newMaxXp,
-    leveledUp: currentLevel > char.level,
-    levelsGained: currentLevel - char.level,
-  }
+  return result
 }
 
 // ─── applyRaceEvolution ───────────────────────────────────
@@ -531,10 +569,11 @@ export async function applyRaceEvolution(
 
   // PERMANENCIA: apenas registra o caminho, sem trocar de raça
   if (path === 'PERMANENCIA') {
-    await prisma.character.update({
-      where: { id: characterId },
+    const updated = await prisma.character.updateMany({
+      where: { id: characterId, campaignId: membership.campaignId, racePath: null },
       data: { racePath: 'PERMANENCIA' },
     })
+    if (updated.count === 0) throw new Error('Este personagem já escolheu um caminho')
 
     revalidatePath('/mestre')
     revalidatePath('/personagens')
@@ -553,7 +592,7 @@ export async function applyRaceEvolution(
 
   // busca a raça de destino pelo nome (toRaceName definido no seed)
   const targetRace = await prisma.race.findFirst({
-    where: { name: evolution.toRaceName },
+    where: { name: evolution.toRaceName, universeWorldId: char.race.universeWorldId },
     select: { id: true, name: true, baseRank: true },
   })
   if (!targetRace) {
@@ -565,15 +604,17 @@ export async function applyRaceEvolution(
   // recalcula maxXp com o birthRank da nova raça
   const newMaxXp = calcXpToNextLevel(targetRace.baseRank)
 
-  await prisma.character.update({
-    where: { id: characterId },
+  const updated = await prisma.character.updateMany({
+    where: { id: characterId, campaignId: membership.campaignId, racePath: null },
     data: {
       racePath:      path,
       evolvedRaceId: targetRace.id,
       raceId:        targetRace.id,  // raça ativa agora é a nova
       maxXp:         newMaxXp,
-    },
+      },
+    })
   })
+  if (updated.count === 0) throw new Error('Este personagem já escolheu um caminho')
 
   revalidatePath('/mestre')
   revalidatePath('/personagens')
@@ -597,22 +638,30 @@ export async function updateCharacterPoints(
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'PLAYER' },
+    select: { campaignId: true },
+  })
+  if (!membership) throw new Error('Sem campanha ativa como jogador')
+
   const char = await prisma.character.findFirst({
     where: {
       id: characterId,
+      campaignId: membership.campaignId,
       playerId: session.user.id, // só o próprio jogador
     },
     select: { pvMax: true, pmMax: true, pv: true, pm: true },
   })
   if (!char) throw new Error('Personagem não encontrado')
 
-  const newPv = data.pv !== undefined
-    ? Math.max(0, Math.min(data.pv, char.pvMax))
-    : undefined
+  if (!data || typeof data !== 'object' || Array.isArray(data) || (data.pv === undefined && data.pm === undefined)) {
+    throw new Error('Informe PV ou PM para atualizar')
+  }
+  if (data.pv !== undefined) validatedInteger(data.pv, 'PV', 0, char.pvMax)
+  if (data.pm !== undefined) validatedInteger(data.pm, 'PM', 0, char.pmMax)
 
-  const newPm = data.pm !== undefined
-    ? Math.max(0, Math.min(data.pm, char.pmMax))
-    : undefined
+  const newPv = data.pv
+  const newPm = data.pm
 
   await prisma.character.update({
     where: { id: characterId },
@@ -661,13 +710,18 @@ export async function updateCharacterHistory(characterId: string, story: string)
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true },
+    select: { campaignId: true, role: true },
+  })
+  if (!membership) throw new Error('Sem campanha ativa')
+  const validatedStory = validatedText(story, 'História', { max: 20_000, trim: false })
+
   const char = await prisma.character.findFirst({
     where: {
       id: characterId,
-      OR: [
-        { playerId: session.user.id },
-        { campaign: { members: { some: { userId: session.user.id, role: 'MASTER' } } } },
-      ],
+      campaignId: membership.campaignId,
+      ...(membership.role === 'MASTER' ? {} : { playerId: session.user.id }),
     },
     select: { id: true },
   })
@@ -675,7 +729,7 @@ export async function updateCharacterHistory(characterId: string, story: string)
 
   await prisma.character.update({
     where: { id: characterId },
-    data: { story },
+    data: { story: validatedStory },
   })
 
   revalidatePath(`/personagens/${characterId}`)
@@ -697,6 +751,12 @@ export async function updateCharacter(
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
+  const name = validatedText(data.name, 'Nome do personagem', { min: 2, max: 80 })
+  const year = data.year === undefined ? undefined : validatedInteger(data.year, 'Ano', 1, 5)
+  const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
+  const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
+  const image = validateImageUrl(data.image, 'Imagem')
+
   const membership = await prisma.campaignMember.findFirst({
     where: { userId: session.user.id, active: true, role: 'MASTER' },
   })
@@ -711,11 +771,11 @@ export async function updateCharacter(
   await prisma.character.update({
     where: { id: characterId },
     data: {
-      name: data.name,
-      image: data.image,
-      year: data.year,
-      subject: data.subject,
-      occupation: data.occupation,
+      name,
+      image,
+      year,
+      subject,
+      occupation,
     },
   })
 

@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
+import { normalizeEmail, validatedText, validatePassword, validateImageUrl } from '@/lib/validation'
+import { consumeRateLimit, rateLimitKey, requestIp } from '@/lib/rateLimit'
 
 // 1. Aqui entram as novas importações e re-exportações de tipos
 import {
@@ -46,13 +49,29 @@ export async function updateUserSettings(data: {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Não autenticado");
 
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Configurações inválidas')
+  const preferenceKeys = ['animacoesInterface', 'texturaPapel', 'sonsInterface'] as const
+  const notificationKeys = ['novasSessoes', 'itensAdicionados', 'habilidadesDesbloqueadas', 'atualizacoesSistema'] as const
+  const validatePatch = <T extends object>(value: unknown, keys: readonly (keyof T)[]) => {
+    if (value === undefined) return undefined
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Configurações inválidas')
+    const entries = Object.entries(value as Record<string, unknown>)
+    if (entries.some(([key, item]) => !keys.includes(key as keyof T) || typeof item !== 'boolean')) {
+      throw new Error('Configurações inválidas')
+    }
+    return Object.fromEntries(entries) as Partial<T>
+  }
+  const preferences = validatePatch<UserPreferences>(data.preferences, preferenceKeys)
+  const notifications = validatePatch<NotificationPreferences>(data.notifications, notificationKeys)
+  if (!preferences && !notifications) throw new Error('Nenhuma configuração informada')
+
   const current = await getUserSettings();
 
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
-      ...(data.preferences && { preferences: { ...current.preferences, ...data.preferences } }),
-      ...(data.notifications && { notifications: { ...current.notifications, ...data.notifications } }),
+      ...(preferences && { preferences: { ...current.preferences, ...preferences } }),
+      ...(notifications && { notifications: { ...current.notifications, ...notifications } }),
     },
   });
 
@@ -65,11 +84,28 @@ export async function registerUser(
   name: string,
   password: string
 ) {
-  const existing = await prisma.user.findUnique({ where: { email } })
+  const ip = requestIp(await headers())
+  const allowed = await consumeRateLimit(rateLimitKey('register-ip', ip), {
+    maxAttempts: 5,
+    windowMs: 60 * 60 * 1_000,
+    blockMs: 60 * 60 * 1_000,
+  })
+  if (!allowed) throw new Error('Muitas tentativas de cadastro. Tente novamente mais tarde.')
+
+  const normalizedEmail = normalizeEmail(email)
+  const emailAllowed = await consumeRateLimit(rateLimitKey('register-email', normalizedEmail), {
+    maxAttempts: 3,
+    windowMs: 24 * 60 * 60 * 1_000,
+    blockMs: 24 * 60 * 60 * 1_000,
+  })
+  if (!emailAllowed) throw new Error('Muitas tentativas de cadastro para este e-mail. Tente novamente amanhã.')
+  const username = validatedText(name, 'Nome de usuário', { min: 2, max: 32 })
+  const validPassword = validatePassword(password)
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (existing) throw new Error('E-mail já cadastrado')
 
-  const passwordHash = await bcrypt.hash(password, 12)
-  await prisma.user.create({ data: { email, username: name, passwordHash } })
+  const passwordHash = await bcrypt.hash(validPassword, 12)
+  await prisma.user.create({ data: { email: normalizedEmail, username, passwordHash } })
 }
 
 // ─── updateProfile ────────────────────────────────────────
@@ -81,12 +117,20 @@ export async function updateProfile(data: {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
+  const username = data.username === undefined
+    ? undefined
+    : validatedText(data.username, 'Nome de usuário', { min: 2, max: 32 })
+  const bio = data.bio === undefined
+    ? undefined
+    : validatedText(data.bio, 'Biografia', { max: 500 })
+  const avatar = data.avatar === undefined ? undefined : validateImageUrl(data.avatar, 'Avatar') ?? null
+
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
-      ...(data.username !== undefined && { username: data.username }),
-      ...(data.bio !== undefined && { bio: data.bio }),
-      ...(data.avatar !== undefined && { avatar: data.avatar }),
+      ...(username !== undefined && { username }),
+      ...(bio !== undefined && { bio }),
+      ...(data.avatar !== undefined && { avatar }),
     },
   })
 
@@ -98,6 +142,10 @@ export async function updateProfile(data: {
 export async function updatePassword(currentPassword: string, newPassword: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  if (typeof currentPassword !== 'string' || Buffer.byteLength(currentPassword, 'utf8') > 72) {
+    throw new Error('Senha atual inválida')
+  }
+  const validNewPassword = validatePassword(newPassword)
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -109,7 +157,7 @@ export async function updatePassword(currentPassword: string, newPassword: strin
   const valid = await bcrypt.compare(currentPassword, user.passwordHash)
   if (!valid) throw new Error('Senha atual incorreta')
 
-  const newHash = await bcrypt.hash(newPassword, 12)
+  const newHash = await bcrypt.hash(validNewPassword, 12)
   await prisma.user.update({
     where: { id: session.user.id },
     data: { passwordHash: newHash },

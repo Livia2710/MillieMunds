@@ -3,36 +3,30 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { validatedText } from '@/lib/validation'
+import { randomBytes } from 'node:crypto'
 
 export async function createCampaign(name: string, description: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  name = validatedText(name, 'Nome da campanha', { min: 2, max: 100 })
+  description = validatedText(description, 'Descrição da campanha', { max: 2_000 })
 
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-
-  const campaign = await prisma.campaign.create({
-    data: {
-      name,
-      description,
-      inviteCode: code,
-      masterId: session.user.id,
-    },
-  })
-
-  // Desativa campanha atual
-  await prisma.campaignMember.updateMany({
-    where: { userId: session.user.id },
-    data: { active: false },
-  })
-
-  // Cria vínculo como MASTER já ativo
-  await prisma.campaignMember.create({
-    data: {
-      userId: session.user.id,
-      campaignId: campaign.id,
-      role: 'MASTER',
-      active: true,
-    },
+  const campaign = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.user.id} FOR UPDATE`
+    const created = await tx.campaign.create({
+      data: {
+        name,
+        description,
+        inviteCode: randomBytes(5).toString('hex').toUpperCase(),
+        masterId: session.user.id,
+      },
+    })
+    await tx.campaignMember.updateMany({ where: { userId: session.user.id }, data: { active: false } })
+    await tx.campaignMember.create({
+      data: { userId: session.user.id, campaignId: created.id, role: 'MASTER', active: true },
+    })
+    return created
   })
 
   revalidatePath('/')
@@ -42,12 +36,14 @@ export async function createCampaign(name: string, description: string) {
 export async function joinCampaign(code: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  code = validatedText(code, 'Código de convite', { min: 1, max: 64 }).toUpperCase()
 
   const campaign = await prisma.campaign.findUnique({
-    where: { inviteCode: code.toUpperCase() },
+    where: { inviteCode: code },
   })
 
   if (!campaign) throw new Error('Código inválido')
+  if (campaign.archived) throw new Error('Esta campanha está arquivada')
 
   // Verifica se já é membro
   const existing = await prisma.campaignMember.findUnique({
@@ -61,20 +57,19 @@ export async function joinCampaign(code: string) {
 
   if (existing) throw new Error('Você já participa desta crônica')
 
-  // Desativa campanha atual
-  await prisma.campaignMember.updateMany({
-    where: { userId: session.user.id },
-    data: { active: false },
-  })
-
-  // Entra como PLAYER já ativo
-  await prisma.campaignMember.create({
-    data: {
-      userId: session.user.id,
-      campaignId: campaign.id,
-      role: 'PLAYER',
-      active: true,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.user.id} FOR UPDATE`
+    const currentCampaign = await tx.campaign.findUnique({ where: { id: campaign.id }, select: { archived: true } })
+    if (!currentCampaign || currentCampaign.archived) throw new Error('Esta campanha está arquivada')
+    const currentMembership = await tx.campaignMember.findUnique({
+      where: { userId_campaignId: { userId: session.user.id, campaignId: campaign.id } },
+      select: { id: true },
+    })
+    if (currentMembership) throw new Error('Você já participa desta crônica')
+    await tx.campaignMember.updateMany({ where: { userId: session.user.id }, data: { active: false } })
+    await tx.campaignMember.create({
+      data: { userId: session.user.id, campaignId: campaign.id, role: 'PLAYER', active: true },
+    })
   })
 
   revalidatePath('/')
@@ -84,17 +79,19 @@ export async function joinCampaign(code: string) {
 export async function switchCampaign(campaignId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  campaignId = validatedText(campaignId, 'Campanha', { min: 1, max: 100 })
 
-  await prisma.$transaction([
-    prisma.campaignMember.updateMany({
-      where: { userId: session.user.id },
-      data: { active: false },
-    }),
-    prisma.campaignMember.updateMany({
-      where: { userId: session.user.id, campaignId },
-      data: { active: true },
-    }),
-  ])
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.user.id} FOR UPDATE`
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id" = ${campaignId} FOR UPDATE`
+    const target = await tx.campaignMember.findFirst({
+      where: { userId: session.user.id, campaignId, campaign: { archived: false } },
+      select: { id: true },
+    })
+    if (!target) throw new Error('Campanha não encontrada ou arquivada')
+    await tx.campaignMember.updateMany({ where: { userId: session.user.id }, data: { active: false } })
+    await tx.campaignMember.update({ where: { id: target.id }, data: { active: true } })
+  })
 
   revalidatePath('/')
 }
@@ -113,7 +110,7 @@ export async function getUserCampaigns() {
     id: m.campaign.id,
     name: m.campaign.name,
     description: m.campaign.description,
-    inviteCode: m.campaign.inviteCode,
+    inviteCode: m.role === 'MASTER' && !m.campaign.archived ? m.campaign.inviteCode : '',
     role: m.role,
     active: m.active,
   }))
@@ -134,7 +131,7 @@ export async function getActiveCampaign() {
     id: membership.campaign.id,
     name: membership.campaign.name,
     description: membership.campaign.description,
-    inviteCode: membership.campaign.inviteCode,
+    inviteCode: membership.role === 'MASTER' ? membership.campaign.inviteCode : '',
     role: membership.role,
     active: true,
   }
@@ -147,6 +144,7 @@ export async function getActiveCampaign() {
 export async function transferMastership(newMasterUserId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
+  newMasterUserId = validatedText(newMasterUserId, 'Jogador', { min: 1, max: 100 })
 
   const membership = await prisma.campaignMember.findFirst({
     where: { userId: session.user.id, active: true, role: 'MASTER' },
@@ -162,25 +160,25 @@ export async function transferMastership(newMasterUserId: string) {
       },
     },
   })
-  if (!target) throw new Error('Jogador não encontrado na campanha')
+  if (!target || !target.active || target.role !== 'PLAYER') {
+    throw new Error('Escolha um jogador ativo da campanha para transferir a liderança')
+  }
 
-  await prisma.$transaction([
-    // rebaixa o mestre atual para PLAYER
-    prisma.campaignMember.update({
-      where: { id: membership.id },
-      data:  { role: 'PLAYER' },
-    }),
-    // promove o novo mestre
-    prisma.campaignMember.update({
-      where: { id: target.id },
-      data:  { role: 'MASTER' },
-    }),
-    // atualiza masterId na campanha
-    prisma.campaign.update({
-      where: { id: membership.campaignId },
-      data:  { masterId: newMasterUserId },
-    }),
-  ])
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id" = ${membership.campaignId} FOR UPDATE`
+    const currentMaster = await tx.campaignMember.findFirst({
+      where: { id: membership.id, active: true, role: 'MASTER', campaign: { archived: false } },
+      select: { id: true },
+    })
+    const currentTarget = await tx.campaignMember.findFirst({
+      where: { id: target.id, active: true, role: 'PLAYER', campaignId: membership.campaignId },
+      select: { id: true },
+    })
+    if (!currentMaster || !currentTarget) throw new Error('A liderança ou o jogador mudou; atualize a página e tente novamente')
+    await tx.campaignMember.update({ where: { id: currentMaster.id }, data: { role: 'PLAYER' } })
+    await tx.campaignMember.update({ where: { id: currentTarget.id }, data: { role: 'MASTER' } })
+    await tx.campaign.update({ where: { id: membership.campaignId }, data: { masterId: newMasterUserId } })
+  })
 
   revalidatePath('/')
   revalidatePath('/mestre')
@@ -240,35 +238,57 @@ export async function archiveCampaign() {
   revalidatePath('/')
 }
 
-// ─── deleteCampaign ────────────────────────────────────────
+// Lista somente campanhas arquivadas que ainda pertencem ao Mestre autenticado.
+export async function getArchivedCampaigns() {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  return prisma.campaign.findMany({
+    where: {
+      masterId: session.user.id,
+      archived: true,
+      members: { some: { userId: session.user.id, role: 'MASTER' } },
+    },
+    select: { id: true, name: true, archivedAt: true },
+    orderBy: { archivedAt: 'desc' },
+  })
+}
+
+// ─── deleteArchivedCampaign ───────────────────────────────
 // Apenas o Mestre. Exclusão permanente — como o schema não tem
 // onDelete: Cascade nessas relações, apagamos manualmente na ordem
 // certa (folhas primeiro) dentro de uma transação.
-export async function deleteCampaign() {
+export async function deleteArchivedCampaign(campaignId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
 
-  const membership = await prisma.campaignMember.findFirst({
-    where: { userId: session.user.id, active: true, role: 'MASTER' },
+  campaignId = validatedText(campaignId, 'Campanha', { min: 1, max: 100 })
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id" = ${campaignId} FOR UPDATE`
+    const campaign = await tx.campaign.findFirst({
+      where: {
+        id: campaignId,
+        masterId: session.user.id,
+        archived: true,
+        members: { some: { userId: session.user.id, role: 'MASTER' } },
+      },
+      select: { id: true },
+    })
+    if (!campaign) throw new Error('Apenas o Mestre pode excluir uma campanha arquivada')
+
+    await tx.characterCondition.deleteMany({ where: { character: { campaignId } } })
+    await tx.characterRaceSkill.deleteMany({ where: { character: { campaignId } } })
+    await tx.specialCard.deleteMany({ where: { character: { campaignId } } })
+    await tx.tarotDraw.deleteMany({ where: { character: { campaignId } } })
+    await tx.skill.deleteMany({ where: { character: { campaignId } } })
+    await tx.itemChapter.deleteMany({ where: { item: { campaignId } } })
+    await tx.chapter.deleteMany({ where: { world: { campaignId } } })
+    await tx.character.deleteMany({ where: { campaignId } })
+    await tx.inventoryItem.deleteMany({ where: { campaignId } })
+    await tx.world.deleteMany({ where: { campaignId } })
+    await tx.campaignMember.deleteMany({ where: { campaignId } })
+    await tx.campaign.delete({ where: { id: campaignId } })
   })
-  if (!membership) throw new Error('Apenas o Mestre pode excluir a campanha')
-
-  const campaignId = membership.campaignId
-
-  await prisma.$transaction([
-    prisma.characterCondition.deleteMany({ where: { character: { campaignId } } }),
-    prisma.characterRaceSkill.deleteMany({ where: { character: { campaignId } } }),
-    prisma.specialCard.deleteMany({ where: { character: { campaignId } } }),
-    prisma.tarotDraw.deleteMany({ where: { character: { campaignId } } }),
-    prisma.skill.deleteMany({ where: { character: { campaignId } } }),
-    prisma.itemChapter.deleteMany({ where: { item: { campaignId } } }),
-    prisma.chapter.deleteMany({ where: { world: { campaignId } } }),
-    prisma.character.deleteMany({ where: { campaignId } }),
-    prisma.inventoryItem.deleteMany({ where: { campaignId } }),
-    prisma.world.deleteMany({ where: { campaignId } }),
-    prisma.campaignMember.deleteMany({ where: { campaignId } }),
-    prisma.campaign.delete({ where: { id: campaignId } }),
-  ])
 
   revalidatePath('/')
 }

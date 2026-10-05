@@ -4,26 +4,45 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from './lib/prisma'  
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
+import { clearRateLimit, consumeRateLimit, rateLimitKey, requestIp } from './lib/rateLimit'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+      async authorize(credentials, request) {
+        const email = typeof credentials?.email === 'string' ? credentials.email.trim().toLowerCase() : ''
+        const password = typeof credentials?.password === 'string' ? credentials.password : ''
+        const ipKey = rateLimitKey('login-ip', requestIp(request.headers))
+        const ipAllowed = await consumeRateLimit(ipKey, {
+          maxAttempts: 30,
+          windowMs: 15 * 60 * 1_000,
+          blockMs: 15 * 60 * 1_000,
+        })
+        if (!ipAllowed || !email || !password || Buffer.byteLength(password, 'utf8') > 72) return null
+
+        const emailKey = rateLimitKey('login-email', email)
+        const emailAllowed = await consumeRateLimit(emailKey, {
+          maxAttempts: 8,
+          windowMs: 15 * 60 * 1_000,
+          blockMs: 15 * 60 * 1_000,
+        })
+        if (!emailAllowed) return null
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string }
+          where: { email }
         })
 
         if (!user || !user.passwordHash) return null
 
         const valid = await bcrypt.compare(
-          credentials.password as string,
+          password,
           user.passwordHash
         )
         if (!valid) return null
+
+        await clearRateLimit(emailKey)
 
         return user
       }

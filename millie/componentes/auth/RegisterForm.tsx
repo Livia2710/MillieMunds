@@ -53,8 +53,8 @@ export default function RegisterForm({ onGoToLogin }: RegisterFormProps) {
       setError("Preencha todos os campos.");
       return;
     }
-    if (password.length < 6) {
-      setError("Senha deve ter pelo menos 6 caracteres.");
+    if (password.length < 12 || new TextEncoder().encode(password).length > 72) {
+      setError("A senha deve ter pelo menos 12 caracteres e no máximo 72 bytes.");
       return;
     }
     setError("");
@@ -124,6 +124,8 @@ export default function RegisterForm({ onGoToLogin }: RegisterFormProps) {
             type="password"
             placeholder="Senha"
             aria-label="Senha"
+            minLength={12}
+            maxLength={72}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}

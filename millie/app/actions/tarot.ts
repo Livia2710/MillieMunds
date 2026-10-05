@@ -6,14 +6,6 @@ import { revalidatePath } from 'next/cache'
 import { requireActiveMembership, requireUserId } from '@/lib/authorization'
 import { cardsRequired, MAJOR_ARCANA } from '@/lib/tarot'
 
-async function getPlayerDraw(drawId: string, userId: string) {
-  const draw = await prisma.tarotDraw.findFirst({ where: { id: drawId }, include: { character: { select: { playerId: true, campaignId: true } } } })
-  if (!draw || draw.character.playerId !== userId) throw new Error('Leitura não encontrada para este jogador')
-  const membership = await requireActiveMembership(userId, 'PLAYER')
-  if (membership.campaignId !== draw.character.campaignId) throw new Error('Leitura não pertence à campanha ativa')
-  return draw
-}
-
 async function getMasterDraw(drawId: string, userId: string) {
   const membership = await requireActiveMembership(userId, 'MASTER')
   const draw = await prisma.tarotDraw.findFirst({ where: { id: drawId, character: { campaignId: membership.campaignId } } })
@@ -30,6 +22,12 @@ export async function initiateTarotReading(data: { characterId: string; readingT
   const character = await prisma.character.findFirst({ where: { id: data.characterId, campaignId: membership.campaignId, playerId: { not: null } }, select: { id: true } })
   if (!character) throw new Error('Personagem de jogador não encontrado na campanha ativa')
   const draw = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`
+    const currentCharacter = await tx.character.findFirst({
+      where: { id: character.id, campaignId: membership.campaignId, playerId: { not: null } },
+      select: { id: true },
+    })
+    if (!currentCharacter) throw new Error('Personagem de jogador não encontrado na campanha ativa')
     await tx.tarotDraw.updateMany({ where: { characterId: character.id, status: { in: ['pendente', 'cartas_reveladas'] } }, data: { status: 'cancelada' } })
     return tx.tarotDraw.create({ data: { characterId: character.id, readingType: data.readingType, question, cards: [], sacrifice: '', status: 'pendente', initiatedByMasterId: userId } })
   })
@@ -39,25 +37,38 @@ export async function initiateTarotReading(data: { characterId: string; readingT
 
 export async function drawTarotCard(drawId: string) {
   const userId = await requireUserId()
-  const draw = await getPlayerDraw(drawId, userId)
-  if (draw.status !== 'pendente') throw new Error('Esta leitura não está aguardando cartas')
-  const required = cardsRequired(draw.readingType)
-  if (draw.cards.length >= required) throw new Error('Todas as cartas desta leitura já foram tiradas')
-  const available = MAJOR_ARCANA.filter((card) => !draw.cards.includes(card))
-  const card = available[randomInt(available.length)]
-  const updated = await prisma.tarotDraw.update({ where: { id: draw.id }, data: { cards: [...draw.cards, card], hadJoker: false } })
-  return { card, position: updated.cards.length }
+  const membership = await requireActiveMembership(userId, 'PLAYER')
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "TarotDraw" WHERE "id" = ${drawId} FOR UPDATE`
+    const draw = await tx.tarotDraw.findFirst({
+      where: { id: drawId, character: { playerId: userId, campaignId: membership.campaignId } },
+    })
+    if (!draw) throw new Error('Leitura não encontrada para este jogador')
+    if (draw.status !== 'pendente') throw new Error('Esta leitura não está aguardando cartas')
+    const required = cardsRequired(draw.readingType)
+    if (draw.cards.length >= required) throw new Error('Todas as cartas desta leitura já foram tiradas')
+    const available = MAJOR_ARCANA.filter((card) => !draw.cards.includes(card))
+    if (!available.length) throw new Error('Não há mais cartas disponíveis nesta leitura')
+    const card = available[randomInt(available.length)]
+    const updated = await tx.tarotDraw.update({ where: { id: draw.id }, data: { cards: [...draw.cards, card], hadJoker: false } })
+    return { card, position: updated.cards.length }
+  })
 }
 
 export async function submitTarotCards(drawId: string) {
   const userId = await requireUserId()
-  const draw = await getPlayerDraw(drawId, userId)
-  if (draw.status !== 'pendente') throw new Error('Esta leitura não pode mais ser enviada')
-  const required = cardsRequired(draw.readingType)
-  if (draw.cards.length !== required || new Set(draw.cards).size !== required || draw.cards.some((card) => !MAJOR_ARCANA.includes(card as typeof MAJOR_ARCANA[number]))) {
-    throw new Error('A leitura precisa conter a quantidade correta de arcanos maiores distintos')
-  }
-  await prisma.tarotDraw.update({ where: { id: draw.id }, data: { status: 'cartas_reveladas', hadJoker: false } })
+  const membership = await requireActiveMembership(userId, 'PLAYER')
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "TarotDraw" WHERE "id" = ${drawId} FOR UPDATE`
+    const draw = await tx.tarotDraw.findFirst({ where: { id: drawId, character: { playerId: userId, campaignId: membership.campaignId } } })
+    if (!draw) throw new Error('Leitura não encontrada para este jogador')
+    if (draw.status !== 'pendente') throw new Error('Esta leitura não pode mais ser enviada')
+    const required = cardsRequired(draw.readingType)
+    if (draw.cards.length !== required || new Set(draw.cards).size !== required || draw.cards.some((card) => !MAJOR_ARCANA.includes(card as typeof MAJOR_ARCANA[number]))) {
+      throw new Error('A leitura precisa conter a quantidade correta de arcanos maiores distintos')
+    }
+    await tx.tarotDraw.update({ where: { id: draw.id }, data: { status: 'cartas_reveladas', hadJoker: false } })
+  })
   revalidatePath('/mestre')
   revalidatePath('/perfil')
 }
@@ -68,7 +79,11 @@ export async function completeTarotReading(data: { drawId: string; sacrifice: st
   if (draw.status !== 'cartas_reveladas') throw new Error('A leitura ainda não está pronta para conclusão')
   const sacrifice = data.sacrifice.trim()
   if (sacrifice.length > 2_000) throw new Error('O sacrifício pode ter no máximo 2.000 caracteres')
-  await prisma.tarotDraw.update({ where: { id: draw.id }, data: { sacrifice, sacrificeIsPermanent: Boolean(data.sacrificeIsPermanent), status: 'concluida' } })
+  const updated = await prisma.tarotDraw.updateMany({
+    where: { id: draw.id, status: 'cartas_reveladas' },
+    data: { sacrifice, sacrificeIsPermanent: data.sacrificeIsPermanent === true, status: 'concluida' },
+  })
+  if (updated.count === 0) throw new Error('Esta leitura já foi concluída')
   revalidatePath('/mestre')
   revalidatePath('/perfil')
 }

@@ -4,6 +4,23 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { requireUserId } from '@/lib/authorization'
+import { validatedText } from '@/lib/validation'
+
+function validateChapters(value: unknown) {
+  if (!Array.isArray(value) || value.length > 100) throw new Error('Lista de capítulos inválida')
+  const chapters = value.map((chapter) => {
+    if (!chapter || typeof chapter !== 'object') throw new Error('Capítulo inválido')
+    const data = chapter as { title?: unknown; content?: unknown }
+    return {
+      title: validatedText(data.title, 'Título do capítulo', { min: 1, max: 160 }),
+      content: validatedText(data.content, 'Conteúdo do capítulo', { max: 20_000, trim: false }),
+    }
+  })
+  if (chapters.reduce((sum, chapter) => sum + chapter.content.length, 0) > 200_000) {
+    throw new Error('O conteúdo total dos capítulos excede o limite permitido')
+  }
+  return chapters
+}
 
 export async function getWorldsByActiveCampaign() {
   const session = await auth()
@@ -20,7 +37,11 @@ export async function getWorldsByActiveCampaign() {
 
   if (!membership) return []
 
-  return membership.campaign.worlds
+  return membership.role === 'MASTER'
+    ? membership.campaign.worlds
+    : membership.campaign.worlds.map((world) => world.isLocked
+      ? { ...world, description: '', chapters: [] }
+      : world)
 }
 
 export async function unlockWorld(worldId: string) {
@@ -58,24 +79,30 @@ export async function createWorld(data: {
   })
   if (!membership) throw new Error('Sem campanha ativa como Mestre')
 
-  const slug = data.name
+  const name = validatedText(data.name, 'Nome do mundo', { min: 2, max: 120 })
+  const description = validatedText(data.description, 'Descrição', { max: 10_000, trim: false })
+  const coverColor = validatedText(data.coverColor, 'Cor da capa', { min: 1, max: 40 })
+  const chapters = validateChapters(data.chapters)
+
+  const slug = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+  if (!slug) throw new Error('O nome precisa conter letras ou números')
+  const duplicate = await prisma.world.findFirst({ where: { campaignId: membership.campaignId, slug }, select: { id: true } })
+  if (duplicate) throw new Error('Já existe um mundo com esse nome nesta campanha')
 
   await prisma.world.create({
     data: {
-      name: data.name,
+      name,
       slug,
-      description: data.description,
-      coverColor: data.coverColor,
+      description,
+      coverColor,
       campaignId: membership.campaignId,
       chapters: {
-        create: data.chapters
-          .filter((ch) => ch.title.trim())
-          .map((ch, i) => ({ title: ch.title, content: ch.content, order: i })),
+        create: chapters.map((chapter, i) => ({ ...chapter, order: i })),
       },
     },
   })
@@ -102,18 +129,31 @@ export async function updateWorld(worldId: string, data: {
   })
   if (!world) throw new Error('Mundo não encontrado nesta campanha')
 
+  const name = validatedText(data.name, 'Nome do mundo', { min: 2, max: 120 })
+  const description = validatedText(data.description, 'Descrição', { max: 10_000, trim: false })
+  const coverColor = validatedText(data.coverColor, 'Cor da capa', { min: 1, max: 40 })
+  const chapters = validateChapters(data.chapters)
+  const slug = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+  if (!slug) throw new Error('O nome precisa conter letras ou números')
+  const duplicate = await prisma.world.findFirst({ where: { campaignId: membership.campaignId, slug, id: { not: worldId } }, select: { id: true } })
+  if (duplicate) throw new Error('Já existe um mundo com esse nome nesta campanha')
+
   await prisma.$transaction([
     prisma.chapter.deleteMany({ where: { worldId } }),
     prisma.world.update({
       where: { id: worldId },
       data: {
-        name: data.name,
-        description: data.description,
-        coverColor: data.coverColor,
+        name,
+        slug,
+        description,
+        coverColor,
         chapters: {
-          create: data.chapters
-            .filter((ch) => ch.title.trim())
-            .map((ch, i) => ({ title: ch.title, content: ch.content, order: i })),
+          create: chapters.map((chapter, i) => ({ ...chapter, order: i })),
         },
       },
     }),
@@ -121,6 +161,7 @@ export async function updateWorld(worldId: string, data: {
 
   revalidatePath('/')
   revalidatePath(`/mundos/${world.slug}`)
+  revalidatePath(`/mundos/${slug}`)
 }
 
 export async function deleteWorld(worldId: string) {

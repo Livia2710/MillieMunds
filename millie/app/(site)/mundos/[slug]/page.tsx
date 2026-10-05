@@ -23,7 +23,7 @@ export default async function MundoPage({ params }: Props) {
     include: { chapters: { orderBy: { order: 'asc' } } },
   })
 
-  if (!raw) notFound()
+  if (!raw || (raw.isLocked && !isMaster)) notFound()
 
   const world: World = {
     id: raw.id,

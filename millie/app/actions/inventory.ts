@@ -3,6 +3,27 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
+
+const ITEM_CATEGORIES = ['equipamento', 'consumivel', 'material', 'reliquia', 'livro', 'outro'] as const
+const ITEM_RARITIES = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'] as const
+
+function validateChapters(value: unknown) {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > 100) throw new Error('Lista de capítulos inválida')
+  const chapters = value.map((chapter) => {
+    if (!chapter || typeof chapter !== 'object') throw new Error('Capítulo inválido')
+    const data = chapter as { title?: unknown; content?: unknown }
+    return {
+      title: validatedText(data.title, 'Título do capítulo', { min: 1, max: 160 }),
+      content: validatedText(data.content, 'Conteúdo do capítulo', { max: 20_000, trim: false }),
+    }
+  })
+  if (chapters.reduce((sum, chapter) => sum + chapter.content.length, 0) > 200_000) {
+    throw new Error('O conteúdo total dos capítulos excede o limite permitido')
+  }
+  return chapters
+}
 
 export async function getItemsByActiveCampaign() {
   const session = await auth()
@@ -20,7 +41,9 @@ export async function getItemsByActiveCampaign() {
   })
 
   if (!membership) return []
-  return membership.campaign.items
+  return membership.role === 'MASTER'
+    ? membership.campaign.items
+    : membership.campaign.items.filter((item) => !item.isLocked)
 }
 
 export async function unlockItem(itemId: string) {
@@ -72,7 +95,7 @@ export async function assignInventoryItem(itemId: string, characterId: string | 
     if (!character?.playerId) throw new Error('Personagem de jogador nÃ£o encontrado nesta campanha')
 
     const playerMembership = await prisma.campaignMember.findFirst({
-      where: { campaignId: membership.campaignId, userId: character.playerId, role: 'PLAYER' },
+      where: { campaignId: membership.campaignId, userId: character.playerId, role: 'PLAYER', active: true },
       select: { id: true },
     })
     if (!playerMembership) throw new Error('O personagem nÃ£o pertence a um jogador da campanha')
@@ -118,41 +141,51 @@ export async function transferInventoryItem(itemId: string, characterId: string 
     })
     if (!character?.playerId) throw new Error('Personagem de jogador nÃ£o encontrado nesta campanha')
     const playerMembership = await prisma.campaignMember.findFirst({
-      where: { campaignId: membership.campaignId, userId: character.playerId, role: 'PLAYER' },
+      where: { campaignId: membership.campaignId, userId: character.playerId, role: 'PLAYER', active: true },
       select: { id: true },
     })
     if (!playerMembership) throw new Error('O personagem nÃ£o pertence a um jogador da campanha')
   }
 
   await prisma.$transaction(async (tx) => {
-    if (quantity === item.quantity) {
+    await tx.$queryRaw`SELECT "id" FROM "InventoryItem" WHERE "id" = ${item.id} FOR UPDATE`
+    const lockedItem = await tx.inventoryItem.findFirst({ where: { id: item.id, campaignId: membership.campaignId } })
+    if (!lockedItem) throw new Error('Item não encontrado nesta campanha')
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > lockedItem.quantity) {
+      throw new Error('Quantidade inválida para transferência')
+    }
+    if (lockedItem.category === 'livro' && quantity !== lockedItem.quantity) {
+      throw new Error('Livros só podem ser transferidos por inteiro')
+    }
+
+    if (quantity === lockedItem.quantity) {
       await tx.inventoryItem.update({
-        where: { id: item.id },
+        where: { id: lockedItem.id },
         data: { ownerId: characterId, ...(characterId ? { isLocked: false } : {}) },
       })
       return
     }
 
-    await tx.inventoryItem.update({ where: { id: item.id }, data: { quantity: item.quantity - quantity } })
+    await tx.inventoryItem.update({ where: { id: lockedItem.id }, data: { quantity: lockedItem.quantity - quantity } })
     await tx.inventoryItem.create({
       data: {
-        name: item.name,
-        slug: `${item.slug}-${crypto.randomUUID().slice(0, 8)}`,
-        category: item.category,
-        rarity: item.rarity,
+        name: lockedItem.name,
+        slug: `${lockedItem.slug}-${crypto.randomUUID().slice(0, 8)}`,
+        category: lockedItem.category,
+        rarity: lockedItem.rarity,
         quantity,
-        image: item.image,
-        worldSlug: item.worldSlug,
-        isLocked: characterId ? false : item.isLocked,
-        campaignId: item.campaignId,
+        image: lockedItem.image,
+        worldSlug: lockedItem.worldSlug,
+        isLocked: characterId ? false : lockedItem.isLocked,
+        campaignId: lockedItem.campaignId,
         ownerId: characterId,
-        forgedBy: item.forgedBy,
-        effect: item.effect,
-        origin: item.origin,
-        author: item.author,
-        coverType: item.coverType,
-        coverColor: item.coverColor,
-        coverImage: item.coverImage,
+        forgedBy: lockedItem.forgedBy,
+        effect: lockedItem.effect,
+        origin: lockedItem.origin,
+        author: lockedItem.author,
+        coverType: lockedItem.coverType,
+        coverColor: lockedItem.coverColor,
+        coverImage: lockedItem.coverImage,
       },
     })
   })
@@ -173,7 +206,7 @@ export async function getPlayerCharactersForActiveCampaign() {
   if (!membership) return []
 
   const playerMembers = await prisma.campaignMember.findMany({
-    where: { campaignId: membership.campaignId, role: 'PLAYER' },
+    where: { campaignId: membership.campaignId, role: 'PLAYER', active: true },
     select: { userId: true },
   })
   const playerIds = playerMembers.map((member) => member.userId)
@@ -210,35 +243,40 @@ export async function createInventoryItem(data: {
   })
   if (!membership) throw new Error('Sem campanha ativa como Mestre')
 
-  const slug = data.name
+  const name = validatedText(data.name, 'Nome do item', { min: 1, max: 120 })
+  const category = oneOf(data.category, 'Categoria do item', ITEM_CATEGORIES)
+  const rarity = oneOf(data.rarity, 'Raridade do item', ITEM_RARITIES)
+  const quantity = validatedInteger(data.quantity, 'Quantidade', 1, 1_000_000)
+  const worldSlug = data.worldSlug === undefined ? undefined : validatedText(data.worldSlug, 'Mundo', { max: 120 })
+  const chapters = validateChapters(data.chapters)
+  const slug = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+  if (!slug) throw new Error('O nome precisa conter letras ou números')
 
   await prisma.inventoryItem.create({
     data: {
-      name: data.name,
+      name,
       slug,
-      category: data.category,
-      rarity: data.rarity,
-      quantity: data.quantity,
-      worldSlug: data.worldSlug,
-      origin: data.origin,
-      effect: data.effect,
-      forgedBy: data.forgedBy,
-      author: data.author,
-      coverType: data.coverType,
-      coverColor: data.coverColor,
-      image: data.image,
-      coverImage: data.coverImage,
+      category,
+      rarity,
+      quantity,
+      worldSlug,
+      origin: data.origin === undefined ? undefined : validatedText(data.origin, 'Origem', { max: 500 }),
+      effect: data.effect === undefined ? undefined : validatedText(data.effect, 'Efeito', { max: 2_000 }),
+      forgedBy: data.forgedBy === undefined ? undefined : validatedText(data.forgedBy, 'Fabricante', { max: 120 }),
+      author: data.author === undefined ? undefined : validatedText(data.author, 'Autor', { max: 120 }),
+      coverType: data.coverType === undefined ? undefined : oneOf(data.coverType, 'Tipo de capa', ['color', 'image'] as const),
+      coverColor: data.coverColor === undefined ? undefined : validatedText(data.coverColor, 'Cor da capa', { max: 40 }),
+      image: data.image === undefined ? undefined : validatedText(data.image, 'Imagem', { max: 2_048 }),
+      coverImage: data.coverImage === undefined ? undefined : validatedText(data.coverImage, 'Imagem da capa', { max: 2_048 }),
       campaignId: membership.campaignId,
-      chapters: data.chapters
+      chapters: chapters
         ? {
-            create: data.chapters
-              .filter((ch) => ch.title.trim())
-              .map((ch, i) => ({ title: ch.title, content: ch.content, order: i })),
+            create: chapters.map((chapter, i) => ({ ...chapter, order: i })),
           }
         : undefined,
     },
@@ -253,13 +291,16 @@ export async function getItemBySlug(slug: string) {
 
   const membership = await prisma.campaignMember.findFirst({
     where: { userId: session.user.id, active: true },
+    select: { campaignId: true, role: true },
   })
   if (!membership) return null
 
-  return prisma.inventoryItem.findFirst({
+  const item = await prisma.inventoryItem.findFirst({
     where: { slug, campaignId: membership.campaignId },
     include: { chapters: { orderBy: { order: 'asc' } } },
   })
+  if (!item || (membership.role !== 'MASTER' && item.isLocked)) return null
+  return item
 }
 
 // ─── deleteInventoryItem ────────────────────────────────────
@@ -306,10 +347,13 @@ export async function updateInventoryItem(
     select: { id: true },
   })
   if (!item) throw new Error('Item não encontrado nesta campanha')
+  const name = validatedText(data.name, 'Nome do item', { min: 1, max: 120 })
+  const quantity = validatedInteger(data.quantity, 'Quantidade', 1, 1_000_000)
+  const image = data.image === undefined ? undefined : validatedText(data.image, 'Imagem', { max: 2_048 })
 
   await prisma.inventoryItem.update({
     where: { id: item.id },
-    data: { name: data.name, quantity: data.quantity, image: data.image },
+    data: { name, quantity, image },
   })
 
   revalidatePath('/inventario')

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { leaveCampaign, deleteCampaign, archiveCampaign } from "@/app/actions/campaign";
+import { leaveCampaign, deleteArchivedCampaign, archiveCampaign, getArchivedCampaigns } from "@/app/actions/campaign";
 import { ConfigSection, DangerRow } from "./shared";
 
 export default function TabCampanha() {
@@ -10,7 +10,12 @@ export default function TabCampanha() {
     const [isPending, startTransition] = useTransition()
     const [feedback, setFeedback] = useState<{ type: 'ok' | 'erro'; msg: string } | null>(null)
     // confirmação de dois cliques para ações destrutivas
-    const [confirming, setConfirming] = useState<'arquivar' | 'excluir' | null>(null)
+    const [confirming, setConfirming] = useState<'arquivar' | string | null>(null)
+    const [archivedCampaigns, setArchivedCampaigns] = useState<{ id: string; name: string }[]>([])
+
+    useEffect(() => {
+      getArchivedCampaigns().then(setArchivedCampaigns).catch(() => setArchivedCampaigns([]))
+    }, [])
   
     function showFeedback(type: 'ok' | 'erro', msg: string) {
       setFeedback({ type, msg })
@@ -46,16 +51,17 @@ export default function TabCampanha() {
       })
     }
   
-    function handleDelete() {
-      if (confirming !== 'excluir') {
-        setConfirming('excluir')
+    function handleDelete(campaignId: string) {
+      if (confirming !== campaignId) {
+        setConfirming(campaignId)
         return
       }
       startTransition(async () => {
         try {
-          await deleteCampaign()
+          await deleteArchivedCampaign(campaignId)
+          setArchivedCampaigns((campaigns) => campaigns.filter((campaign) => campaign.id !== campaignId))
           setConfirming(null)
-          router.push('/')
+          showFeedback('ok', 'Campanha excluída permanentemente.')
         } catch (e: any) {
           setConfirming(null)
           showFeedback('erro', e.message)
@@ -109,7 +115,7 @@ export default function TabCampanha() {
           <div className="flex flex-col gap-3">
             <DangerRow
               label="Arquivar campanha"
-              description="A campanha fica oculta mas pode ser restaurada. Todos os dados são preservados."
+              description="A campanha fica arquivada e os dados são preservados. A exclusão permanente fica disponível depois do arquivamento."
               buttonLabel={
                 isPending && confirming === 'arquivar' ? 'Arquivando...'
                 : confirming === 'arquivar' ? 'Confirmar arquivamento?'
@@ -119,20 +125,36 @@ export default function TabCampanha() {
               onClick={handleArchive}
               disabled={isPending}
             />
-            <DangerRow
-              label="Excluir campanha permanentemente"
-              description="Todos os personagens, mundos e inventários serão apagados. Ação irreversível."
-              buttonLabel={
-                isPending && confirming === 'excluir' ? 'Excluindo...'
-                : confirming === 'excluir' ? 'Confirmar exclusão?'
-                : 'Excluir'
-              }
-              variant="critical"
-              onClick={handleDelete}
-              disabled={isPending}
-            />
           </div>
         </div>
+
+        {archivedCampaigns.length > 0 && (
+          <div className="mt-8 border border-red-500/20 p-5">
+            <p className="mb-4 font-title text-xs uppercase tracking-[0.18em] text-red-500/60">
+              Campanhas arquivadas
+            </p>
+            <p className="mb-4 text-xs text-roxo/60">
+              A exclusão apaga permanentemente personagens, mundos e inventários. Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex flex-col gap-3">
+              {archivedCampaigns.map((campaign) => (
+                <DangerRow
+                  key={campaign.id}
+                  label={campaign.name}
+                  description="Excluir campanha arquivada permanentemente."
+                  buttonLabel={
+                    isPending && confirming === campaign.id ? 'Excluindo...'
+                    : confirming === campaign.id ? 'Confirmar exclusão?'
+                    : 'Excluir'
+                  }
+                  variant="critical"
+                  onClick={() => handleDelete(campaign.id)}
+                  disabled={isPending}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </ConfigSection>
     )
 }

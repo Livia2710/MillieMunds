@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CheckCheck } from "lucide-react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
 import { useToast } from "@/componentes/ui/ToastProvider";
@@ -35,7 +36,28 @@ export function NotificationInbox({ initial }: { initial: Notice[] }) {
   }
 
   return (
+    
     <section className="mx-auto w-full max-w-3xl">
+      <Image src="/assets/svgs/corner-left-top.svg"
+        alt=""
+        width={100}
+        height={100}
+        className="pointer-events-none absolute left-0 top-0 w-19 h-19 md:w-25 md:h-25" />
+      <Image src="/assets/svgs/corner-right-top.svg"
+        alt=""
+        width={100}
+        height={100}
+        className="pointer-events-none absolute right-0 top-0 w-19 h-19 md:w-25 md:h-25" />
+      <Image src="/assets/svgs/corner-left-bottom.svg"
+        alt=""
+        width={100}
+        height={100}
+        className="pointer-events-none absolute bottom-0 left-0 w-19 h-19 md:w-25 md:h-25" />
+      <Image src="/assets/svgs/corner-right-bottom.svg"
+        alt=""
+        width={100}
+        height={100}
+        className="pointer-events-none absolute bottom-0 right-0 w-19 h-19 md:w-25 md:h-25" />
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div><h1 className="font-title text-3xl uppercase tracking-[0.1em] text-bege-medio">Notificações</h1><p className="mt-1 text-sm text-bege-escuro/65">Avisos recentes das suas campanhas.</p></div>
         <button type="button" disabled={isPending || unreadCount === 0} onClick={markAllRead} className="flex items-center gap-2 border border-bege-escuro/25 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio transition hover:bg-bege-escuro/5 disabled:cursor-not-allowed disabled:opacity-40"><CheckCheck size={15} /> Marcar todas como lidas</button>

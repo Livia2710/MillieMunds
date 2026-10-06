@@ -7,12 +7,14 @@ import MillieInput from "@/componentes/ui/MillieInput";
 import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { updateInventoryItem } from "@/app/actions/inventory";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type ItemToEdit = { id: string; name: string; quantity: number; image?: string };
 type Props = { isOpen: boolean; onClose: () => void; item: ItemToEdit | null };
 
 export default function EditarItemModal({ isOpen, onClose, item }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -43,9 +45,12 @@ export default function EditarItemModal({ isOpen, onClose, item }: Props) {
           image: image || undefined,
         });
         router.refresh();
+        toast.success("Item atualizado com sucesso.");
         handleClose();
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao editar item.");
+        const message = err instanceof Error ? err.message : "Erro ao editar item.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

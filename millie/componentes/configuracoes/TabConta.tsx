@@ -23,7 +23,9 @@ export default function TabConta({ initial }: { initial: { username: string | nu
     startTransition(async () => {
       try {
         await updateProfile({ username, avatar });
-        await update();
+        // Um objeto vazio faz o NextAuth enviar a atualização de sessão (POST),
+        // disparando trigger === 'update' para buscar o perfil recém-salvo no banco.
+        await update({});
         setUsername(username.trim());
         toast.success("Perfil atualizado com sucesso.");
       } catch (e: any) {

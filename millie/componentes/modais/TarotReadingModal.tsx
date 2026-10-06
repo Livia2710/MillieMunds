@@ -6,6 +6,7 @@ import MillieModal from '@/componentes/ui/MillieModal'
 import { PrimaryButton } from '@/componentes/PrimaryButton'
 import { drawTarotCard, submitTarotCards } from '@/app/actions/tarot'
 import { MAJOR_ARCANA_LABELS, type MajorArcanaSlug } from '@/lib/tarot'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 type Props = {
   isOpen: boolean
@@ -25,6 +26,7 @@ type Carta = {
 type CartaRevelada = Carta & { flipped: boolean }
 
 export default function TarotReadingModal({ isOpen, onClose, drawId, readingType, question }: Props) {
+  const toast = useToast()
   const total = readingType === 'COMUM' ? 3 : 5
   const [cartas, setCartas]          = useState<CartaRevelada[]>([])
   const [isAnimating, setIsAnimating]= useState(false)
@@ -50,16 +52,22 @@ export default function TarotReadingModal({ isOpen, onClose, drawId, readingType
           setCartas((prev) => prev.map((c, i) => i === prev.length - 1 ? { ...c, flipped: true } : c))
           setTimeout(() => setIsAnimating(false), 700)
         }, 100)
-      } catch {
+      } catch (err: unknown) {
         setIsAnimating(false)
+        toast.error(err instanceof Error ? err.message : 'Não foi possível tirar a carta.')
       }
     })
   }
 
   function handleConfirmar() {
     startTransition(async () => {
-      await submitTarotCards(drawId)
-      setSubmitted(true)
+      try {
+        await submitTarotCards(drawId)
+        setSubmitted(true)
+        toast.success('Cartas enviadas ao Mestre.')
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Não foi possível enviar as cartas.')
+      }
     })
   }
 

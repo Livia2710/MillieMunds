@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import MillieModal from "@/componentes/ui/MillieModal";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type ConfirmModalProps = {
   isOpen: boolean;
@@ -11,6 +12,7 @@ type ConfirmModalProps = {
   title: string;
   message: string;
   confirmLabel?: string;
+  successMessage?: string;
 };
 
 export default function ConfirmModal({
@@ -20,7 +22,9 @@ export default function ConfirmModal({
   title,
   message,
   confirmLabel = "Confirmar",
+  successMessage = "Ação concluída com sucesso.",
 }: ConfirmModalProps) {
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +43,12 @@ export default function ConfirmModal({
     startTransition(async () => {
       try {
         await onConfirm();
+        toast.success(successMessage);
         onClose();
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Não foi possível concluir esta ação. Tente novamente.");
+        const message = cause instanceof Error ? cause.message : "Não foi possível concluir esta ação. Tente novamente.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

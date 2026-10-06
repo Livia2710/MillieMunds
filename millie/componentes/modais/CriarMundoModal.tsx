@@ -10,6 +10,7 @@ import MillieSelect from "@/componentes/ui/MillieSelect";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { WORLD_COVER_COLORS, DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
 import { createWorld } from "@/app/actions/world";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = { isOpen: boolean; onClose: () => void }
 type ChapterDraft = { title: string; content: string }
@@ -18,6 +19,7 @@ const colorOptions = WORLD_COVER_COLORS.map((c) => ({ value: c.value, label: c.l
 
 export default function CriarMundoModal({ isOpen, onClose }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -43,9 +45,12 @@ export default function CriarMundoModal({ isOpen, onClose }: Props) {
       try {
         await createWorld({ name: name.trim(), description: description.trim(), coverColor, chapters })
         router.refresh()
+        toast.success("Mundo criado com sucesso.")
         handleClose()
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao criar mundo.")
+        const message = err instanceof Error ? err.message : "Erro ao criar mundo."
+        setError(message)
+        toast.error(message)
       }
     })
   }

@@ -5,8 +5,9 @@ import { prisma } from '@/lib/prisma'
 import type { BaseRank, RacePath } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
-import { calcCurrentRank, calcPV, calcPM, calcXpToNextLevel } from '@/lib/utils/rank'
+import { calcCurrentRank, calcPV, calcPM, calcXpToNextLevel, calcFirstSkillUnlock } from '@/lib/utils/rank'
 import { oneOf, validatedInteger, validatedText, validateImageUrl } from '@/lib/validation'
+import { createUserNotification } from '@/lib/notifications'
 
 // ─── helper: shape de retorno compartilhado ───────────────
 function formatCharacter(char: any, campaignItems: any[]) {
@@ -488,7 +489,7 @@ export async function addXp(characterId: string, amount: number) {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`
     const char = await tx.character.findFirst({
       where: { id: characterId, campaignId: membership.campaignId },
-      include: { race: true },
+      include: { race: { include: { skills: true } }, skills: true },
     })
     if (!char) throw new Error('Personagem não encontrado')
 
@@ -521,14 +522,44 @@ export async function addXp(characterId: string, amount: number) {
       maxXp: newMaxXp,
       leveledUp: currentLevel > char.level,
       levelsGained: currentLevel - char.level,
+      playerId: char.playerId,
+      characterName: char.name,
+      newlyUnlockedSkills: [
+        ...char.race.skills
+          .filter((skill) => {
+            const requiredLevel = Math.max(skill.levelRequired, calcFirstSkillUnlock(char.birthRank))
+            return char.level < requiredLevel && currentLevel >= requiredLevel
+          })
+          .map((skill) => skill.name),
+        ...char.skills
+          .filter((skill) => skill.isUnlocked && char.level < skill.requiredCharacterLevel && currentLevel >= skill.requiredCharacterLevel)
+          .map((skill) => skill.name),
+      ],
     }
   })
+
+  if (result.playerId && result.newlyUnlockedSkills.length > 0) {
+    await Promise.all(result.newlyUnlockedSkills.map((skillName) => createUserNotification({
+      userId: result.playerId!,
+      preference: 'habilidadesDesbloqueadas',
+      type: 'skill_unlocked',
+      title: 'Habilidade desbloqueada',
+      message: `${skillName} foi desbloqueada para ${result.characterName} ao subir de nível.`,
+      href: '/habilidades',
+    })))
+  }
 
   revalidatePath('/personagens')
   revalidatePath('/perfil')
   revalidatePath('/mestre')
 
-  return result
+  return {
+    newLevel: result.newLevel,
+    newXp: result.newXp,
+    maxXp: result.maxXp,
+    leveledUp: result.leveledUp,
+    levelsGained: result.levelsGained,
+  }
 }
 
 // ─── applyRaceEvolution ───────────────────────────────────

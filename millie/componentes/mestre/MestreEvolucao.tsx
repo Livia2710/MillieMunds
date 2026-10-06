@@ -7,6 +7,7 @@ import { SectionTitle, Empty } from './MestreUI'
 import { applyRaceEvolution } from '@/app/actions/character'
 import type { RacePath } from '@/lib/generated/prisma'
 import type { MasterCharacter } from '@/lib/types/character'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 const PATH_LABELS: Record<RacePath, string> = {
   ASCENSAO:    'Ascensão',
@@ -27,6 +28,7 @@ const PATH_BUTTON: Record<RacePath, string> = {
 }
 
 export default function MestreEvolucao({ eligible }: { eligible: MasterCharacter[] }) {
+  const toast = useToast()
   const [isPending,  startTransition] = useTransition()
   const [feedback,   setFeedback]     = useState<Record<string, string>>({})
   const [confirmed,  setConfirmed]    = useState<Record<string, RacePath | null>>({})
@@ -45,13 +47,18 @@ export default function MestreEvolucao({ eligible }: { eligible: MasterCharacter
       try {
         const result = await applyRaceEvolution(char.id, path)
         if (result.newRaceName) {
-          showFeedback(char.id, `${char.name} evoluiu para ${result.newRaceName}!`)
+          const message = `${char.name} evoluiu para ${result.newRaceName}!`
+          showFeedback(char.id, message)
+          toast.success(message)
         } else {
-          showFeedback(char.id, `${char.name} escolheu Permanência.`)
+          const message = `${char.name} escolheu Permanência.`
+          showFeedback(char.id, message)
+          toast.success(message)
         }
         setConfirmed((prev) => ({ ...prev, [char.id]: null }))
       } catch (e: any) {
         showFeedback(char.id, e.message)
+        toast.error(e instanceof Error ? e.message : 'Não foi possível aplicar a evolução.')
         setConfirmed((prev) => ({ ...prev, [char.id]: null }))
       }
     })

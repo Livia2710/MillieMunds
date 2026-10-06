@@ -6,6 +6,7 @@ import { requireActiveMembership, requireUserId } from '@/lib/authorization'
 import { revalidatePath } from 'next/cache'
 import { calcFirstSkillUnlock, calcSkillUsesRequired } from '@/lib/utils/rank'
 import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
+import { createUserNotification } from '@/lib/notifications'
 
 const SKILL_BRANCHES = ['ativa', 'passiva', 'reacao', 'aprimoramento'] as const
 
@@ -122,11 +123,11 @@ export async function createSkill(data: {
   const membership = await requireActiveMembership(userId, 'MASTER')
   const char = await prisma.character.findFirst({
     where: { id: characterId, campaignId: membership.campaignId },
-    select: { level: true },
+    select: { name: true, level: true, playerId: true },
   })
   if (!char) throw new Error('Personagem não encontrado na campanha ativa')
 
-  await prisma.skill.create({
+  const skill = await prisma.skill.create({
     data: {
       ...fields,
       characterId,
@@ -135,6 +136,17 @@ export async function createSkill(data: {
       uses:                   0,
     },
   })
+
+  if (skill.isUnlocked && char.playerId) {
+    await createUserNotification({
+      userId: char.playerId,
+      preference: 'habilidadesDesbloqueadas',
+      type: 'skill_unlocked',
+      title: 'Nova habilidade disponível',
+      message: `${skill.name} foi criada para ${char.name} e já está desbloqueada.`,
+      href: '/habilidades',
+    })
+  }
 
   revalidatePath('/habilidades')
 }
@@ -147,7 +159,13 @@ export async function unlockSkill(skillId: string) {
   const membership = await requireActiveMembership(userId, 'MASTER')
   const skill = await prisma.skill.findFirst({
     where: { id: skillId, character: { campaignId: membership.campaignId } },
-    select: { id: true },
+    select: {
+      id: true,
+      name: true,
+      isUnlocked: true,
+      requiredCharacterLevel: true,
+      character: { select: { name: true, level: true, playerId: true } },
+    },
   })
   if (!skill) throw new Error('Habilidade não encontrada na campanha ativa')
 
@@ -155,6 +173,17 @@ export async function unlockSkill(skillId: string) {
     where: { id: skillId },
     data:  { isUnlocked: true },
   })
+
+  if (!skill.isUnlocked && skill.character.playerId && skill.character.level >= skill.requiredCharacterLevel) {
+    await createUserNotification({
+      userId: skill.character.playerId,
+      preference: 'habilidadesDesbloqueadas',
+      type: 'skill_unlocked',
+      title: 'Habilidade desbloqueada',
+      message: `${skill.name} foi liberada para ${skill.character.name}.`,
+      href: '/habilidades',
+    })
+  }
 
   revalidatePath('/habilidades')
 }
@@ -194,6 +223,17 @@ export async function useSkill(skillId: string) {
     })
     return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
   })
+
+  if (skill.isUnlocked && char.playerId) {
+    await createUserNotification({
+      userId: char.playerId,
+      preference: 'habilidadesDesbloqueadas',
+      type: 'skill_unlocked',
+      title: 'Nova habilidade disponível',
+      message: `${skill.name} foi criada para ${char.name} e já está desbloqueada.`,
+      href: '/habilidades',
+    })
+  }
 
   revalidatePath('/habilidades')
   return result

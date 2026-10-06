@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
+import { createUserNotification } from '@/lib/notifications'
 
 const ITEM_CATEGORIES = ['equipamento', 'consumivel', 'material', 'reliquia', 'livro', 'outro'] as const
 const ITEM_RARITIES = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'] as const
@@ -83,14 +84,16 @@ export async function assignInventoryItem(itemId: string, characterId: string | 
 
   const item = await prisma.inventoryItem.findFirst({
     where: { id: itemId, campaignId: membership.campaignId },
-    select: { id: true },
+    select: { id: true, name: true, ownerId: true },
   })
   if (!item) throw new Error('Item nÃ£o encontrado nesta campanha')
 
+  let recipientId: string | null = null
+  let recipientCharacterName = ''
   if (characterId) {
     const character = await prisma.character.findFirst({
       where: { id: characterId, campaignId: membership.campaignId, playerId: { not: null } },
-      select: { playerId: true },
+      select: { playerId: true, name: true },
     })
     if (!character?.playerId) throw new Error('Personagem de jogador nÃ£o encontrado nesta campanha')
 
@@ -99,12 +102,25 @@ export async function assignInventoryItem(itemId: string, characterId: string | 
       select: { id: true },
     })
     if (!playerMembership) throw new Error('O personagem nÃ£o pertence a um jogador da campanha')
+    recipientId = character.playerId
+    recipientCharacterName = character.name
   }
 
   await prisma.inventoryItem.update({
     where: { id: item.id },
     data: { ownerId: characterId, ...(characterId ? { isLocked: false } : {}) },
   })
+
+  if (recipientId && item.ownerId !== characterId) {
+    await createUserNotification({
+      userId: recipientId,
+      preference: 'itensAdicionados',
+      type: 'item_added',
+      title: 'Novo item no inventário',
+      message: `${item.name} foi entregue a ${recipientCharacterName}.`,
+      href: '/inventario',
+    })
+  }
 
   revalidatePath('/inventario')
   revalidatePath('/perfil')
@@ -134,10 +150,12 @@ export async function transferInventoryItem(itemId: string, characterId: string 
     throw new Error('Livros sÃ³ podem ser transferidos por inteiro')
   }
 
+  let recipientId: string | null = null
+  let recipientCharacterName = ''
   if (characterId) {
     const character = await prisma.character.findFirst({
       where: { id: characterId, campaignId: membership.campaignId, playerId: { not: null } },
-      select: { playerId: true },
+      select: { playerId: true, name: true },
     })
     if (!character?.playerId) throw new Error('Personagem de jogador nÃ£o encontrado nesta campanha')
     const playerMembership = await prisma.campaignMember.findFirst({
@@ -145,6 +163,8 @@ export async function transferInventoryItem(itemId: string, characterId: string 
       select: { id: true },
     })
     if (!playerMembership) throw new Error('O personagem nÃ£o pertence a um jogador da campanha')
+    recipientId = character.playerId
+    recipientCharacterName = character.name
   }
 
   await prisma.$transaction(async (tx) => {
@@ -189,6 +209,17 @@ export async function transferInventoryItem(itemId: string, characterId: string 
       },
     })
   })
+
+  if (recipientId && item.ownerId !== characterId) {
+    await createUserNotification({
+      userId: recipientId,
+      preference: 'itensAdicionados',
+      type: 'item_added',
+      title: 'Novo item no inventário',
+      message: `${quantity} ${quantity === 1 ? 'unidade' : 'unidades'} de ${item.name} ${quantity === 1 ? 'foi entregue' : 'foram entregues'} a ${recipientCharacterName}.`,
+      href: '/inventario',
+    })
+  }
 
   revalidatePath('/inventario')
   revalidatePath('/perfil')

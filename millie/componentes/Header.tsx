@@ -10,11 +10,14 @@ import CriarCampanhaModal from "@/componentes/modais/CriarCampanhaModal";
 import EntrarCampanhaModal from "@/componentes/modais/EntrarCampanhaModal";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
 import { signOut } from 'next-auth/react'
+import { useToast } from "@/componentes/ui/ToastProvider";
+import { NotificationBell } from "@/componentes/notificacoes/NotificationBell";
 
 export function Header() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { campaigns, switchCampaign, isMaster } = useCampaign();
+  const toast = useToast();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMasterOpen, setIsMasterOpen] = useState(false);
@@ -27,24 +30,36 @@ export function Header() {
   const masterCampaigns = campaigns.filter((c) => c.role === "MASTER");
   const playerCampaigns = campaigns.filter((c) => c.role === "PLAYER");
 
+  async function handleSwitchCampaign(campaignId: string) {
+    try {
+      await switchCampaign(campaignId);
+      toast.success("Campanha alterada.");
+      setIsSidebarOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível alterar a campanha.");
+    }
+  }
+
   return (
     <>
-      <header className="relative h-20 overflow-hidden rounded-[10px] bg-roxo-escuro text-bege-escuro shadow-header">
-        <Image
-          src="/assets/svgs/header-left.svg"
-          alt=""
-          width={170}
-          height={70}
-          className="pointer-events-none absolute left-0 top-0 w-19 h-19 md:w-25 md:h-25"
-        />
+      <header className="relative z-50 h-20 overflow-visible rounded-[10px] bg-roxo-escuro text-bege-escuro shadow-header">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[10px]">
+          <Image
+            src="/assets/svgs/header-left.svg"
+            alt=""
+            width={170}
+            height={70}
+            className="absolute left-0 top-0 w-19 h-19 md:w-25 md:h-25"
+          />
 
-        <Image
-          src="/assets/svgs/header-right.svg"
-          alt=""
-          width={170}
-          height={70}
-          className="pointer-events-none absolute right-0 top-0 w-19 h-19 md:w-25 md:h-25"
-        />
+          <Image
+            src="/assets/svgs/header-right.svg"
+            alt=""
+            width={170}
+            height={70}
+            className="absolute right-0 top-0 w-19 h-19 md:w-25 md:h-25"
+          />
+        </div>
 
         <div className="relative z-10 flex h-full items-center px-28">
           <Image
@@ -67,25 +82,29 @@ export function Header() {
             </Link>
           </nav>
 
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen((current) => !current)}
-            className="ml-auto flex items-center gap-3 font-title text-[24px] leading-[1.1] tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            <span className="hidden md:inline">{username}</span>
-            <div className="hidden md:block">
-              <ChevronDown size={22} strokeWidth={1.5} className={`transition-transform duration-200 ${isSidebarOpen ? 'rotate-180' : ''}`} />
-            </div>
-            <div className="block md:hidden p-1 hover:bg-bege-escuro/10 rounded">
-              <Menu size={28} strokeWidth={1.5} />
-            </div>
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {session?.user && <NotificationBell />}
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen((current) => !current)}
+              className="flex items-center gap-3 font-title text-[24px] leading-[1.1] tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <span className="hidden md:inline">{username}</span>
+              <div className="hidden md:block">
+                <ChevronDown size={22} strokeWidth={1.5} className={`transition-transform duration-200 ${isSidebarOpen ? 'rotate-180' : ''}`} />
+              </div>
+              <div className="block md:hidden p-1 hover:bg-bege-escuro/10 rounded">
+                <Menu size={28} strokeWidth={1.5} />
+              </div>
+            </button>
+            
+          </div>
         </div>
       </header>
 
       {isSidebarOpen && (
         /* Adicionado classes para ocultar a barra de rolagem cinza padrão do navegador */
-        <aside className="fixed right-0 top-0 z-30 h-dvh w-80 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden border-l border-bege-escuro/40 bg-roxo-escuro px-6 py-6 text-bege-escuro shadow-2xl">
+        <aside className="fixed right-0 top-0 z-50 h-dvh w-80 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden border-l border-bege-escuro/40 bg-roxo-escuro px-6 py-6 text-bege-escuro shadow-2xl">
           <div className="flex justify-end mb-2">
             <button 
               type="button" 
@@ -190,10 +209,7 @@ export function Header() {
               icon={<Wand size={15} strokeWidth={1.4} />}
               isOpen={isMasterOpen}
               onToggle={() => setIsMasterOpen(!isMasterOpen)}
-              onSelect={(id) => {
-              switchCampaign(id);
-              setIsSidebarOpen(false);
-            }}
+              onSelect={handleSwitchCampaign}
             />
 
             {/* Accordion de Jogador */}
@@ -203,10 +219,7 @@ export function Header() {
               icon={<BookOpen size={15} strokeWidth={1.4} />}
               isOpen={isPlayerOpen}
               onToggle={() => setIsPlayerOpen(!isPlayerOpen)}
-              onSelect={(id) => {
-              switchCampaign(id);
-              setIsSidebarOpen(false);
-            }}
+              onSelect={handleSwitchCampaign}
             />
           </SidebarBlock>
 

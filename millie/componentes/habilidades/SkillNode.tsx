@@ -8,6 +8,7 @@ import { useInnateSkill, useSkill, deleteSkill } from "@/app/actions/skill";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
 import ConfirmModal from "@/componentes/modais/ConfirmModal";
 import EditarHabilidadeModal from "@/componentes/modais/EditarHabilidadeModal";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type SkillNodeProps = {
   skill: Skill & { uses?: number; isInnate?: boolean };
@@ -33,6 +34,7 @@ function usesRequired(birthRank: string, currentLevel: number): number {
 }
 
 export function SkillNode({ skill, meta, characterLevel, birthRank, characterId, onSkillChanged }: SkillNodeProps) {
+  const toast = useToast();
   const { isMaster } = useCampaign();
   const router = useRouter();
   const [expanded,    setExpanded]    = useState(false);
@@ -40,7 +42,6 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
   const [isPending,   startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
 
   const isLocked = !skill.isUnlocked || characterLevel < skill.requiredCharacterLevel;
   const isMaxed  = skill.currentLevel >= skill.maxLevel;
@@ -65,25 +66,28 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
           ? await useInnateSkill(skill.id, characterId)
           : await useSkill(skill.id);
         if (result.leveledUp) {
-          setFeedback(`Subiu para nível ${result.newLevel}!`);
+          const message = `Subiu para nível ${result.newLevel}!`
+          setFeedback(message);
+          toast.success(message);
         } else {
-          setFeedback(`${result.uses}/${result.usesRequired} usos`);
+          const message = `${result.uses}/${result.usesRequired} usos`
+          setFeedback(message);
+          toast.success(`Uso registrado: ${message}.`);
         }
         setTimeout(() => setFeedback(null), 2500);
       } catch (error: unknown) {
-        setFeedback(error instanceof Error ? error.message : "Erro ao registrar uso.");
+        const message = error instanceof Error ? error.message : "Erro ao registrar uso.";
+        setFeedback(message);
+        toast.error(message);
         setTimeout(() => setFeedback(null), 2500);
       }
     });
   }
 
-  function handleDelete() {
-    startDeleteTransition(async () => {
-      await deleteSkill(skill.id);
-      router.refresh();
-      onSkillChanged?.();
-      setConfirmDeleteOpen(false);
-    });
+  async function handleDelete() {
+    await deleteSkill(skill.id);
+    router.refresh();
+    onSkillChanged?.();
   }
 
   return (
@@ -291,7 +295,8 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
             onConfirm={handleDelete}
             title="Excluir Habilidade"
             message={`Tem certeza que quer excluir "${skill.name}"? Essa ação não pode ser desfeita.`}
-            confirmLabel={isDeleting ? "Aguarde..." : "Excluir"}
+            successMessage="Habilidade excluída com sucesso."
+            confirmLabel="Excluir"
           />
         </>
       )}

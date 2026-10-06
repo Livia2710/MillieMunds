@@ -8,6 +8,7 @@ import MillieInput from '@/componentes/ui/MillieInput'
 import { PrimaryButton } from '@/componentes/PrimaryButton'
 import { initiateTarotReading, completeTarotReading, getMasterPendingReading } from '@/app/actions/tarot'
 import { useEffect } from 'react'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 type Props = {
   isOpen: boolean
@@ -26,6 +27,7 @@ const CARD_LABELS: Record<string, string> = {
 type Step = 'configurar' | 'aguardando_jogador' | 'definir_sacrificio' | 'concluida'
 
 export default function IniciarLeituraModal({ isOpen, onClose, characterId, characterName }: Props) {
+  const toast = useToast()
   const [step, setStep]                   = useState<Step>('configurar')
   const [readingType, setReadingType]     = useState<'COMUM' | 'PROFUNDA'>('COMUM')
   const [question, setQuestion]           = useState('')
@@ -41,18 +43,26 @@ export default function IniciarLeituraModal({ isOpen, onClose, characterId, char
   useEffect(() => {
     if (step !== 'aguardando_jogador' || !drawId) return
 
+    let hasShownPollingError = false
     const interval = setInterval(async () => {
-      const draw = await getMasterPendingReading(characterId)
-      if (draw && draw.id === drawId && draw.status === 'cartas_reveladas') {
-        setRevealedCards(draw.cards)
-        setHadJoker(draw.hadJoker)
-        setStep('definir_sacrificio')
-        clearInterval(interval)
+      try {
+        const draw = await getMasterPendingReading(characterId)
+        if (draw && draw.id === drawId && draw.status === 'cartas_reveladas') {
+          setRevealedCards(draw.cards)
+          setHadJoker(draw.hadJoker)
+          setStep('definir_sacrificio')
+          clearInterval(interval)
+        }
+      } catch (err: unknown) {
+        if (!hasShownPollingError) {
+          hasShownPollingError = true
+          toast.error(err instanceof Error ? err.message : 'Não foi possível verificar a leitura pendente.')
+        }
       }
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [step, drawId, characterId])
+  }, [step, drawId, characterId, toast])
 
   function handleClose() {
     setStep('configurar')
@@ -75,8 +85,11 @@ export default function IniciarLeituraModal({ isOpen, onClose, characterId, char
         const draw = await initiateTarotReading({ characterId, readingType, question: question.trim() })
         setDrawId(draw.id)
         setStep('aguardando_jogador')
+        toast.success('Leitura iniciada. Aguardando o jogador revelar as cartas.')
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Erro ao iniciar leitura.')
+        const message = err instanceof Error ? err.message : 'Erro ao iniciar leitura.'
+        setError(message)
+        toast.error(message)
       }
     })
   }
@@ -88,8 +101,11 @@ export default function IniciarLeituraModal({ isOpen, onClose, characterId, char
       try {
         await completeTarotReading({ drawId, sacrifice: sacrifice.trim(), sacrificeIsPermanent: isPermanent })
         setStep('concluida')
+        toast.success('Leitura concluída e sacrifício registrado.')
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Erro ao concluir leitura.')
+        const message = err instanceof Error ? err.message : 'Erro ao concluir leitura.'
+        setError(message)
+        toast.error(message)
       }
     })
   }

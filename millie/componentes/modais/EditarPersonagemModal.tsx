@@ -9,6 +9,7 @@ import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import type { CharacterCategory } from "@/lib/types/character";
 import { updateCharacter } from "@/app/actions/character";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type CharacterToEdit = {
   id: string;
@@ -24,6 +25,7 @@ type Props = { isOpen: boolean; onClose: () => void; character: CharacterToEdit 
 
 export default function EditarPersonagemModal({ isOpen, onClose, character }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
@@ -64,9 +66,12 @@ export default function EditarPersonagemModal({ isOpen, onClose, character }: Pr
           occupation: character.category === "npc" ? occupation : undefined,
         });
         router.refresh();
+        toast.success("Personagem atualizado com sucesso.");
         handleClose();
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao editar personagem.");
+        const message = err instanceof Error ? err.message : "Erro ao editar personagem.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

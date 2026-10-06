@@ -7,6 +7,7 @@ import { PrimaryButton } from '../PrimaryButton'
 import { getSpecialCards, saveSpecialCard, useSpecialCard, updateCharacterPoints } from '@/app/actions/character'
 import { calcAutoConditions, CONDITION_LABELS, CONDITION_COLORS } from '@/lib/utils/conditions'
 import type { AutoCondition } from '@/lib/utils/conditions'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 interface ProfileCardsProps {
   character: ProfileCharacter
@@ -54,6 +55,7 @@ const TIPO_LABEL: Record<'VALETE' | 'CAVALEIRO', string> = {
 
 
 export default function ProfileCards({ character }: ProfileCardsProps) {
+  const toast = useToast()
   const [isFlipped, setIsFlipped]       = useState(false)
   const [isAnimating, setIsAnimating]   = useState(false)
   const [activeCard, setActiveCard]     = useState<Carta>(BARALHO[0])
@@ -74,10 +76,14 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
       startTransition(async () => {
-        await updateCharacterPoints(character.id, { pv: nextPv, pm: nextPm })
+        try {
+          await updateCharacterPoints(character.id, { pv: nextPv, pm: nextPm })
+        } catch (err: unknown) {
+          toast.error(err instanceof Error ? err.message : 'Não foi possível salvar PV/PM.')
+        }
       })
     }, 800)
-  }, [character.id])
+  }, [character.id, toast])
 
   function changePv(delta: number) {
     setPv((prev) => {
@@ -101,8 +107,10 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
   const autoConditions = calcAutoConditions(pv, pvMax)
 
   useEffect(() => {
-    getSpecialCards(character.id).then((cards) => setSpecialCards(cards as SpecialCard[]))
-  }, [character.id])
+    getSpecialCards(character.id)
+      .then((cards) => setSpecialCards(cards as SpecialCard[]))
+      .catch((err: unknown) => toast.error(err instanceof Error ? err.message : 'Não foi possível carregar o deck.'))
+  }, [character.id, toast])
 
   // ── sorteio ───────────────────────────────────────────
   function sortear() {
@@ -133,8 +141,11 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
         const saved = await saveSpecialCard(character.id, activeCard.tipo!)
         setSpecialCards((prev) => [...prev, saved as SpecialCard])
         setSavedMsg(`${TIPO_LABEL[activeCard.tipo!]} guardado no deck!`)
+        toast.success(`${TIPO_LABEL[activeCard.tipo!]} guardado no deck.`)
       } catch (err: unknown) {
-        setSavedMsg(err instanceof Error ? err.message : 'Erro ao guardar.')
+        const message = err instanceof Error ? err.message : 'Erro ao guardar.'
+        setSavedMsg(message)
+        toast.error(message)
       }
     })
   }
@@ -146,7 +157,10 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
         setSpecialCards((prev) =>
           prev.map((c) => c.id === cardId ? { ...c, isAvailable: false, usedAt: new Date() } : c)
         )
-      } catch { /* silencioso */ }
+        toast.success('Carta usada.')
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Não foi possível usar a carta.')
+      }
     })
   }
 

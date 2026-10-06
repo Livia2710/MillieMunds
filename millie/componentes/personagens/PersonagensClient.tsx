@@ -9,6 +9,7 @@ import CharactersGrid from '@/componentes/personagens/CharactersGrid'
 import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
 import { unlockCharacter } from '@/app/actions/character'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 // Tipo que vem do Prisma — separado do tipo de UI
 type DbCharacter = {
@@ -35,14 +36,20 @@ type Props = {
 
 export default function PersonagensClient({ characters, isMaster, hasCampaign }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
 
   function handleUnlock(characterId: string) {
     startTransition(async () => {
-      await unlockCharacter(characterId)
-      router.refresh()
+      try {
+        await unlockCharacter(characterId)
+        router.refresh()
+        toast.success('Personagem liberado para os jogadores.')
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Não foi possível liberar o personagem.')
+      }
     })
   }
 

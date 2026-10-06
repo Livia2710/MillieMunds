@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -30,27 +30,20 @@ const rarityCrests: Record<string, string> = {
 export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
   const { isMaster } = useCampaign();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [confirmUnlockOpen, setConfirmUnlockOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const hideContent = !!item.isLocked && !isMaster;
 
-  function handleUnlock() {
-    startTransition(async () => {
-      await unlockItem(item.id);
-      router.refresh();
-      setConfirmUnlockOpen(false);
-    });
+  async function handleUnlock() {
+    await unlockItem(item.id);
+    router.refresh();
   }
 
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteInventoryItem(item.id);
-      router.refresh();
-      setConfirmDeleteOpen(false);
-    });
+  async function handleDelete() {
+    await deleteInventoryItem(item.id);
+    router.refresh();
   }
 
   return (
@@ -104,7 +97,8 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
         onConfirm={handleUnlock}
         title="Liberar Item"
         message={`Tem certeza que quer liberar "${item.name}" para os jogadores? Essa ação não pode ser desfeita.`}
-        confirmLabel={isPending ? "Aguarde..." : "Liberar"}
+        confirmLabel="Liberar"
+        successMessage="Item liberado para os jogadores."
       />
 
       <ConfirmModal
@@ -113,7 +107,8 @@ export default function InventoryCard({ item, onAssign }: InventoryCardProps) {
         onConfirm={handleDelete}
         title="Excluir Item"
         message={`Tem certeza que quer excluir "${item.name}"? Essa ação não pode ser desfeita.`}
-        confirmLabel={isPending ? "Aguarde..." : "Excluir"}
+        confirmLabel="Excluir"
+        successMessage="Item excluído com sucesso."
       />
 
       <EditarItemModal

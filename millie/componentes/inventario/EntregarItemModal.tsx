@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { transferInventoryItem } from "@/app/actions/inventory";
+import { useToast } from "@/componentes/ui/ToastProvider";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import MillieModal from "@/componentes/ui/MillieModal";
 import MillieSelect from "@/componentes/ui/MillieSelect";
@@ -18,6 +19,7 @@ type Props = {
 
 export default function EntregarItemModal({ item, players, onClose }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [characterId, setCharacterId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -33,9 +35,12 @@ export default function EntregarItemModal({ item, players, onClose }: Props) {
       try {
         await transferInventoryItem(item.id, characterId, Number(quantity));
         router.refresh();
+        toast.success("Item entregue ao personagem.");
         onClose();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Não foi possível entregar o item.");
+        const message = err instanceof Error ? err.message : "Não foi possível entregar o item.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

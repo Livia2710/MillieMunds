@@ -3,14 +3,21 @@
 import { useState } from 'react'
 import { Copy, Check, Star } from 'lucide-react'
 import { SectionTitle } from './MestreUI'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 export default function MestreInvite({ inviteCode }: { inviteCode: string }) {
+  const toast = useToast()
   const [copied, setCopied] = useState(false)
 
-  function copyInvite() {
-    navigator.clipboard.writeText(inviteCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copyInvite() {
+    try {
+      await navigator.clipboard.writeText(inviteCode)
+      setCopied(true)
+      toast.success('Código de convite copiado.')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Não foi possível copiar o código de convite.')
+    }
   }
 
   return (

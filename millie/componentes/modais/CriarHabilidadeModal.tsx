@@ -13,6 +13,7 @@ import type { SkillBranch } from "@/lib/types/skill"
 import type { CharacterElement } from "@/lib/types/character"
 import { createSkill } from "@/app/actions/skill"
 import { getCharactersByActiveCampaign } from "@/app/actions/character"
+import { useToast } from "@/componentes/ui/ToastProvider"
 
 type Props = { isOpen: boolean; onClose: () => void }
 
@@ -28,6 +29,7 @@ const MAX_LEVEL_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label:
 
 export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
   
   // Estados corrigidos para evitar inputs não controlados (undefined)
@@ -82,9 +84,12 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
           levelEffects: levelEffects.filter((t) => t.trim()),
         })
         router.refresh()
+        toast.success("Habilidade criada com sucesso.")
         handleClose()
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao criar habilidade.")
+        const message = err instanceof Error ? err.message : "Erro ao criar habilidade."
+        setError(message)
+        toast.error(message)
       }
     })
   }
@@ -107,9 +112,14 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
       getCharactersByActiveCampaign().then((chars) => {
         setCharacters(chars.map((c) => ({ id: c.id, name: c.name })))
         setCharsLoaded(true)
+      }).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Não foi possível carregar os personagens."
+        setError(message)
+        setCharsLoaded(true)
+        toast.error(message)
       })
     }
-  }, [isOpen, charsLoaded])
+  }, [isOpen, charsLoaded, toast])
 
   const CHARACTER_OPTIONS = characters.map((c) => ({ value: c.id, label: c.name }))
 

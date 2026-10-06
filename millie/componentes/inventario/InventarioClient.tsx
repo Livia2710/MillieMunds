@@ -10,6 +10,7 @@ import EntregarItemModal from '@/componentes/inventario/EntregarItemModal'
 import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
 import { unlockItem } from '@/app/actions/inventory'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 type Item = {
   id: string
@@ -40,6 +41,7 @@ type Props = {
 
 export default function InventarioClient({ items, isMaster, hasCampaign, playerCharacters }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
@@ -47,8 +49,13 @@ export default function InventarioClient({ items, isMaster, hasCampaign, playerC
 
   function handleUnlock(itemId: string) {
     startTransition(async () => {
-      await unlockItem(itemId)
-      router.refresh()
+      try {
+        await unlockItem(itemId)
+        router.refresh()
+        toast.success('Item liberado para os jogadores.')
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Não foi possível liberar o item.')
+      }
     })
   }
 

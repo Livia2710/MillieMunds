@@ -6,6 +6,7 @@ import MillieInput from "@/componentes/ui/MillieInput";
 import MillieTextarea from "@/componentes/ui/MillieTextarea";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = {
   open: boolean;
@@ -14,6 +15,7 @@ type Props = {
 
 export default function CriarCampanhaModal({ open, onClose }: Props) {
   const { createCampaign } = useCampaign();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,11 +31,14 @@ export default function CriarCampanhaModal({ open, onClose }: Props) {
     setLoading(true);
     try {
       await createCampaign(name.trim(), description.trim());
+      toast.success("Campanha criada com sucesso.");
       setName("");
       setDescription("");
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao criar crônica.");
+      const message = err instanceof Error ? err.message : "Erro ao criar crônica.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

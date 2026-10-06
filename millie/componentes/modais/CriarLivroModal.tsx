@@ -12,6 +12,7 @@ import { WORLD_COVER_COLORS, DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world
 import type { InventoryRarity } from "@/lib/types/inventory";
 import { createInventoryItem } from "@/app/actions/inventory";
 import MillieImageUpload from "../ui/MillieImageUpload";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = { isOpen: boolean; onClose: () => void }
 type ChapterDraft = { title: string; content: string }
@@ -26,6 +27,7 @@ const colorOptions = WORLD_COVER_COLORS.map((c) => ({ value: c.value, label: c.l
 
 export default function CriarLivroModal({ isOpen, onClose }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState("")
   const [author, setAuthor] = useState("")
@@ -62,9 +64,12 @@ export default function CriarLivroModal({ isOpen, onClose }: Props) {
           chapters,
         })
         router.refresh()
+        toast.success("Livro criado com sucesso.")
         handleClose()
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao criar livro.")
+        const message = err instanceof Error ? err.message : "Erro ao criar livro."
+        setError(message)
+        toast.error(message)
       }
     })
   }

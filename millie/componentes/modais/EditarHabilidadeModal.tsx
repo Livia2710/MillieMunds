@@ -12,6 +12,7 @@ import { ELEMENT_META } from "@/lib/types/skill"
 import type { SkillBranch, Skill } from "@/lib/types/skill"
 import type { CharacterElement } from "@/lib/types/character"
 import { updateSkill } from "@/app/actions/skill"
+import { useToast } from "@/componentes/ui/ToastProvider"
 
 type Props = { isOpen: boolean; onClose: () => void; skill: Skill | null; onSaved?: () => void }
 
@@ -27,6 +28,7 @@ const MAX_LEVEL_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label:
 
 export default function EditarHabilidadeModal({ isOpen, onClose, skill, onSaved }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const [isPending, startTransition] = useTransition()
 
   const [name, setName] = useState("")
@@ -86,9 +88,12 @@ export default function EditarHabilidadeModal({ isOpen, onClose, skill, onSaved 
         })
         router.refresh()
         onSaved?.()
+        toast.success("Habilidade atualizada com sucesso.")
         handleClose()
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao editar habilidade.")
+        const message = err instanceof Error ? err.message : "Erro ao editar habilidade."
+        setError(message)
+        toast.error(message)
       }
     })
   }

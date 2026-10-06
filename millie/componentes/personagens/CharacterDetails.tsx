@@ -7,6 +7,7 @@ import { ArrowLeft, Pencil, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Character } from "@/lib/types/character";
 import { updateCharacterHistory } from "@/app/actions/character";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = {
   character: Character;
@@ -69,15 +70,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function CharacterDetails({ character, canEditStory = false }: Props) {
   const specificFields = getSpecificFields(character);
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [isEditingStory, setIsEditingStory] = useState(false);
   const [storyDraft, setStoryDraft] = useState(character.story ?? "");
 
   function handleSaveStory() {
     startTransition(async () => {
-      await updateCharacterHistory(character.id, storyDraft);
-      router.refresh();
-      setIsEditingStory(false);
+      try {
+        await updateCharacterHistory(character.id, storyDraft);
+        router.refresh();
+        setIsEditingStory(false);
+        toast.success("História do personagem salva.");
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Não foi possível salvar a história.");
+      }
     });
   }
 

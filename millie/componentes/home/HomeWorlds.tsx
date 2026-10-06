@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { WorldCard } from "./WorldCard";
@@ -33,18 +33,15 @@ type Props = {
 export function HomeWorlds({ worlds, isMaster, hasCampaign }: Props) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [worldToUnlock, setWorldToUnlock] = useState<{ id: string; name: string } | null>(null);
   const [worldToEdit, setWorldToEdit] = useState<World | null>(null);  
   const [worldToDelete, setWorldToDelete] = useState<{ id: string; name: string } | null>(null);
 
-function handleDelete(worldId: string) {
-  startTransition(async () => {
-    await deleteWorld(worldId);
-    router.refresh();
-  });
+async function handleDelete(worldId: string) {
+  await deleteWorld(worldId);
+  router.refresh();
 }
   function scrollWorlds(direction: "left" | "right") {
     if (!carouselRef.current) return;
@@ -56,11 +53,9 @@ function handleDelete(worldId: string) {
     });
   }
 
-  function handleUnlock(worldId: string) {
-    startTransition(async () => {
-      await unlockWorld(worldId);
-      router.refresh();
-    });
+  async function handleUnlock(worldId: string) {
+    await unlockWorld(worldId);
+    router.refresh();
   }
 
   const visibleWorlds = isMaster
@@ -117,8 +112,7 @@ function handleDelete(worldId: string) {
                         {isMaster && (
                           <>
                             <button
-                              onClick={() => handleUnlock(world.id)}
-                              disabled={isPending}
+                              onClick={() => setWorldToUnlock({ id: world.id, name: world.name })}
                               className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-title text-sm text-bege-claro border border-bege-escuro uppercase tracking-wider"
                             >
                               Liberar para Jogadores
@@ -207,6 +201,7 @@ function handleDelete(worldId: string) {
         onConfirm={() => handleUnlock(worldToUnlock!.id)}
         title="Liberar Mundo"
         message={`Tem certeza que quer liberar "${worldToUnlock?.name}" para os jogadores? Essa ação não pode ser desfeita.`}
+        successMessage="Mundo liberado para os jogadores."
         confirmLabel="Liberar"
       />
       <EditarMundoModal isOpen={!!worldToEdit} onClose={() => setWorldToEdit(null)} world={worldToEdit} />
@@ -216,6 +211,7 @@ function handleDelete(worldId: string) {
         onConfirm={() => handleDelete(worldToDelete!.id)}
         title="Excluir Mundo"
         message={`Tem certeza que quer excluir "${worldToDelete?.name}" permanentemente? Todos os capítulos serão perdidos e essa ação não pode ser desfeita.`}
+        successMessage="Mundo excluído com sucesso."
         confirmLabel="Excluir"
       />
     </>

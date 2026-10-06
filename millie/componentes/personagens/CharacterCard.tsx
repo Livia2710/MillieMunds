@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -42,25 +42,18 @@ export default function CharacterCard({ character }: CharacterCardProps) {
   const specificInfo = getCharacterSpecificInfo(character);
   const { isMaster } = useCampaign();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [confirmUnlockOpen, setConfirmUnlockOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
-  function handleUnlock() {
-    startTransition(async () => {
-      await unlockCharacter(character.id);
-      router.refresh();
-      setConfirmUnlockOpen(false);
-    });
+  async function handleUnlock() {
+    await unlockCharacter(character.id);
+    router.refresh();
   }
 
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteCharacter(character.id);
-      router.refresh();
-      setConfirmDeleteOpen(false);
-    });
+  async function handleDelete() {
+    await deleteCharacter(character.id);
+    router.refresh();
   }
 
   return (
@@ -158,7 +151,8 @@ export default function CharacterCard({ character }: CharacterCardProps) {
         onConfirm={handleUnlock}
         title="Desbloquear Personagem"
         message={`Tem certeza que quer desbloquear "${character.name}" para os jogadores?`}
-        confirmLabel={isPending ? "Aguarde..." : "Desbloquear"}
+        confirmLabel="Desbloquear"
+        successMessage="Personagem desbloqueado para os jogadores."
       />
 
       <ConfirmModal
@@ -167,7 +161,8 @@ export default function CharacterCard({ character }: CharacterCardProps) {
         onConfirm={handleDelete}
         title="Excluir Personagem"
         message={`Tem certeza que quer excluir "${character.name}"? Essa ação não pode ser desfeita.`}
-        confirmLabel={isPending ? "Aguarde..." : "Excluir"}
+        confirmLabel="Excluir"
+        successMessage="Personagem excluído com sucesso."
       />
 
        <EditarPersonagemModal

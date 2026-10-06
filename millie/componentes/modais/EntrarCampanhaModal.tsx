@@ -5,6 +5,7 @@ import MillieModal from "@/componentes/ui/MillieModal";
 import MillieInput from "@/componentes/ui/MillieInput";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = {
   open: boolean;
@@ -13,6 +14,7 @@ type Props = {
 
 export default function EntrarCampanhaModal({ open, onClose }: Props) {
   const { joinCampaign } = useCampaign();
+  const toast = useToast();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,10 +29,13 @@ export default function EntrarCampanhaModal({ open, onClose }: Props) {
     setLoading(true);
     try {
       await joinCampaign(code.trim());
+      toast.success("Você entrou na campanha.");
       setCode("");
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Código inválido.");
+      const message = err instanceof Error ? err.message : "Código inválido.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

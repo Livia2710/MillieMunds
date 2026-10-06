@@ -11,10 +11,12 @@ import { addCondition, removeCondition } from '@/app/actions/condition'
 import { MANUAL_CONDITIONS, CONDITION_LABELS } from '@/lib/utils/conditions'
 import type { ManualCondition } from '@/lib/utils/conditions'
 import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
+import { useToast } from '@/componentes/ui/ToastProvider'
 
 const XP_PRESETS = [50, 100, 250, 500]
 
 export default function MestreJogadores({ players }: { players: MasterPlayer[] }) {
+  const toast = useToast()
   const [leituraChar, setLeituraChar]  = useState<{ id: string; name: string } | null>(null)
   const [expandedId,  setExpandedId]   = useState<string | null>(null)
   const [xpInput,     setXpInput]      = useState<Record<string, string>>({})
@@ -34,14 +36,14 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
     startTransition(async () => {
       try {
         const result = await addXp(char.id, amount)
-        showFeedback(
-          char.id,
-          result.leveledUp
-            ? `+${amount} XP · Subiu para nível ${result.newLevel}!`
-            : `+${amount} XP`
-        )
+        const message = result.leveledUp
+          ? `+${amount} XP · Subiu para nível ${result.newLevel}!`
+          : `+${amount} XP para ${char.name}.`
+        showFeedback(char.id, message)
+        toast.success(message)
       } catch (e: any) {
         showFeedback(char.id, e.message)
+        toast.error(e instanceof Error ? e.message : 'Não foi possível adicionar XP.')
       }
     })
   }
@@ -57,9 +59,12 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
     startTransition(async () => {
       try {
         await addCondition(charId, type)
-        showFeedback(charId, `Condição "${CONDITION_LABELS[type]}" aplicada.`)
+        const message = `Condição "${CONDITION_LABELS[type]}" aplicada.`
+        showFeedback(charId, message)
+        toast.success(message)
       } catch (e: any) {
         showFeedback(charId, e.message)
+        toast.error(e instanceof Error ? e.message : 'Não foi possível aplicar a condição.')
       }
     })
   }
@@ -68,9 +73,12 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
     startTransition(async () => {
       try {
         await removeCondition(conditionId)
-        showFeedback(charId, `Condição "${label}" removida.`)
+        const message = `Condição "${label}" removida.`
+        showFeedback(charId, message)
+        toast.success(message)
       } catch (e: any) {
         showFeedback(charId, e.message)
+        toast.error(e instanceof Error ? e.message : 'Não foi possível remover a condição.')
       }
     })
   }

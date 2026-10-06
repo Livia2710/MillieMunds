@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/componentes/PrimaryButton";
 import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import { createInventoryItem } from "@/app/actions/inventory";
 import type { InventoryRarity } from "@/lib/types/inventory";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 type Props = { isOpen: boolean; onClose: () => void };
 
@@ -41,6 +42,7 @@ const FIELDS: Record<ItemCategory, { forgedBy: boolean; effect: boolean; origin:
 
 export default function CriarItemModal({ isOpen, onClose }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
   const [category, setCategory] = useState<ItemCategory>("equipamento");
@@ -79,9 +81,12 @@ export default function CriarItemModal({ isOpen, onClose }: Props) {
           origin:    origin    || undefined,
         });
         router.refresh();
+        toast.success("Item criado com sucesso.");
         handleClose();
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao criar item.");
+        const message = err instanceof Error ? err.message : "Erro ao criar item.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

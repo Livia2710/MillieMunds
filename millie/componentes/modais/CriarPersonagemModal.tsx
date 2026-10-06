@@ -8,6 +8,7 @@ import MillieInput from "@/componentes/ui/MillieInput";
 import MillieSelect from "@/componentes/ui/MillieSelect";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import MillieImageUpload from "../ui/MillieImageUpload";
+import { useToast } from "@/componentes/ui/ToastProvider";
 
 import type { CharacterCategory } from "@/lib/types/character";
 import type { BaseRank } from "@/lib/generated/prisma";
@@ -99,6 +100,7 @@ type Props = {
 
 export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [universes, setUniverses] = useState<Universe[]>([]);
 
@@ -148,8 +150,12 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
       setRaceId(r.id);
       setElement(r.element);
       setBaseRank(r.baseRank);
+    }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : "Não foi possível carregar os mundos e raças.";
+      setError(message);
+      toast.error(message);
     });
-  }, [isOpen]);
+  }, [isOpen, toast]);
 
   const selectedUniverse = universes.find((u) => u.id === universeId);
   const worlds = selectedUniverse?.worlds ?? [];
@@ -268,9 +274,12 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
         });
 
         router.refresh();
+        toast.success("Personagem criado com sucesso.");
         handleClose();
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Erro ao criar personagem.");
+        const message = err instanceof Error ? err.message : "Erro ao criar personagem.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

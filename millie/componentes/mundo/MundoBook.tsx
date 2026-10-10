@@ -5,17 +5,28 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { ChevronDown } from "lucide-react";
 
-import type { World } from "@/lib/types/world";
-import { DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
+import { getWorldPages, type World } from "@/lib/types/world";
 
 const HTMLFlipBook = dynamic(() => import("react-pageflip"), { ssr: false });
+
+function getPageTextColor(hex: string) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!match) return "#29251f"
+  const channels = match[1].match(/.{2}/g)!.map((channel) => parseInt(channel, 16) / 255).map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  return luminance > 0.42 ? "#29251f" : "#f7f3e9"
+}
+
+export type MundoBookHandle = {
+  pageFlip: () => { flipPrev: () => void; flipNext: () => void; flip: (page: number) => void; getCurrentPageIndex: () => number };
+};
 
 type MundoBookProps = {
   world: World;
   onFlip?: (pageIndex: number) => void;
 };
 
-export const MundoBook = forwardRef<any, MundoBookProps>(
+export const MundoBook = forwardRef<MundoBookHandle, MundoBookProps>(
   function MundoBook({ world, onFlip }, ref) {
     const [currentPage, setCurrentPage] = useState(0);
     const [openMobileChapter, setOpenMobileChapter] = useState<string | null>(
@@ -24,9 +35,10 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
 
 
     const isReturningToCover = useRef(false);
+    const pages = getWorldPages(world.chapters);
 
     // capa + folha branca atrás da capa + introdução + capítulos + folha branca final
-    const totalPages = world.chapters.length + 4;
+    const totalPages = pages.length + 4;
     const finalBlankPageIndex = totalPages - 1;
 
     const totalSpreads = Math.ceil((totalPages - 1) / 2);
@@ -36,7 +48,7 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
         : Math.min(Math.ceil(currentPage / 2), totalSpreads);
 
     const getBook = () => {
-      if (ref && "current" in ref && ref.current) {
+      if (ref && typeof ref === "object" && ref.current) {
         return ref.current.pageFlip();
       }
 
@@ -65,7 +77,7 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
       }, 560);
     };
 
-    const handleFlipEvent = (e: any) => {
+    const handleFlipEvent = (e: { data: number }) => {
       const pageIndex = e.data;
 
       setCurrentPage(pageIndex);
@@ -87,6 +99,8 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
     };
 
     const coverColor = world.coverColor ?? "#2a1307";
+    const pageColor = world.pageColor ?? "#f7f3e9";
+    const pageTextColor = getPageTextColor(pageColor);
 
     return (
       <div className="flex h-full min-h-[680px] w-full select-none flex-col items-center justify-center">
@@ -146,8 +160,12 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
 
                   {/* CONTEÚDO DO CAPÍTULO - OTIMIZADO PARA LEITURA CONFORTÁVEL */}
                   {isOpen && (
-                    <div className="px-6 pb-6 text-base leading-relaxed text-justify text-bege-claro/90 font-body">
-                      {chapter.content}
+                    <div className="px-6 pb-6 text-base leading-relaxed text-justify font-body">
+                      <div className="p-5" style={{ backgroundColor: pageColor, color: pageTextColor }}>
+                        {world.pageHeader && <div className="mb-3 border-b border-[#9b8258]/30 pb-2 text-xs tracking-widest opacity-65">{world.pageHeader}</div>}
+                        <div className="rich-world-content" dangerouslySetInnerHTML={{ __html: chapter.content }} />
+                        {world.pageFooter && <div className="mt-3 border-t border-[#9b8258]/30 pt-2 text-right text-xs tracking-widest opacity-65">{world.pageFooter}</div>}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -200,16 +218,12 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
                 className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden border border-black/40 p-12 text-center text-bege-claro shadow-[inset_0_0_50px_rgba(0,0,0,0.85)]"
                 data-density="hard"
                 >
-                {/* COR REAL DA CAPA */}
-                <div
-                    className="absolute inset-0 z-0"
-                    style={{ backgroundColor: coverColor }}
-                />
+                <div className="pointer-events-none absolute inset-0 z-0" style={{ backgroundColor: coverColor }} />
+                {world.image && <Image src={world.image} alt={`Capa de ${world.name}`} fill priority className="pointer-events-none z-[1] object-cover" />}
 
-                {/* SOMBRA INTERNA DA CAPA */}
-                <div className="pointer-events-none absolute inset-0 z-[1] shadow-[inset_0_0_70px_rgba(0,0,0,0.55),inset_0_0_18px_rgba(209,186,142,0.08)]" />
-
-                <div className="pointer-events-none absolute inset-4 z-[2] border border-bege-medio/20" />
+                {/* SOMBRA INTERNA E MOLDURA DA CAPA */}
+                <div className="pointer-events-none absolute inset-0 z-[2] shadow-[inset_0_0_70px_rgba(0,0,0,0.55),inset_0_0_18px_rgba(209,186,142,0.08)]" />
+                <div className="pointer-events-none absolute inset-4 z-[3] border border-bege-medio/20" />
 
                 <div className="relative z-10 flex flex-col items-center">
                     <h1 className="mt-5 font-title text-4xl uppercase tracking-widest text-bege-medio drop-shadow-md">
@@ -234,13 +248,14 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
 
                 {/* FOLHA BRANCA ATRÁS DA CAPA */}
                 <div
-                  className="h-full border-r border-black/[0.04] bg-bege-claro shadow-[inset_-20px_0_36px_rgba(86,45,14,0.08)]"
+                  className={`relative h-full border border-[#bfa77a]/35 ${world.pageTexture === false ? "" : "shadow-[inset_-20px_0_36px_rgba(86,45,14,0.08)]"}`}
                   data-density="hard"
-                />
+                ><div className="absolute inset-0" style={{ backgroundColor: pageColor }} /></div>
 
                 {/* INTRODUÇÃO */}
-                <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-black/[0.06] bg-bege-claro p-8 text-[#2a1307] shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))] md:p-12">
-                  <div className="relative z-10">
+                <div className={`relative flex h-full flex-col justify-between overflow-hidden border border-[#bfa77a]/35 p-8 md:p-12 ${world.pageTexture === false ? "" : "shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))]"}`}>
+                  <div className="pointer-events-none absolute inset-0 z-0" style={{ backgroundColor: pageColor }} />
+                  <div className="relative z-10" style={{ color: pageTextColor }}>
                     <h1 className="font-title text-3xl uppercase tracking-widest md:text-4xl">
                       {world.name}
                     </h1>
@@ -250,38 +265,30 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
                     </p>
                   </div>
 
-                  {world.image && (
-                    <div className="relative z-10 mt-6 h-56 w-full overflow-hidden rounded-sm border border-[#bfa77a]/30 shadow-sm md:h-64">
-                      <Image
-                        src={world.image}
-                        alt={world.name}
-                        fill
-                        className="object-cover sepia-[0.15]"
-                      />
-                    </div>
-                  )}
+
                 </div>
 
                 {/* CAPÍTULOS */}
-                {world.chapters.map((chapter) => (
+                {pages.map((page) => (
                   <div
-                    key={chapter.id}
-                    className="relative flex h-full flex-col overflow-hidden border-r border-black/[0.06] bg-bege-claro p-8 text-[#2a1307] shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))] md:p-12"
+                    key={page.key}
+                    className={`relative flex h-full flex-col overflow-hidden border border-[#bfa77a]/35 p-8 md:p-12 ${world.pageTexture === false ? "" : "shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))]"}`}
                   >
-                    <div className="relative z-10">
+                    <div className="pointer-events-none absolute inset-0 z-0" style={{ backgroundColor: pageColor }} />
+                    <div className="relative z-10 flex h-full flex-col overflow-y-auto pr-1" style={{ color: pageTextColor }}>
+                      {world.pageHeader && <div className="mb-4 border-b border-[#9b8258]/30 pb-2 text-xs tracking-widest opacity-65">{world.pageHeader}</div>}
                       <h2 className="font-title mb-8 border-b border-[#bfa77a]/20 pb-3 text-2xl uppercase tracking-widest md:text-3xl">
-                        {chapter.title}
+                        {page.title}
                       </h2>
 
-                      <p className="text-justify text-lg leading-relaxed opacity-95 md:text-xl">
-                        {chapter.content}
-                      </p>
+                      <div className="rich-world-content flex-1 text-justify text-lg leading-relaxed opacity-95 md:text-xl" dangerouslySetInnerHTML={{ __html: page.content }} />
+                      {world.pageFooter && <div className="mt-4 border-t border-[#9b8258]/30 pt-2 text-right text-xs tracking-widest opacity-65">{world.pageFooter}</div>}
                     </div>
                   </div>
                 ))}
 
                 {/* FOLHA BRANCA FINAL */}
-                <div className="relative h-full overflow-hidden border-r border-black/[0.06] bg-bege-claro shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))]" />
+                <div className={`relative h-full overflow-hidden border border-[#bfa77a]/35 ${world.pageTexture === false ? "" : "shadow-[inset_0_0_36px_rgba(86,45,14,0.12)] before:pointer-events-none before:absolute before:inset-4 before:border before:border-bege-escuro/25 after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(90deg,rgba(72,35,12,0.1),transparent_14%,transparent_86%,rgba(72,35,12,0.12))]"}`}><div className="absolute inset-0" style={{ backgroundColor: pageColor }} /></div>
               </HTMLFlipBook>
             </div>
           </div>
@@ -317,9 +324,14 @@ export const MundoBook = forwardRef<any, MundoBookProps>(
             Próximo Capítulo
           </button>
         </div>
+      <style jsx global>{`.rich-world-content [data-page-break]{display:none}.rich-world-content p{margin:0 0 1em}.rich-world-content ul,.rich-world-content ol{padding-left:1.4em}.rich-world-content img{max-width:100%;max-height:48vh;object-fit:contain}.rich-world-content img[data-align="left"]{margin:1em auto 1em 0}.rich-world-content img[data-align="center"]{margin:1em auto}.rich-world-content img[data-align="right"]{margin:1em 0 1em auto}.rich-world-content blockquote{border-left:2px solid #9b8258;padding-left:.8em;font-style:italic}`}</style>
       </div>
     );
   }
 );
 
 MundoBook.displayName = "MundoBook";
+
+
+
+

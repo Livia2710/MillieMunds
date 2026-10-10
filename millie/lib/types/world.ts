@@ -11,6 +11,10 @@ export type World = {
   description: string;
   image: string;
   coverColor?: string;
+  pageColor?: string;
+  pageTexture?: boolean;
+  pageHeader?: string;
+  pageFooter?: string;
   chapters: WorldChapter[];
 };
 
@@ -25,3 +29,20 @@ export const WORLD_COVER_COLORS = [
 ] as const;
 
 export const DEFAULT_WORLD_COVER_COLOR = WORLD_COVER_COLORS[0].value;
+export type WorldPage = { key: string; chapterIndex: number; title: string; content: string }
+
+export function splitRichPages(content: string) {
+  return content.split(/<div\b[^>]*data-page-break[^>]*>[\s\S]*?<\/div>/i)
+}
+
+export function getWorldPages(chapters: WorldChapter[]): WorldPage[] {
+  return chapters.flatMap((chapter, chapterIndex) => {
+    const sections = splitRichPages(chapter.content)
+    return sections.map((content, pageIndex) => ({
+      key: `${chapter.id}-${pageIndex}`,
+      chapterIndex,
+      title: pageIndex === 0 ? chapter.title : `${chapter.title} (continuação)`,
+      content,
+    }))
+  })
+}

@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react"; 
 import Image from "next/image";
-import type { World } from "@/lib/types/world";
-import { MundoBook } from "./MundoBook";
+import { getWorldPages, type World } from "@/lib/types/world";
+import { MundoBook, type MundoBookHandle } from "./MundoBook";
 import { MundoSummary } from "./MundoSummary";
 import { Pencil } from "lucide-react";
 import EditarMundoModal from "../modais/EditarMundoModal";
@@ -14,8 +14,8 @@ type MundoReaderProps = {
 };
 
 export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
-  const desktopBookRef = useRef<any>(null);
-  const mobileBookRef = useRef<any>(null);
+  const desktopBookRef = useRef<MundoBookHandle | null>(null);
+  const mobileBookRef = useRef<MundoBookHandle | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Criamos o estado para rastrear a página física atual do livro
@@ -31,13 +31,15 @@ export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
     // 1 = folha branca atrás da capa
     // 2 = introdução
     // 3 em diante = capítulos
-    const pageIndex = chapterIndex + 3;
-    desktopBookRef.current?.pageFlip().flip(pageIndex);
+    const firstPage = worldPages.findIndex((page) => page.chapterIndex === chapterIndex);
+    if (firstPage >= 0) desktopBookRef.current?.pageFlip().flip(firstPage + 3);
   }
 
   // Calculamos em qual "folha aberta" (spread) o livro está baseado na página atual
   // Ex: página 0 ou 1 = spread 0 (Capa). Página 2 ou 3 = spread 1, etc.
-  const currentSpread = currentPage === 0 ? 0 : Math.ceil(currentPage / 2);
+  const worldPages = getWorldPages(world.chapters);
+  const selectedPageIndex = currentPage - 3;
+  const activeChapterIndex = currentPage < 3 ? -1 : worldPages[selectedPageIndex]?.chapterIndex ?? -1;
 
   return (
     <section className="relative min-h-180 overflow-hidden rounded-[10px] bg-roxo-escuro px-6 py-10 text-bege-escuro shadow-header md:px-10 md:py-8">
@@ -92,7 +94,7 @@ export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
           // Passamos o índice correto baseado no cálculo do spread
           // Se estiver na capa (spread 0), o activeChapterIndex será -1 (nenhum botão aceso)
           // Se estiver no primeiro capítulo (spread 2), acende o índice 0 do sumário (2 - 2)
-          activeChapterIndex={currentSpread - 1} 
+          activeChapterIndex={activeChapterIndex} 
         />
 
         {/* Passamos o handleFlip para atualizar o estado do pai sempre que folhear */}
@@ -105,6 +107,7 @@ export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
       </div>
 
       <EditarMundoModal
+        key={`${world.id}-${isEditOpen}`}
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         world={{
@@ -112,6 +115,7 @@ export function MundoReader({ world, isMaster = false }: MundoReaderProps) {
           name: world.name,
           description: world.description,
           coverColor: world.coverColor ?? null,
+          coverImage: world.image ?? null,
           chapters: world.chapters.map((ch) => ({ title: ch.title, content: ch.content })),
         }}
       />

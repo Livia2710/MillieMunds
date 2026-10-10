@@ -7,6 +7,7 @@ import MestreInvite from '@/componentes/mestre/MestreInvite'
 import MestreJogadores from '@/componentes/mestre/MestreJogadores'
 import MestreEvolucao from '@/componentes/mestre/MestreEvolucao'
 import MestreTaro from '@/componentes/mestre/MestreTaro'
+import MestreConteudos from '@/componentes/mestre/MestreConteudos'
 import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 
 type RawTarotDraw = {
@@ -75,6 +76,7 @@ export default function MestrePage() {
       </div>
 
       <MestreInvite inviteCode={data.inviteCode} />
+      <MestreConteudos />
       <MestreJogadores players={data.players} />
       <MestreEvolucao eligible={data.eligibleForEvolution} />
       <MestreTaro draws={data.allTarotDraws} />

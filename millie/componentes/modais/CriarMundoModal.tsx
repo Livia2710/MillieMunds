@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import { Plus, Trash2 } from "lucide-react";
 import MillieModal from "@/componentes/ui/MillieModal";
 import MillieInput from "@/componentes/ui/MillieInput";
@@ -24,7 +25,8 @@ export default function CriarMundoModal({ isOpen, onClose }: Props) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [coverColor, setCoverColor] = useState(DEFAULT_WORLD_COVER_COLOR)
-  const [chapters, setChapters] = useState<ChapterDraft[]>([{ title: "", content: "" }])
+  const [coverImage, setCoverImage] = useState("")
+  const [chapters, setChapters] = useState<ChapterDraft[]>([{ title: "Introdução", content: "" }])
   const [error, setError] = useState("")
 
   function addChapter() { setChapters((p) => [...p, { title: "", content: "" }]) }
@@ -35,15 +37,17 @@ export default function CriarMundoModal({ isOpen, onClose }: Props) {
 
   function handleClose() {
     setName(""); setDescription(""); setCoverColor(DEFAULT_WORLD_COVER_COLOR)
-    setChapters([{ title: "", content: "" }]); setError(""); onClose()
+    setCoverImage(""); setChapters([{ title: "Introdução", content: "" }]); setError(""); onClose()
   }
 
-  function handleSubmit() {
+  function handleSubmit(openEditor = false) {
     if (!name.trim()) { setError("Nome é obrigatório."); return }
+    const editorTab = openEditor ? window.open("about:blank", "_blank") : null
     setError("")
     startTransition(async () => {
       try {
-        await createWorld({ name: name.trim(), description: description.trim(), coverColor, chapters })
+        const worldId = await createWorld({ name: name.trim(), description: description.trim(), coverColor, coverImage, chapters, isDraft: openEditor })
+        if (editorTab) editorTab.location.href = `/mestre/editor/world/${worldId}`
         router.refresh()
         toast.success("Mundo criado com sucesso.")
         handleClose()
@@ -68,6 +72,8 @@ export default function CriarMundoModal({ isOpen, onClose }: Props) {
           </div>
           <div className="mb-0.5 h-10 w-10 shrink-0 border border-bege-escuro/40" style={{ backgroundColor: coverColor }} />
         </div>
+
+        <MillieImageUpload label="Imagem de capa (opcional)" value={coverImage} onChange={setCoverImage} aspectRatio="card" />
 
         <div>
           <div className="mb-3 flex items-center justify-between">
@@ -98,7 +104,8 @@ export default function CriarMundoModal({ isOpen, onClose }: Props) {
 
         <div className="flex justify-end gap-3 border-t border-bege-escuro/20 pt-4">
           <button onClick={handleClose} className="font-title text-xs uppercase tracking-widest text-bege-medio/50 hover:text-bege-claro">Cancelar</button>
-          <PrimaryButton onClick={handleSubmit} disabled={isPending}>{isPending ? "Criando..." : "Criar Mundo"}</PrimaryButton>
+          <PrimaryButton onClick={() => handleSubmit(true)} disabled={isPending}>{isPending ? "Salvando..." : "Criar e abrir editor"}</PrimaryButton>
+          <PrimaryButton onClick={() => handleSubmit(false)} disabled={isPending}>{isPending ? "Criando..." : "Criar rapidamente"}</PrimaryButton>
         </div>
       </div>
     </MillieModal>

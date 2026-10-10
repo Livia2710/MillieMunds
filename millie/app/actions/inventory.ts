@@ -5,25 +5,43 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
 import { createUserNotification } from '@/lib/notifications'
+import { sanitizeRichContent } from '@/lib/rich-content'
 
 const ITEM_CATEGORIES = ['equipamento', 'consumivel', 'material', 'reliquia', 'livro', 'outro'] as const
 const ITEM_RARITIES = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'] as const
 
 function validateChapters(value: unknown) {
   if (value === undefined) return undefined
-  if (!Array.isArray(value) || value.length > 100) throw new Error('Lista de capítulos inválida')
+  if (!Array.isArray(value) || value.length > 200) throw new Error('A lista pode ter no máximo 200 capítulos')
   const chapters = value.map((chapter) => {
     if (!chapter || typeof chapter !== 'object') throw new Error('Capítulo inválido')
     const data = chapter as { title?: unknown; content?: unknown }
     return {
-      title: validatedText(data.title, 'Título do capítulo', { min: 1, max: 160 }),
-      content: validatedText(data.content, 'Conteúdo do capítulo', { max: 20_000, trim: false }),
+      title: validatedText(data.title, 'Título do capítulo', { max: 160 }),
+      content: sanitizeRichContent(validatedText(data.content, 'Conteúdo do capítulo', { max: 1_000_000, trim: false })),
     }
   })
-  if (chapters.reduce((sum, chapter) => sum + chapter.content.length, 0) > 200_000) {
-    throw new Error('O conteúdo total dos capítulos excede o limite permitido')
+  if (chapters.reduce((sum, chapter) => sum + Buffer.byteLength(chapter.content, 'utf8'), 0) > 4_000_000) {
+    throw new Error('O conteúdo total excede o limite de 4 MB')
   }
   return chapters
+}
+
+async function activeMaster() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, active: true, role: 'MASTER' } })
+  if (!membership) throw new Error('Sem campanha ativa como Mestre')
+  return membership
+}
+
+function safeBook<T extends { chapters: { content: string }[] }>(book: T): T {
+  return { ...book, chapters: book.chapters.map((chapter) => ({ ...chapter, content: sanitizeRichContent(chapter.content) })) } as T
+}
+
+async function draftBookIds(campaignId: string) {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`SELECT \"id\" FROM \"InventoryItem\" WHERE \"campaignId\" = ${campaignId} AND \"isDraft\" = true`
+  return new Set(rows.map((row) => row.id))
 }
 
 export async function getItemsByActiveCampaign() {
@@ -32,19 +50,17 @@ export async function getItemsByActiveCampaign() {
 
   const membership = await prisma.campaignMember.findFirst({
     where: { userId: session.user.id, active: true },
-    include: {
-      campaign: {
-        include: {
-          items: { include: { chapters: true } }
-        }
-      }
-    }
+    select: { campaignId: true, role: true },
   })
-
   if (!membership) return []
-  return membership.role === 'MASTER'
-    ? membership.campaign.items
-    : membership.campaign.items.filter((item) => !item.isLocked)
+  const [campaignItems, drafts, layouts] = await Promise.all([
+    prisma.inventoryItem.findMany({ where: { campaignId: membership.campaignId }, include: { chapters: { orderBy: { order: 'asc' } } } }),
+    draftBookIds(membership.campaignId),
+    prisma.$queryRaw<Array<{id:string;pageColor:string;pageTexture:boolean;pageHeader:string;pageFooter:string}>>`SELECT "id", "pageColor", "pageTexture", "pageHeader", "pageFooter" FROM "InventoryItem" WHERE "campaignId" = ${membership.campaignId} AND "category" = 'livro'`,
+  ])
+  const layoutById = new Map(layouts.map((layout) => [layout.id, layout]))
+  const items = campaignItems.filter((item) => !drafts.has(item.id)).map((item) => item.category === 'livro' ? safeBook({ ...item, ...layoutById.get(item.id), isDraft: false }) : item)
+  return membership.role === 'MASTER' ? items : items.filter((item) => !item.isLocked)
 }
 
 export async function unlockItem(itemId: string) {
@@ -265,6 +281,7 @@ export async function createInventoryItem(data: {
   image?: string
   coverImage?: string
   chapters?: { title: string; content: string }[]
+  isDraft?: boolean
 }) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
@@ -288,7 +305,8 @@ export async function createInventoryItem(data: {
     .replace(/(^-|-$)/g, '')
   if (!slug) throw new Error('O nome precisa conter letras ou números')
 
-  await prisma.inventoryItem.create({
+  const itemId = await prisma.$transaction(async (tx) => {
+    const item = await tx.inventoryItem.create({
     data: {
       name,
       slug,
@@ -311,9 +329,99 @@ export async function createInventoryItem(data: {
           }
         : undefined,
     },
+    select: { id: true },
+    })
+    if (data.isDraft) await tx.$executeRaw`UPDATE \"InventoryItem\" SET \"isDraft\" = true WHERE \"id\" = ${item.id}`
+    return item.id
   })
-
   revalidatePath('/inventario')
+  revalidatePath('/mestre')
+  return itemId
+}
+
+export async function getBooksForMasterPanel() {
+  const membership = await activeMaster()
+  const books = await prisma.inventoryItem.findMany({
+    where: { campaignId: membership.campaignId, category: 'livro' },
+    include: { chapters: { orderBy: { order: 'asc' } } },
+    orderBy: { name: 'asc' },
+  })
+  const [drafts, layouts] = await Promise.all([draftBookIds(membership.campaignId), prisma.$queryRaw<Array<{id:string;pageColor:string;pageTexture:boolean;pageHeader:string;pageFooter:string}>>`SELECT "id", "pageColor", "pageTexture", "pageHeader", "pageFooter" FROM "InventoryItem" WHERE "campaignId" = ${membership.campaignId} AND "category" = 'livro'`])
+  const layoutById = new Map(layouts.map((layout) => [layout.id, layout]))
+  return books.map((book) => safeBook({ ...book, ...layoutById.get(book.id), isDraft: drafts.has(book.id) }))
+}
+
+export async function getBookForEditor(itemId: string) {
+  const membership = await activeMaster()
+  const book = await prisma.inventoryItem.findFirst({
+    where: { id: itemId, campaignId: membership.campaignId, category: 'livro' },
+    include: { chapters: { orderBy: { order: 'asc' } } },
+  })
+  if (!book) return null
+  const [drafts, layouts] = await Promise.all([draftBookIds(membership.campaignId), prisma.$queryRaw<Array<{id:string;pageColor:string;pageTexture:boolean;pageHeader:string;pageFooter:string}>>`SELECT "id", "pageColor", "pageTexture", "pageHeader", "pageFooter" FROM "InventoryItem" WHERE "id" = ${book.id}`])
+  return safeBook({ ...book, ...layouts[0], isDraft: drafts.has(book.id) })
+}
+
+export async function updateInventoryBook(itemId: string, data: {
+  name: string; author?: string; rarity: string; worldSlug?: string; coverType: string;
+  coverColor?: string; coverImage?: string; pageColor?: string; pageTexture?: boolean; pageHeader?: string; pageFooter?: string; chapters: { title: string; content: string }[]
+}) {
+  const membership = await activeMaster()
+  const item = await prisma.inventoryItem.findFirst({ where: { id: itemId, campaignId: membership.campaignId, category: 'livro' } })
+  if (!item) throw new Error('Livro não encontrado nesta campanha')
+  const name = validatedText(data.name, 'Título do livro', { min: 1, max: 120 })
+  const author = data.author === undefined ? undefined : validatedText(data.author, 'Autor', { max: 120 })
+  const rarity = oneOf(data.rarity, 'Raridade', ITEM_RARITIES)
+  const worldSlug = data.worldSlug === undefined ? undefined : validatedText(data.worldSlug, 'Mundo', { max: 120 })
+  const coverType = oneOf(data.coverType, 'Tipo de capa', ['color', 'image'] as const)
+  const coverColor = data.coverColor ? validatedText(data.coverColor, 'Cor da capa', { max: 40 }) : null
+  const coverImage = data.coverImage ? validatedText(data.coverImage, 'Imagem da capa', { max: 2_048 }) : null
+  const chapters = validateChapters(data.chapters) ?? []
+  const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  if (!slug) throw new Error('O título precisa conter letras ou números')
+  const duplicate = await prisma.inventoryItem.findFirst({ where: { campaignId: membership.campaignId, slug, id: { not: itemId } }, select: { id: true } })
+  if (duplicate) throw new Error('Já existe um item com esse nome nesta campanha')
+  await prisma.$transaction([
+    prisma.itemChapter.deleteMany({ where: { itemId } }),
+    prisma.inventoryItem.update({ where: { id: itemId }, data: {
+      name, slug, author, rarity, worldSlug, coverType, coverColor, coverImage,
+      chapters: { create: chapters.map((chapter, order) => ({ ...chapter, order })) },
+    } }),
+  ])
+  const pageColor = /^#[0-9a-f]{6}$/i.test(data.pageColor ?? "") ? data.pageColor! : "#f7f3e9"
+  const pageHeader = validatedText(data.pageHeader ?? "", "Cabeçalho", { max: 160, trim: false })
+  const pageFooter = validatedText(data.pageFooter ?? "", "Rodapé", { max: 160, trim: false })
+  await prisma.$executeRaw`UPDATE "InventoryItem" SET "pageColor" = ${pageColor}, "pageTexture" = ${data.pageTexture ?? true}, "pageHeader" = ${pageHeader}, "pageFooter" = ${pageFooter} WHERE "id" = ${itemId}`
+  revalidatePath('/inventario')
+  revalidatePath('/mestre')
+  revalidatePath(`/inventario/${item.slug}`)
+  revalidatePath(`/inventario/${slug}`)
+}
+
+export async function publishBook(itemId: string) {
+  const membership = await activeMaster()
+  const book = await prisma.inventoryItem.findFirst({ where: { id: itemId, campaignId: membership.campaignId, category: 'livro' }, include: { chapters: true } })
+  if (!book) throw new Error('Livro não encontrado nesta campanha')
+  if (book.chapters.some((chapter) => !chapter.title.trim())) throw new Error('Dê um título para todos os capítulos antes de publicar')
+  await prisma.$executeRaw`UPDATE \"InventoryItem\" SET \"isDraft\" = false WHERE \"id\" = ${itemId}`
+  revalidatePath('/inventario')
+  revalidatePath('/mestre')
+}
+
+export async function renameBook(itemId: string, value: string) {
+  const membership = await activeMaster()
+  const item = await prisma.inventoryItem.findFirst({ where: { id: itemId, campaignId: membership.campaignId, category: 'livro' } })
+  if (!item) throw new Error('Livro não encontrado nesta campanha')
+  const name = validatedText(value, 'Título do livro', { min: 1, max: 120 })
+  const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  if (!slug) throw new Error('O título precisa conter letras ou números')
+  const duplicate = await prisma.inventoryItem.findFirst({ where: { campaignId: membership.campaignId, slug, id: { not: itemId } }, select: { id: true } })
+  if (duplicate) throw new Error('Já existe um item com esse nome nesta campanha')
+  await prisma.inventoryItem.update({ where: { id: itemId }, data: { name, slug } })
+  revalidatePath('/inventario')
+  revalidatePath('/mestre')
+  revalidatePath(`/inventario/${item.slug}`)
+  revalidatePath(`/inventario/${slug}`)
 }
 
 export async function getItemBySlug(slug: string) {
@@ -331,7 +439,11 @@ export async function getItemBySlug(slug: string) {
     include: { chapters: { orderBy: { order: 'asc' } } },
   })
   if (!item || (membership.role !== 'MASTER' && item.isLocked)) return null
-  return item
+  const draftRows = await prisma.$queryRaw<Array<{ isDraft: boolean }>>`SELECT \"isDraft\" FROM \"InventoryItem\" WHERE \"id\" = ${item.id}`
+  if (draftRows[0]?.isDraft) return null
+  if (item.category !== 'livro') return item
+  const layouts = await prisma.$queryRaw<Array<{pageColor:string;pageTexture:boolean;pageHeader:string;pageFooter:string}>>`SELECT "pageColor", "pageTexture", "pageHeader", "pageFooter" FROM "InventoryItem" WHERE "id" = ${item.id}`
+  return safeBook({ ...item, ...layouts[0], isDraft: false })
 }
 
 // ─── deleteInventoryItem ────────────────────────────────────
@@ -356,6 +468,7 @@ export async function deleteInventoryItem(itemId: string) {
   await prisma.inventoryItem.delete({ where: { id: item.id } })
 
   revalidatePath('/inventario')
+  revalidatePath('/mestre')
 }
 
 // ─── updateInventoryItem ────────────────────────────────────

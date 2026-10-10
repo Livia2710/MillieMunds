@@ -34,6 +34,10 @@ type BookCover =
 
 type BookItem = BaseInventoryItem & BookCover & {
   category: "livro";
+  pageColor?: string;
+  pageTexture?: boolean;
+  pageHeader?: string;
+  pageFooter?: string;
   author?: string;
   chapters: InventoryChapter[];
 };

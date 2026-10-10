@@ -131,7 +131,12 @@ model World {
   description String?
   coverColor  String?
   coverImage  String?
+  pageColor   String    @default("#f7f3e9")
+  pageTexture Boolean   @default(true)
+  pageHeader  String    @default("")
+  pageFooter  String    @default("")
   isLocked    Boolean   @default(true)
+  isDraft     Boolean   @default(false)
   campaignId  String
   campaign    Campaign  @relation(fields: [campaignId], references: [id])
   chapters    Chapter[]
@@ -350,6 +355,7 @@ model InventoryItem {
   image      String?
   worldSlug  String?
   isLocked   Boolean       @default(false)
+  isDraft    Boolean       @default(false)
   campaignId String
   ownerId    String?
 
@@ -361,6 +367,10 @@ model InventoryItem {
   coverType  String? // livro: color | image
   coverColor String? // livro
   coverImage String? // livro
+  pageColor  String   @default("#f7f3e9")
+  pageTexture Boolean @default(true)
+  pageHeader String   @default("")
+  pageFooter String   @default("")
 
   campaign Campaign      @relation(fields: [campaignId], references: [id])
   chapters ItemChapter[]

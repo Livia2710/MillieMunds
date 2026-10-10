@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { InventoryItem } from "@/lib/types/inventory";
 import BookCover from "./BookCover";
+import { splitRichPages } from "@/lib/types/world";
 
 type BookInventoryItem = Extract<InventoryItem, { category: "livro" }>;
 
@@ -14,15 +15,15 @@ export default function InventoryBookDetails({
 }) {
   const [currentChapter, setCurrentChapter] = useState(0);
 
-  const chapter = book.chapters[currentChapter];
+  const pages = book.chapters.flatMap((chapter, chapterIndex) => splitRichPages(chapter.content).map((content, pageIndex) => ({
+    chapterIndex,
+    title: pageIndex === 0 ? chapter.title : `${chapter.title} (continuação)`,
+    content,
+  })));
+  const page = pages[currentChapter];
 
-  const nextChapter = () => {
-    setCurrentChapter((prev) => Math.min(prev + 1, book.chapters.length - 1));
-  };
-
-  const previousChapter = () => {
-    setCurrentChapter((prev) => Math.max(prev - 1, 0));
-  };
+  const nextChapter = () => setCurrentChapter((prev) => Math.min(prev + 1, pages.length - 1));
+  const previousChapter = () => setCurrentChapter((prev) => Math.max(prev - 1, 0));
 
   return (
     <main className="min-h-screen bg-roxo-escuro px-5 py-8 text-bege-medio md:px-16 md:py-14">
@@ -59,27 +60,27 @@ export default function InventoryBookDetails({
               onChange={(e) => setCurrentChapter(Number(e.target.value))}
               className="w-full bg-transparent px-5 py-4 font-title uppercase tracking-wider text-bege-medio outline-none"
             >
-              {book.chapters.map((chapter, index) => (
+              {pages.map((page, index) => (
                 <option
-                  key={chapter.id}
+                  key={`${page.chapterIndex}-${index}`}
                   value={index}
                   className="bg-roxo-escuro"
                 >
-                  {chapter.title}
+                  {page.title}
                 </option>
               ))}
             </select>
           </div>
 
           {/* CAPITULO ATUAL */}
-          <div className="mt-8 min-h-65">
+          <div className={`mt-8 min-h-65 p-6 text-[#2a1307] ${book.pageTexture === false ? "" : "shadow-[inset_0_0_36px_rgba(86,45,14,0.10)]"}`} style={{ backgroundColor: book.pageColor ?? "#f7f3e9" }}>
+            {book.pageHeader && <div className="mb-4 border-b border-[#9b8258]/30 pb-2 text-xs tracking-widest opacity-65">{book.pageHeader}</div>}
             <h2 className="font-title text-2xl uppercase tracking-wider text-bege-claro">
-              {chapter.title}
+              {page?.title ?? "Livro vazio"}
             </h2>
 
-            <p className="mt-4 whitespace-pre-line leading-8 text-bege-medio/90">
-              {chapter.content}
-            </p>
+            <div className="rich-book-content mt-4 leading-8 text-[#3c3327]" dangerouslySetInnerHTML={{ __html: page?.content ?? "" }} />
+            {book.pageFooter && <div className="mt-6 border-t border-[#9b8258]/30 pt-2 text-right text-xs tracking-widest opacity-65">{book.pageFooter}</div>}
           </div>
 
           {/* NAVEGAÇÃO (Igual ao estilo do Grid) */}
@@ -99,19 +100,19 @@ export default function InventoryBookDetails({
             </button>
 
             <span className="text-bege-medio uppercase">
-              Capítulo{" "}
+              Página{" "}
               <span className="text-xl text-bege-claro">
                 {currentChapter + 1}
               </span>{" "}
               de{" "}
               <span className="text-xl text-bege-claro">
-                {book.chapters.length}
+                {pages.length}
               </span>
             </span>
 
             <button
               onClick={nextChapter}
-              disabled={currentChapter === book.chapters.length - 1}
+              disabled={pages.length === 0 || currentChapter >= pages.length - 1}
               className="group flex h-10 w-10 items-center justify-center border border-bege-escuro/30 disabled:opacity-20"
             >
               <Image
@@ -125,6 +126,8 @@ export default function InventoryBookDetails({
           </div>
         </article>
       </section>
+      <style jsx global>{`.rich-book-content p{margin:0 0 1em}.rich-book-content ul,.rich-book-content ol{padding-left:1.5em}.rich-book-content img{display:block;max-width:100%;height:auto}.rich-book-content img[data-align="left"]{margin:1em auto 1em 0}.rich-book-content img[data-align="center"]{margin:1em auto}.rich-book-content img[data-align="right"]{margin:1em 0 1em auto}.rich-book-content blockquote{border-left:3px solid #bfa77a;padding-left:1em;font-style:italic}`}</style>
     </main>
   );
 }
+

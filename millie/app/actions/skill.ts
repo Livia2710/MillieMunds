@@ -127,7 +127,7 @@ export async function createSkill(data: {
   })
   if (!char) throw new Error('Personagem não encontrado na campanha ativa')
 
-  const skill = await prisma.skill.create({
+  await prisma.skill.create({
     data: {
       ...fields,
       characterId,
@@ -137,16 +137,6 @@ export async function createSkill(data: {
     },
   })
 
-  if (skill.isUnlocked && char.playerId) {
-    await createUserNotification({
-      userId: char.playerId,
-      preference: 'habilidadesDesbloqueadas',
-      type: 'skill_unlocked',
-      title: 'Nova habilidade disponível',
-      message: `${skill.name} foi criada para ${char.name} e já está desbloqueada.`,
-      href: '/habilidades',
-    })
-  }
 
   revalidatePath('/habilidades')
 }
@@ -194,7 +184,7 @@ export async function unlockSkill(skillId: string) {
 // Registra o uso de habilidades criadas pelo Mestre (Skill).
 // Habilidades inatas são tratadas separadamente por useInnateSkill().
 
-export async function useSkill(skillId: string) {
+async function recordSkillUse(skillId: string) {
   const userId = await requireUserId()
   const membership = await requireActiveMembership(userId, 'PLAYER')
 
@@ -224,26 +214,17 @@ export async function useSkill(skillId: string) {
     return { leveledUp, newLevel: updated.currentLevel, uses: updated.uses, usesRequired }
   })
 
-  if (skill.isUnlocked && char.playerId) {
-    await createUserNotification({
-      userId: char.playerId,
-      preference: 'habilidadesDesbloqueadas',
-      type: 'skill_unlocked',
-      title: 'Nova habilidade disponível',
-      message: `${skill.name} foi criada para ${char.name} e já está desbloqueada.`,
-      href: '/habilidades',
-    })
-  }
-
   revalidatePath('/habilidades')
   return result
 }
 
-// ─── upgradeSkill ─────────────────────────────────────────
-// Alias mantido para compatibilidade — redireciona para useSkill
+// Mantém os nomes públicos usados pelas telas e clientes existentes.
+export async function useSkill(skillId: string) {
+  return recordSkillUse(skillId)
+}
 
 export async function upgradeSkill(skillId: string) {
-  return useSkill(skillId)
+  return recordSkillUse(skillId)
 }
 
 export async function useInnateSkill(raceSkillId: string, characterId: string) {

@@ -112,13 +112,14 @@ async function handleDelete(worldId: string) {
                         {isMaster && (
                           <>
                             <button
+                              type="button"
                               onClick={() => setWorldToUnlock({ id: world.id, name: world.name })}
-                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-title text-sm text-bege-claro border border-bege-escuro uppercase tracking-wider"
+                              className="absolute inset-0 z-40 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-title text-sm text-bege-claro border border-bege-escuro uppercase tracking-wider"
                             >
                               Liberar para Jogadores
                             </button>
                             {/* ADICIONAR — editar/excluir */}
-                            <div className="absolute left-2.5 top-2.5 z-30 flex gap-1.5">
+                            <div className="absolute left-2.5 top-2.5 z-50 flex gap-1.5">
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setWorldToEdit(world); }}
@@ -204,7 +205,7 @@ async function handleDelete(worldId: string) {
         successMessage="Mundo liberado para os jogadores."
         confirmLabel="Liberar"
       />
-      <EditarMundoModal isOpen={!!worldToEdit} onClose={() => setWorldToEdit(null)} world={worldToEdit} />
+      <EditarMundoModal key={worldToEdit?.id ?? "none"} isOpen={!!worldToEdit} onClose={() => setWorldToEdit(null)} world={worldToEdit} />
       <ConfirmModal
         isOpen={!!worldToDelete}
         onClose={() => setWorldToDelete(null)}

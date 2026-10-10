@@ -24,6 +24,7 @@ export default async function InventoryDetailsPage({ params }: Props) {
   }
 
   let item: InventoryItem
+  const bookLayout = raw as typeof raw & { pageColor?: string; pageTexture?: boolean; pageHeader?: string; pageFooter?: string }
   const cat = raw.category as InventoryCategory
 
   if (cat === 'livro') {
@@ -34,6 +35,10 @@ export default async function InventoryDetailsPage({ params }: Props) {
       ...base,
       category: 'livro',
       author: raw.author ?? undefined,
+      pageColor: bookLayout.pageColor ?? "#f7f3e9",
+      pageTexture: bookLayout.pageTexture ?? true,
+      pageHeader: bookLayout.pageHeader ?? "",
+      pageFooter: bookLayout.pageFooter ?? "",
       chapters: raw.chapters.map((ch) => ({ id: ch.id, title: ch.title, content: ch.content })),
       ...cover,
     }

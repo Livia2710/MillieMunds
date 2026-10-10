@@ -36,7 +36,7 @@ export default function CriarLivroModal({ isOpen, onClose }: Props) {
   const [coverType, setCoverType] = useState<"color" | "image">("color")
   const [coverColor, setCoverColor] = useState(DEFAULT_WORLD_COVER_COLOR)
   const [coverImage, setCoverImage] = useState("")
-  const [chapters, setChapters] = useState<ChapterDraft[]>([{ title: "", content: "" }])
+  const [chapters, setChapters] = useState<ChapterDraft[]>([{ title: "Introdução", content: "" }])
   const [error, setError] = useState("")
 
   function addChapter() { setChapters((p) => [...p, { title: "", content: "" }]) }
@@ -48,21 +48,23 @@ export default function CriarLivroModal({ isOpen, onClose }: Props) {
   function handleClose() {
     setName(""); setAuthor(""); setRarity("comum"); setWorldSlug("")
     setCoverType("color"); setCoverColor(DEFAULT_WORLD_COVER_COLOR)
-    setCoverImage(""); setChapters([{ title: "", content: "" }]); setError(""); onClose()
+    setCoverImage(""); setChapters([{ title: "Introdução", content: "" }]); setError(""); onClose()
   }
 
-  function handleSubmit() {
+  function handleSubmit(openEditor = false) {
     if (!name.trim()) { setError("Nome é obrigatório."); return }
+    const editorTab = openEditor ? window.open("about:blank", "_blank") : null
     setError("")
     startTransition(async () => {
       try {
-        await createInventoryItem({
-          name: name.trim(), category: "livro", rarity,
+        const itemId = await createInventoryItem({
+          name: name.trim(), category: "livro", rarity, isDraft: openEditor,
           quantity: 1, worldSlug, author,
           coverType, coverColor: coverType === "color" ? coverColor : undefined,
           coverImage: coverType === "image" ? coverImage : undefined,
           chapters,
         })
+        if (editorTab) editorTab.location.href = `/mestre/editor/book/${itemId}`
         router.refresh()
         toast.success("Livro criado com sucesso.")
         handleClose()
@@ -126,7 +128,8 @@ export default function CriarLivroModal({ isOpen, onClose }: Props) {
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex justify-end gap-3 border-t border-bege-escuro/20 pt-4">
           <button onClick={handleClose} className="font-title text-xs uppercase tracking-widest text-bege-medio/50 hover:text-bege-claro">Cancelar</button>
-          <PrimaryButton onClick={handleSubmit} disabled={isPending}>{isPending ? "Criando..." : "Criar Livro"}</PrimaryButton>
+          <PrimaryButton onClick={() => handleSubmit(true)} disabled={isPending}>{isPending ? "Salvando..." : "Criar e abrir editor"}</PrimaryButton>
+          <PrimaryButton onClick={() => handleSubmit(false)} disabled={isPending}>{isPending ? "Criando..." : "Criar rapidamente"}</PrimaryButton>
         </div>
       </div>
     </MillieModal>

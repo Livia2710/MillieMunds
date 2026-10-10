@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import MillieModal from "@/componentes/ui/MillieModal";
 import MillieInput from "@/componentes/ui/MillieInput";
 import MillieTextarea from "@/componentes/ui/MillieTextarea";
 import MillieSelect from "@/componentes/ui/MillieSelect";
+import MillieImageUpload from "@/componentes/ui/MillieImageUpload";
 import { PrimaryButton } from "@/componentes/PrimaryButton";
 import { WORLD_COVER_COLORS, DEFAULT_WORLD_COVER_COLOR } from "@/lib/types/world";
 import { updateWorld } from "@/app/actions/world";
@@ -19,6 +20,7 @@ type WorldToEdit = {
   name: string;
   description: string | null;
   coverColor: string | null;
+  coverImage?: string | null;
   chapters: { title: string; content: string }[];
 };
 
@@ -30,19 +32,14 @@ export default function EditarMundoModal({ isOpen, onClose, world }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [coverColor, setCoverColor] = useState(DEFAULT_WORLD_COVER_COLOR);
-  const [chapters, setChapters] = useState<ChapterDraft[]>([{ title: "", content: "" }]);
+  const [name, setName] = useState(world?.name ?? "");
+  const [description, setDescription] = useState(world?.description ?? "");
+  const [coverColor, setCoverColor] = useState((world?.coverColor as typeof DEFAULT_WORLD_COVER_COLOR) ?? DEFAULT_WORLD_COVER_COLOR);
+  const [coverImage, setCoverImage] = useState(world?.coverImage ?? "");
+  const [chapters, setChapters] = useState<ChapterDraft[]>(world?.chapters.length ? world.chapters : [{ title: "", content: "" }]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!world) return;
-    setName(world.name);
-    setDescription(world.description ?? "");
-    setCoverColor((world.coverColor as typeof coverColor) ?? DEFAULT_WORLD_COVER_COLOR);
-    setChapters(world.chapters.length ? world.chapters : [{ title: "", content: "" }]);
-  }, [world]);
+
 
   function addChapter() { setChapters((p) => [...p, { title: "", content: "" }]); }
   function removeChapter(i: number) { setChapters((p) => p.filter((_, idx) => idx !== i)); }
@@ -58,7 +55,7 @@ export default function EditarMundoModal({ isOpen, onClose, world }: Props) {
     setError("");
     startTransition(async () => {
       try {
-        await updateWorld(world.id, { name: name.trim(), description: description.trim(), coverColor, chapters });
+        await updateWorld(world.id, { name: name.trim(), description: description.trim(), coverColor, coverImage, chapters });
         router.refresh();
         toast.success("Mundo atualizado com sucesso.");
         handleClose();
@@ -83,6 +80,8 @@ export default function EditarMundoModal({ isOpen, onClose, world }: Props) {
           </div>
           <div className="mb-0.5 h-10 w-10 shrink-0 border border-bege-escuro/40" style={{ backgroundColor: coverColor }} />
         </div>
+
+        <MillieImageUpload label="Imagem de capa (opcional)" value={coverImage} onChange={setCoverImage} aspectRatio="card" />
 
         <div>
           <div className="mb-3 flex items-center justify-between">

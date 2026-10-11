@@ -1,50 +1,55 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { ConfigSection } from "./shared";
 
-const PDFS = [
-  { id: "sistema-basico", title: "Sistema Básico", description: "Regras fundamentais do sistema Millie Munds.", category: "Sistema", available: true },
-  { id: "compendio-racas", title: "Compêndio de Raças", description: "Mais de 200 raças catalogadas do multiverso. Em finalização.", category: "Compêndio", available: false },
-  { id: "universo-arcan", title: "Universo Arcan", description: "Lore completo do universo Arcan com mapas e história.", category: "Universo", available: true },
-  { id: "universo-bestiarius", title: "Universo Bestiarius", description: "Criaturas, reinos e a política do Reino Bestial.", category: "Universo", available: false },
-  { id: "universo-gaia", title: "Universo Gaia", description: "O mundo que não deveria existir. Floresta Ancestral e além.", category: "Universo", available: false },
+type LibraryAction = { label: string; href: string; kind: "download" | "open"; filename?: string };
+type LibraryMaterial = { id: string; title: string; description: string; category: string; actions: LibraryAction[] };
+
+const MATERIALS: LibraryMaterial[] = [
+  { id: "sistema-basico", title: "Sistema Básico", description: "Regras fundamentais do sistema Millie Munds.", category: "Sistema", actions: [{ label: "Baixar PDF", href: "/assets/pdfs/sistema-basico.pdf", kind: "download", filename: "sistema-basico.pdf" }] },
+  { id: "compendio-racas", title: "Compêndio de Raças", description: "Mais de 200 raças catalogadas do multiverso. O compêndio interativo poderá ser aberto aqui quando estiver disponível.", category: "Compêndio", actions: [] },
+  { id: "universo-arcan-pdf", title: "Universo Arcan — PDF", description: "Lore completo do universo Arcan com mapas e história.", category: "Universo", actions: [{ label: "Baixar PDF", href: "/assets/pdfs/universo-arcan.pdf", kind: "download", filename: "universo-arcan.pdf" }] },
+  { id: "arcan", title: "Arcan", description: "Acesse a experiência interativa de Arcan.", category: "Universo · Arcan", actions: [{ label: "Abrir", href: "https://canva.link/aswrwozqyc1kx9q", kind: "open" }] },
+  { id: "abismo", title: "Abismo", description: "Acesse Abismo pelo Canva ou visite o site do mundo.", category: "Universo · Arcan", actions: [{ label: "Abrir no Canva", href: "https://canva.link/o2c1hk5wmo6djpd", kind: "open" }, { label: "Abrir site", href: "https://bybeauty.my.canva.site/abismo", kind: "open" }] },
+  { id: "celestia", title: "Celestia", description: "Acesse a experiência interativa de Celestia.", category: "Universo · Arcan", actions: [{ label: "Abrir", href: "https://canva.link/rz0fncq9ysthmzd", kind: "open" }] },
+  { id: "universo-bestiarius", title: "Universo Bestiarius", description: "Criaturas, reinos e a política do Reino Bestial.", category: "Universo", actions: [] },
+  { id: "universo-gaia", title: "Universo Gaia", description: "O mundo que não deveria existir. Floresta Ancestral e além.", category: "Universo", actions: [] },
+  { id: "universo-veyron", title: "Universo Veyron", description: "Um universo intergalático.", category: "Universo", actions: [{ label: "Baixar PDF", href: "/assets/pdfs/universo-veyron.pdf", kind: "download", filename: "universo-veyron.pdf" }] },
 ];
 
 export default function TabBiblioteca() {
   return (
-    <ConfigSection title="Biblioteca de PDFs">
+    <ConfigSection title="Biblioteca de materiais">
       <p className="mb-6 text-sm leading-relaxed text-bege-claro/60">
-        Aqui ficam todos os materiais do universo Millie Munds — sistema, raças e lore dos mundos.
-        PDFs marcados como <span className="font-title text-bege-escuro uppercase tracking-wider">em breve</span> ainda estão sendo finalizados.
+        Aqui ficam os materiais do universo Millie Munds. Você pode baixar PDFs ou abrir conteúdos interativos em uma nova aba. Materiais sem ações disponíveis ainda estão sendo preparados.
       </p>
 
       <div className="flex flex-col gap-3">
-        {PDFS.map((pdf) => (
-          <div key={pdf.id} className={`flex items-center justify-between gap-4 border p-4 transition-all
-            ${pdf.available ? "border-bege-escuro/35 hover:border-bege-medio/50" : "border-bege-escuro/15 opacity-50"}`}>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-title text-sm uppercase tracking-wider text-bege-claro truncate">{pdf.title}</p>
+        {MATERIALS.map((material) => (
+          <div key={material.id} className={`flex flex-col justify-between gap-4 border p-4 transition-all sm:flex-row sm:items-center
+            ${material.actions.length ? "border-bege-escuro/35 hover:border-bege-medio/50" : "border-bege-escuro/15 opacity-60"}`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate font-title text-sm uppercase tracking-wider text-bege-claro">{material.title}</p>
                 <span className="shrink-0 rounded-sm border border-bege-escuro/30 px-1.5 py-0.5 font-title text-[9px] uppercase tracking-widest text-bege-escuro/60">
-                  {pdf.available ? pdf.category : "Em breve"}
+                  {material.actions.length ? material.category : "Em breve"}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs leading-relaxed text-bege-claro/50">{pdf.description}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-bege-claro/50">{material.description}</p>
             </div>
 
-            {pdf.available ? (
-              <a
-                href={`/assets/pdfs/${pdf.id}.pdf`}
-                download
-                className="flex shrink-0 items-center gap-2 border border-bege-escuro/40 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio transition hover:border-bege-medio hover:text-bege-claro"
-              >
-                <Download size={12} strokeWidth={1.5} />
-                Baixar
-              </a>
-            ) : (
-              <span className="shrink-0 font-title text-[10px] uppercase tracking-widest text-bege-escuro/30">Indisponível</span>
-            )}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {material.actions.length ? material.actions.map((action) => action.kind === "download" ? (
+                <a key={action.href} href={action.href} download={action.filename} className="flex items-center justify-center gap-2 border border-bege-escuro/40 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio transition hover:border-bege-medio hover:text-bege-claro">
+                  <Download size={12} strokeWidth={1.5} />{action.label}
+                </a>
+              ) : (
+                <a key={action.href} href={action.href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 border border-bege-escuro/40 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio transition hover:border-bege-medio hover:text-bege-claro">
+                  <ExternalLink size={12} strokeWidth={1.5} />{action.label}
+                </a>
+              )) : <span className="self-center font-title text-[10px] uppercase tracking-widest text-bege-escuro/50">Indisponível</span>}
+            </div>
           </div>
         ))}
       </div>

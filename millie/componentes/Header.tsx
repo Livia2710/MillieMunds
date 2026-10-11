@@ -80,6 +80,7 @@ export function Header() {
             <Link href="/habilidades" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">
               Habilidades
             </Link>
+            <Link href="/mapas" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">Mapas</Link>
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -160,6 +161,13 @@ export function Header() {
               icon={<Users size={17} strokeWidth={1.4}/>}
               closeSidebar={() => setIsSidebarOpen(false)}
               active={pathname === "/personagens"}
+              />
+              <SidebarLink
+              href="/mapas"
+              label="Mapas"
+              icon={<Compass size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname.startsWith("/mapas")}
               />
               <SidebarLink
               href="/habilidades"

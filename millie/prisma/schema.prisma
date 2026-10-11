@@ -107,6 +107,8 @@ model Campaign {
   worlds      World[]
   characters  Character[]
   items       InventoryItem[]
+  explorationMaps ExplorationMap[]
+  explorationState CampaignExplorationState?
 }
 
 model CampaignMember {
@@ -120,6 +122,30 @@ model CampaignMember {
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@unique([userId, campaignId])
+}
+
+
+model ExplorationMap {
+  id          String   @id
+  campaignId  String
+  name        String
+  rooms       Json     @default("[]")
+  isEditing   Boolean  @default(true)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model CampaignExplorationState {
+  campaignId   String   @id
+  currentMapId String?
+  currentRoomId String?
+  discovered   Json     @default("[]")
+  updatedAt    DateTime @updatedAt
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
 // ─── MUNDO ────────────────────────────────────────────────

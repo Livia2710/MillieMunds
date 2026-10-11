@@ -109,6 +109,7 @@ model Campaign {
   items       InventoryItem[]
   explorationMaps ExplorationMap[]
   explorationState CampaignExplorationState?
+  explorationDiscoveries ExplorationDiscovery[]
 }
 
 model CampaignMember {
@@ -130,11 +131,13 @@ model ExplorationMap {
   campaignId  String
   name        String
   rooms       Json     @default("[]")
+  floors      Json     @default("[{\"id\":\"ground\",\"name\":\"Térreo\"}]")
   isEditing   Boolean  @default(true)
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  discoveries ExplorationDiscovery[]
 
   @@index([campaignId])
 }
@@ -144,8 +147,27 @@ model CampaignExplorationState {
   currentMapId String?
   currentRoomId String?
   discovered   Json     @default("[]")
+  activeInteraction Json?
   updatedAt    DateTime @updatedAt
   campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model ExplorationDiscovery {
+  campaignId      String
+  mapId           String
+  objectId        String
+  type            String
+  title           String
+  inventoryItemId String?
+  itemName        String?
+  foundByUserId   String?
+  characterId     String?
+  createdAt       DateTime       @default(now())
+  campaign        Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  map             ExplorationMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, mapId, objectId])
+  @@index([campaignId, createdAt])
 }
 
 // ─── MUNDO ────────────────────────────────────────────────
@@ -306,8 +328,22 @@ model Character {
   innateSkills CharacterRaceSkill[]
   tarotDraws   TarotDraw[]
   specialCards SpecialCard[]
+  affinitiesGiven CharacterAffinity[] @relation("AffinitySource")
+  affinitiesReceived CharacterAffinity[] @relation("AffinityTarget")
 
   conditions   CharacterCondition[]
+  @@index([campaignId, playerId])
+}
+
+model CharacterAffinity {
+  campaignId String
+  sourceCharacterId String
+  targetCharacterId String
+  value Int @default(0)
+  source Character @relation("AffinitySource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  target Character @relation("AffinityTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  @@id([campaignId, sourceCharacterId, targetCharacterId])
+  @@index([campaignId, targetCharacterId])
 }
 
 model CharacterCondition {
@@ -402,6 +438,7 @@ model InventoryItem {
   chapters ItemChapter[]
 
   @@unique([slug, campaignId])
+  @@index([campaignId, ownerId])
 }
 
 model ItemChapter {

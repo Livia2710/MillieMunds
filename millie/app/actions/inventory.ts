@@ -6,7 +6,18 @@ import { revalidatePath } from 'next/cache'
 import { oneOf, validatedInteger, validatedText } from '@/lib/validation'
 import { createUserNotification } from '@/lib/notifications'
 import { sanitizeRichContent } from '@/lib/rich-content'
+import { calcInventoryCapacity } from '@/lib/utils/inventory'
+import type { Prisma } from '@/lib/generated/prisma'
 
+type Tx = Prisma.TransactionClient
+
+async function assertRoom(tx: Tx, campaignId: string, characterId: string) {
+  const c = await tx.character.findFirst({ where: { id: characterId, campaignId }, select: { level: true, forca: true, birthRank: true, race: { select: { isCorrupted: true } } } })
+  if (!c) throw new Error('Personagem não encontrado nesta campanha')
+  const used = await tx.inventoryItem.count({ where: { campaignId, ownerId: characterId } })
+  const capacity = calcInventoryCapacity(c)
+  if (used >= capacity) throw new Error(`Inventário cheio (${used}/${capacity}). Marque "forçar entrega" para ignorar o limite.`)
+}
 const ITEM_CATEGORIES = ['equipamento', 'consumivel', 'material', 'reliquia', 'livro', 'outro'] as const
 const ITEM_RARITIES = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'] as const
 
@@ -144,7 +155,7 @@ export async function assignInventoryItem(itemId: string, characterId: string | 
   revalidatePath('/mestre')
 }
 
-export async function transferInventoryItem(itemId: string, characterId: string | null, quantity: number) {
+export async function transferInventoryItem(itemId: string, characterId: string | null, quantity: number, force = false) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('NÃ£o autenticado')
 
@@ -193,6 +204,8 @@ export async function transferInventoryItem(itemId: string, characterId: string 
     if (lockedItem.category === 'livro' && quantity !== lockedItem.quantity) {
       throw new Error('Livros só podem ser transferidos por inteiro')
     }
+
+    if (characterId && lockedItem.ownerId !== characterId && !force) await assertRoom(tx, membership.campaignId, characterId)
 
     if (quantity === lockedItem.quantity) {
       await tx.inventoryItem.update({

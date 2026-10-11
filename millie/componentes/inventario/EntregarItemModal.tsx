@@ -24,6 +24,7 @@ export default function EntregarItemModal({ item, players, onClose }: Props) {
   const [characterId, setCharacterId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [error, setError] = useState("");
+  const [force, setForce] = useState(false)
 
   function handleSubmit() {
     if (!item || !characterId) {
@@ -33,7 +34,7 @@ export default function EntregarItemModal({ item, players, onClose }: Props) {
 
     startTransition(async () => {
       try {
-        await transferInventoryItem(item.id, characterId, Number(quantity));
+        await transferInventoryItem(item.id, characterId, Number(quantity), force);
         router.refresh();
         toast.success("Item entregue ao personagem.");
         onClose();
@@ -77,6 +78,7 @@ export default function EntregarItemModal({ item, players, onClose }: Props) {
         {!players.length && (
           <p className="text-xs text-bege-medio/70">Não há personagens de jogadores nesta campanha.</p>
         )}
+        {error.includes('Inventário cheio') && <label className="flex items-center gap-2 text-xs text-bege-medio"><input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> Forçar entrega (ignorar o limite de inventário)</label>}
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex justify-end gap-3 border-t border-bege-escuro/20 pt-4">
           <button onClick={onClose} className="font-title text-xs uppercase tracking-widest text-bege-medio/60 hover:text-bege-claro">

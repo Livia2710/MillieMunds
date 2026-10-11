@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { BookOpen, Dices } from 'lucide-react'
 import NoCampaign from '@/componentes/NoCampaign'
 import MasterDashboard from '@/componentes/perfil/MasterDashboard'
 import CreateCharForm from '@/componentes/perfil/CreateCharForm'
@@ -10,6 +11,9 @@ import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
 import { useCampaign } from '@/lib/contexts/CampaignContext'
 import type { ProfileCharacter } from '@/lib/types/profile'
+import TabRegras from '@/componentes/configuracoes/TabRegras'
+
+type ProfileSection = 'perfil' | 'regras'
 
 interface Props {
   username: string
@@ -18,9 +22,10 @@ interface Props {
 }
 
 export default function ProfilePageClient({ username, myCharacter,activeConditions = [] }: Props) {
-  const { hasCampaign, isMaster, activeCampaign } = useCampaign()
+  const { hasCampaign, isMaster } = useCampaign()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState<ProfileSection>('perfil')
 
   // 1. Sem campanha ativa
   if (!hasCampaign) {
@@ -46,7 +51,8 @@ export default function ProfilePageClient({ username, myCharacter,activeConditio
       <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
         <PageCorners />
         <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
-          <MasterDashboard />
+          <ProfileSectionNav active={activeSection} onChange={setActiveSection} />
+          {activeSection === 'perfil' ? <MasterDashboard /> : <TabRegras />}
         </div>
       </div>
     )
@@ -58,7 +64,8 @@ export default function ProfilePageClient({ username, myCharacter,activeConditio
       <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
         <PageCorners />
         <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
-          <CreateCharForm />
+          <ProfileSectionNav active={activeSection} onChange={setActiveSection} />
+          {activeSection === 'perfil' ? <CreateCharForm /> : <TabRegras />}
         </div>
       </div>
     )
@@ -69,13 +76,40 @@ export default function ProfilePageClient({ username, myCharacter,activeConditio
      <div className="relative min-h-screen w-full p-8 block bg-roxo-escuro shadow-header">
       <PageCorners />
       <div className="max-w-5xl mx-auto pt-16 px-4 md:px-12 relative z-10">
-        <ProfileGrid
-          character={myCharacter as ProfileCharacter}
-          username={username}
-          activeConditions={activeConditions}
-        />
+        <ProfileSectionNav active={activeSection} onChange={setActiveSection} />
+        {activeSection === 'perfil' ? (
+          <ProfileGrid
+            character={myCharacter as ProfileCharacter}
+            username={username}
+            activeConditions={activeConditions}
+          />
+        ) : <TabRegras />}
       </div>
     </div>
+  )
+}
+
+function ProfileSectionNav({ active, onChange }: { active: ProfileSection; onChange: (section: ProfileSection) => void }) {
+  const sections: { id: ProfileSection; label: string; icon: React.ReactNode }[] = [
+    { id: 'perfil', label: 'Perfil', icon: <BookOpen size={15} /> },
+    { id: 'regras', label: 'Regras', icon: <Dices size={15} /> },
+  ]
+
+  return (
+    <nav aria-label="Seções do perfil" className="mb-6 flex gap-2 border-b border-bege-escuro/25">
+      {sections.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          aria-current={active === section.id ? 'page' : undefined}
+          onClick={() => onChange(section.id)}
+          className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 font-title text-xs uppercase tracking-widest transition-colors ${active === section.id ? 'border-bege-medio text-bege-medio' : 'border-transparent text-bege-escuro/60 hover:text-bege-claro'}`}
+        >
+          {section.icon}
+          {section.label}
+        </button>
+      ))}
+    </nav>
   )
 }
 

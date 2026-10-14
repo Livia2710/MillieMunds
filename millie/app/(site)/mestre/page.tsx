@@ -7,6 +7,7 @@ import MestreInvite from '@/componentes/mestre/MestreInvite'
 import MestreJogadores from '@/componentes/mestre/MestreJogadores'
 import MestreEvolucao from '@/componentes/mestre/MestreEvolucao'
 import MestreTaro from '@/componentes/mestre/MestreTaro'
+import MestreCondicoes from '@/componentes/mestre/MestreCondicoes'
 import MestreConteudos from '@/componentes/mestre/MestreConteudos'
 import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 
@@ -31,6 +32,7 @@ type MasterData = {
   characters:           MasterCharacter[]
   eligibleForEvolution: MasterCharacter[]
   allTarotDraws:        TarotDraw[]
+  conditionDefinitions: { id: string; name: string; cause: string; color: string; removalInstructions: string }[]
 }
 
 export default function MestrePage() {
@@ -43,6 +45,10 @@ export default function MestrePage() {
       .then((d) => setData(d as unknown as MasterData))
       .finally(() => setLoading(false))
   }, [])
+
+  function refreshData() {
+    getMasterPageData().then((d) => { if (d) setData(d as unknown as MasterData) })
+  }
 
   if (ctxLoading || loading) {
     return (
@@ -77,7 +83,8 @@ export default function MestrePage() {
 
       <MestreInvite inviteCode={data.inviteCode} />
       <MestreConteudos />
-      <MestreJogadores players={data.players} />
+      <MestreCondicoes initial={data.conditionDefinitions} characters={data.characters.map(({ id, name }) => ({ id, name }))} onChange={refreshData} />
+      <MestreJogadores players={data.players} conditionDefinitions={data.conditionDefinitions} />
       <MestreEvolucao eligible={data.eligibleForEvolution} />
       <MestreTaro draws={data.allTarotDraws} />
     </div>

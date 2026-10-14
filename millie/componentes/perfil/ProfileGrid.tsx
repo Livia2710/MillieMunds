@@ -10,17 +10,20 @@ import { useTarotPolling } from "@/lib/hooks/useTarotPolling"
 type ActiveCondition = {
   id: string
   type: string
+  definition?: { name: string; cause: string; color: string; removalInstructions: string } | null
 }
 
 interface ProfileGridProps {
   character: ProfileCharacter
   username: string
+  transferTargets?: { id: string; name: string; playerName: string }[]
   activeConditions?: ActiveCondition[]
 }
 
 export default function ProfileGrid({
   character,
   username,
+  transferTargets = [],
   activeConditions = [],
 }: ProfileGridProps) {
   const { pendingDraw, clearPending } = useTarotPolling(character.id)
@@ -36,7 +39,7 @@ export default function ProfileGrid({
 
       <div className="grid grid-cols-1 gap-6">
         <ProfileCards character={character} />
-        <ProfileInventory character={character} />
+        <ProfileInventory character={character} transferTargets={transferTargets} />
       </div>
 
       {pendingDraw && (

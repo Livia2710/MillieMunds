@@ -17,7 +17,7 @@ const categories: { label: string; value: InventoryCategoryFilter }[] = [
   { label: "Equipamentos", value: "equipamento" },
   { label: "Consumíveis", value: "consumivel" },
   { label: "Materiais", value: "material" },
-  { label: "Relíquias", value: "reliquia" },
+  { label: "Artefatos", value: "reliquia" },
   { label: "Livros", value: "livro" },
   { label: "Outros", value: "outro" },
 ];

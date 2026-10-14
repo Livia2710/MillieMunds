@@ -5,17 +5,23 @@ import { prisma } from '@/lib/prisma'
 import type { BaseRank, RacePath } from '@/lib/generated/prisma'
 import { revalidatePath } from 'next/cache'
 import type { CharacterElement, CharacterCategory } from '@/lib/types/character'
-import { calcCurrentRank, calcPV, calcPM, calcXpToNextLevel, calcFirstSkillUnlock } from '@/lib/utils/rank'
+import type { ProfileCharacter } from '@/lib/types/profile'
+import { calcCurrentRank, calcXpToNextLevel, calcFirstSkillUnlock, getRankMax } from '@/lib/utils/rank'
 import { oneOf, validatedInteger, validatedText, validateImageUrl } from '@/lib/validation'
 import { createUserNotification } from '@/lib/notifications'
+import { getFavorCategory } from '@/lib/utils/favor'
 
 // ─── helper: shape de retorno compartilhado ───────────────
-function formatCharacter(char: any, campaignItems: any[]) {
+function formatCharacter<T extends {
+  id: string; name: string; race: { name: string; isCorrupted: boolean }; element: string; level: number; birthRank: BaseRank; rankLosses: number;
+  category: string; agilidade: number; inteligencia: number; forca: number; vigor: number; sorte: number;
+  pv: number; pvMax: number; pm: number; pmMax: number;
+}, I extends { ownerId: string | null }>(char: T, campaignItems: I[], currency = 100): ProfileCharacter {
   return {
     ...char,
     race: char.race.name,
     element: char.element as CharacterElement,
-    rank: calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted),
+    rank: calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted, char.rankLosses),
     category: char.category as CharacterCategory,
     stats: {
       agilidade:    char.agilidade,
@@ -28,8 +34,9 @@ function formatCharacter(char: any, campaignItems: any[]) {
     pvMax: char.pvMax,
     pm:    char.pm,
     pmMax: char.pmMax,
+    currency,
     inventory: campaignItems.filter((i) => i.ownerId === char.id),
-  }
+  } as unknown as ProfileCharacter
 }
 
 // ─── queries ──────────────────────────────────────────────
@@ -59,7 +66,25 @@ export async function getCharactersByActiveCampaign() {
     ? membership.campaign.items
     : membership.campaign.items.filter((item) => !item.isLocked)
 
-  return characters.map((char) => formatCharacter(char, items))
+  const currencies = await prisma.$queryRaw<Array<{id:string;currency:number}>>`SELECT "id", "currency" FROM "Character" WHERE "campaignId" = ${membership.campaignId}`
+  const currencyById = new Map(currencies.map(row => [row.id, row.currency]))
+  const ownCharacters = membership.role === 'PLAYER'
+    ? membership.campaign.characters.filter(char => char.playerId === session.user.id)
+    : []
+  const favors = ownCharacters.length
+    ? await prisma.characterAffinity.findMany({
+        where: { campaignId: membership.campaignId, targetCharacterId: { in: ownCharacters.map(char => char.id) } },
+        select: { sourceCharacterId: true, targetCharacterId: true, value: true },
+      })
+    : []
+  const favorByPair = new Map(favors.map(row => [`${row.sourceCharacterId}:${row.targetCharacterId}`, row.value]))
+  return characters.map((char) => ({
+    ...formatCharacter(char, items, currencyById.get(char.id) ?? 100),
+    favorByCharacter: ownCharacters.map(own => ({
+      characterName: own.name,
+      category: getFavorCategory(char.category as CharacterCategory, favorByPair.get(`${char.id}:${own.id}`) ?? 0),
+    })),
+  }))
 }
 
 export async function getCharacterById(id: string) {
@@ -86,7 +111,8 @@ export async function getCharacterById(id: string) {
   const items = membership.role === 'MASTER'
     ? char.campaign.items
     : char.campaign.items.filter((item) => !item.isLocked)
-  return formatCharacter(char, items)
+  const currencies = await prisma.$queryRaw<Array<{currency:number}>>`SELECT "currency" FROM "Character" WHERE "id" = ${char.id}`
+  return formatCharacter(char, items, currencies[0]?.currency ?? 100)
 }
 
 export async function getMyCharacter() {
@@ -111,7 +137,8 @@ export async function getMyCharacter() {
   })
 
   if (!char) return null
-  return formatCharacter(char, char.campaign.items.filter((item) => !item.isLocked))
+  const currencies = await prisma.$queryRaw<Array<{currency:number}>>`SELECT "currency" FROM "Character" WHERE "id" = ${char.id}`
+  return formatCharacter(char, char.campaign.items.filter((item) => !item.isLocked), currencies[0]?.currency ?? 100)
 }
 
 export async function unlockCharacter(characterId: string) {
@@ -172,11 +199,15 @@ export async function createCharacter(data: {
   const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
   const dangerLevel = data.dangerLevel === undefined ? undefined : validatedText(data.dangerLevel, 'Nível de perigo', { max: 40 })
 
-  const agilidade    = validatedInteger(data.agilidade ?? 1, 'Agilidade', 1, 100)
-  const inteligencia = validatedInteger(data.inteligencia ?? 1, 'Inteligência', 1, 100)
-  const forca        = validatedInteger(data.forca ?? 1, 'Força', 1, 100)
-  const vigor        = validatedInteger(data.vigor ?? 1, 'Vigor', 1, 100)
-  const sorte        = validatedInteger(data.sorte ?? 1, 'Sorte', 1, 100)
+  const race = await prisma.race.findUnique({ where: { id: raceId }, select: { isCorrupted: true } })
+  if (!race) throw new Error('Raça não encontrada nesta campanha')
+  const characterRank = calcCurrentRank(level, birthRank, race.isCorrupted)
+  const attributeMax = getRankMax(characterRank)
+  const agilidade    = validatedInteger(data.agilidade ?? 1, 'Agilidade', 1, attributeMax)
+  const inteligencia = validatedInteger(data.inteligencia ?? 1, 'Inteligência', 1, attributeMax)
+  const forca        = validatedInteger(data.forca ?? 1, 'Força', 1, attributeMax)
+  const vigor        = validatedInteger(data.vigor ?? 1, 'Vigor', 1, attributeMax)
+  const sorte        = validatedInteger(data.sorte ?? 1, 'Sorte', 1, attributeMax)
   const pv           = 10 + vigor        * 2
   const pm           = 10 + inteligencia * 2
 
@@ -191,6 +222,7 @@ export async function createCharacter(data: {
       campaignId:  membership.campaignId,
       image,
       level,
+      unspentAttributePoints: Math.floor((level - 1) / 5),
       year,
       subject,
       occupation,
@@ -355,6 +387,7 @@ export async function getMasterPageData() {
               }
             },
           },
+          conditionDefinitions: { orderBy: { name: 'asc' } },
         },
       },
     },
@@ -363,6 +396,8 @@ export async function getMasterPageData() {
   if (!membership) return null
 
   const { campaign } = membership
+  const currencyRows = await prisma.$queryRaw<Array<{id:string;currency:number}>>`SELECT "id", "currency" FROM "Character" WHERE "campaignId" = ${campaign.id}`
+  const currencyById = new Map(currencyRows.map(row => [row.id, row.currency]))
 
   const characters = campaign.characters.map((char) => ({
     id:            char.id,
@@ -370,7 +405,7 @@ export async function getMasterPageData() {
     category:      char.category,
     image:         char.image,
     level:         char.level,
-    rank:          calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted),
+    rank:          calcCurrentRank(char.level, char.birthRank, char.race.isCorrupted, char.rankLosses),
     racePath:      char.racePath,
     evolvedRaceId: char.evolvedRaceId,
     playerId:      char.playerId,
@@ -389,8 +424,10 @@ export async function getMasterPageData() {
     tarotDraws:       char.tarotDraws,
     pv:               char.pv,
     pvMax:            char.pvMax,
+    currency:         currencyById.get(char.id) ?? 100,
     xp:               char.xp,
     maxXp:            char.maxXp,
+    unspentAttributePoints: char.unspentAttributePoints,
     activeConditions: char.conditions,
   }))
 
@@ -421,7 +458,23 @@ export async function getMasterPageData() {
     allTarotDraws: characters.flatMap((c) =>
       c.tarotDraws.map((draw) => ({ ...draw, characterName: c.name }))
     ),
+    conditionDefinitions: campaign.conditionDefinitions,
   }
+}
+
+/** Ajuste de saldo em Estilhaços feito pelo Mestre da campanha. */
+export async function adjustCharacterCurrency(characterId: string, delta: number) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, active: true, role: 'MASTER' }, select: { campaignId: true } })
+  if (!membership) throw new Error('Apenas o Mestre pode ajustar moedas')
+  validatedInteger(delta, 'Variação em Estilhaços', -1_000_000, 1_000_000)
+  if (!delta) throw new Error('Informe uma variação diferente de zero')
+  const rows = await prisma.$queryRaw<Array<{currency:number}>>`UPDATE "Character" SET "currency" = GREATEST(0, "currency" + ${delta}) WHERE "id" = ${characterId} AND "campaignId" = ${membership.campaignId} RETURNING "currency"`
+  if (!rows[0]) throw new Error('Personagem não encontrado nesta campanha')
+  revalidatePath('/perfil')
+  revalidatePath('/mestre')
+  return rows[0].currency
 }
 
 export async function getSpecialCards(characterId: string) {
@@ -455,18 +508,55 @@ export async function saveSpecialCard(characterId: string, cardType: 'VALETE' | 
   })
 }
 
-export async function useSpecialCard(cardId: string) {
+export async function consumeSpecialCard(cardId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
-  const card = await prisma.specialCard.findFirst({ where: { id: cardId, isAvailable: true, character: { playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true, role: 'PLAYER' } } } } }, select: { id: true } })
+  const card = await prisma.specialCard.findFirst({ where: { id: cardId, isAvailable: true, character: { playerId: session.user.id, campaign: { members: { some: { userId: session.user.id, active: true, role: 'PLAYER' } } } } }, select: { id: true, characterId: true } })
   if (!card) throw new Error('Carta especial indisponível')
 
-  const result = await prisma.specialCard.updateMany({
-    where: { id: card.id, isAvailable: true },
-    data: { isAvailable: false, usedAt: new Date() },
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${card.characterId} FOR UPDATE`
+    const character = await tx.character.findFirst({ where: { id: card.characterId, playerId: session.user.id }, select: { specialCardUsedThisScene: true } })
+    if (!character) throw new Error('Personagem não encontrado')
+    if (character.specialCardUsedThisScene) throw new Error('Você já usou uma carta especial nesta cena. O Mestre precisa iniciar uma nova cena.')
+    const result = await tx.specialCard.updateMany({ where: { id: card.id, isAvailable: true }, data: { isAvailable: false, usedAt: new Date() } })
+    if (result.count === 0) throw new Error('Carta especial indisponível')
+    await tx.character.update({ where: { id: card.characterId }, data: { specialCardUsedThisScene: true } })
   })
-  if (result.count === 0) throw new Error('Carta especial indisponível')
   return prisma.specialCard.findUnique({ where: { id: card.id } })
+}
+
+/** O Mestre encerra a cena atual e libera uma carta especial para cada personagem. */
+export async function resetSpecialCardsForNewScene() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, active: true, role: 'MASTER' }, select: { campaignId: true } })
+  if (!membership) throw new Error('Apenas o Mestre pode iniciar uma nova cena')
+  await prisma.character.updateMany({ where: { campaignId: membership.campaignId }, data: { specialCardUsedThisScene: false } })
+  revalidatePath('/mestre')
+  revalidatePath('/perfil')
+}
+
+export async function spendAttributePoint(characterId: string, attribute: 'agilidade' | 'inteligencia' | 'forca' | 'vigor' | 'sorte') {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  const membership = await prisma.campaignMember.findFirst({ where: { userId: session.user.id, active: true, role: 'PLAYER' }, select: { campaignId: true } })
+  if (!membership) throw new Error('Sem campanha ativa como jogador')
+  const result = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`
+    const character = await tx.character.findFirst({ where: { id: characterId, campaignId: membership.campaignId, playerId: session.user.id }, include: { race: { select: { isCorrupted: true } } } })
+    if (!character) throw new Error('Personagem não encontrado')
+    if (character.unspentAttributePoints < 1) throw new Error('Você não tem pontos de atributo disponíveis')
+    const rank = calcCurrentRank(character.level, character.birthRank, character.race.isCorrupted, character.rankLosses)
+    const current = character[attribute]
+    const maximum = getRankMax(rank)
+    if (current >= maximum) throw new Error(`Esse atributo já atingiu o limite do Rank ${rank} (${maximum})`)
+    const updated = await tx.character.update({ where: { id: characterId }, data: { [attribute]: current + 1, unspentAttributePoints: { decrement: 1 } }, select: { [attribute]: true, unspentAttributePoints: true } })
+    return { value: updated[attribute], remaining: updated.unspentAttributePoints }
+  })
+  revalidatePath('/perfil')
+  revalidatePath('/mestre')
+  return result
 }
 
 // ─── addXp ────────────────────────────────────────────────
@@ -511,10 +601,11 @@ export async function addXp(characterId: string, amount: number) {
       currentLevel += 1
     }
     const newMaxXp = calcXpToNextLevel(currentBirthRank)
+    const attributePointsAwarded = Math.floor((currentLevel - 1) / 5) - Math.floor((char.level - 1) / 5)
 
     await tx.character.update({
       where: { id: characterId },
-      data: { xp: currentXp, level: currentLevel, maxXp: newMaxXp },
+      data: { xp: currentXp, level: currentLevel, maxXp: newMaxXp, unspentAttributePoints: { increment: attributePointsAwarded } },
     })
     return {
       newLevel: currentLevel,
@@ -522,6 +613,8 @@ export async function addXp(characterId: string, amount: number) {
       maxXp: newMaxXp,
       leveledUp: currentLevel > char.level,
       levelsGained: currentLevel - char.level,
+      attributePointsAwarded,
+      unspentAttributePoints: char.unspentAttributePoints + attributePointsAwarded,
       playerId: char.playerId,
       characterName: char.name,
       newlyUnlockedSkills: [
@@ -559,6 +652,8 @@ export async function addXp(characterId: string, amount: number) {
     maxXp: result.maxXp,
     leveledUp: result.leveledUp,
     levelsGained: result.levelsGained,
+    attributePointsAwarded: result.attributePointsAwarded,
+    unspentAttributePoints: result.unspentAttributePoints,
   }
 }
 

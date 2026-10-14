@@ -6,21 +6,38 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BookOpen, Compass, Plus, Trash2, Edit3, Eye, LoaderCircle, EyeOff} from 'lucide-react'
 import { useCampaign } from '@/lib/contexts/CampaignContext'
-import { createExplorationMap, deleteExplorationMap, listExplorationMaps} from '@/app/actions/exploration'
+import { createExplorationMap, deleteExplorationMap, listExplorationMaps, setExplorationLocation } from '@/app/actions/exploration'
 import type { ExplorationMapRecord } from '@/lib/types/exploration'
 import PlayerExplore from './PlayerExplore'
 
 export default function MapsHome() {
   const { isMaster, hasCampaign, loading: contextLoading } = useCampaign()
   const [maps, setMaps] = useState<ExplorationMapRecord[]>([])
+  const [currentMapId, setCurrentMapId] = useState<string | null>(null)
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
+  const [startRooms, setStartRooms] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [changingMap, setChangingMap] = useState(false)
   const [asPlayer, setAsPlayer] = useState(false)
   const router = useRouter()
 
   async function refresh() {
     try {
-      setMaps(await listExplorationMaps())
+      const result = await listExplorationMaps()
+      setMaps(result.maps)
+      setCurrentMapId(result.currentMapId)
+      setCurrentRoomId(result.currentRoomId)
+      setStartRooms(previous => Object.fromEntries(result.maps.map(map => {
+        const previousRoom = previous[map.id]
+        const currentRoom = map.id === result.currentMapId ? result.currentRoomId : null
+        const selectedRoom = previousRoom && map.rooms.some(room => room.id === previousRoom)
+            ? previousRoom
+            : currentRoom && map.rooms.some(room => room.id === currentRoom)
+              ? currentRoom
+              : map.rooms[0]?.id ?? ''
+        return [map.id, selectedRoom]
+      })))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar mapas')
     } finally {
@@ -31,6 +48,8 @@ export default function MapsHome() {
   useEffect(() => {
     if (!contextLoading && hasCampaign && isMaster) {
       void refresh()
+      const timer = setInterval(() => void refresh(), 8_000)
+      return () => clearInterval(timer)
     }
   }, [contextLoading, hasCampaign, isMaster])
 
@@ -53,6 +72,21 @@ export default function MapsHome() {
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir')
+    }
+  }
+
+  async function activateMap(mapId: string) {
+    const roomId = startRooms[mapId]
+    if (!roomId) return
+    setChangingMap(true)
+    setError('')
+    try {
+      await setExplorationLocation(mapId, roomId)
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível ativar o mapa')
+    } finally {
+      setChangingMap(false)
     }
   }
 
@@ -172,6 +206,7 @@ export default function MapsHome() {
                   <h2 className="font-title text-lg uppercase tracking-wider">
                     {map.name}
                   </h2>
+                  {map.id === currentMapId && <p className="mt-1 inline-flex items-center gap-1 border border-emerald-300/30 px-2 py-1 text-[10px] uppercase tracking-widest text-emerald-200"><Compass size={12} /> Mapa ativo · {map.rooms.find(room => room.id === currentRoomId)?.name ?? 'grupo em exploração'}</p>}
                   <p className="mt-1 text-xs text-bege-escuro/70">
                     {map.rooms.length} sala(s) ·{' '}
                     {map.isEditing
@@ -185,21 +220,25 @@ export default function MapsHome() {
               </div>
 
               {isMaster ? (
-                <div className="flex gap-2">
-                  <Link
-                    href={`/mapas/${map.id}`}
-                    className="flex flex-1 items-center justify-center gap-2 border border-bege-escuro/30 py-2 text-xs uppercase tracking-widest hover:bg-bege-escuro/10"
-                  >
-                    <Edit3 size={14} />
-                    Editar
-                  </Link>
-                  <button
-                    aria-label="Excluir mapa"
-                    onClick={() => void remove(map.id)}
-                    className="border border-red-400/30 px-3 text-red-300 hover:bg-red-950/30"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                <div className="space-y-2">
+                  {map.isPublished && !map.isEditing && map.rooms.length > 0 && <div className="space-y-2 border-t border-bege-escuro/15 pt-3">
+                    <label className="block text-[10px] uppercase tracking-widest text-bege-escuro/80">Sala de entrada do grupo
+                      <select value={startRooms[map.id] ?? map.rooms[0].id} disabled={changingMap} onChange={event => setStartRooms(previous => ({ ...previous, [map.id]: event.target.value }))} className="mt-1 w-full border border-bege-escuro/30 bg-[#1d1020] p-2 text-xs normal-case text-bege-claro">
+                        {map.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
+                      </select>
+                    </label>
+                    <button type="button" disabled={changingMap || (map.id === currentMapId && (startRooms[map.id] ?? map.rooms[0].id) === currentRoomId)} onClick={() => void activateMap(map.id)} className="flex min-h-10 w-full items-center justify-center gap-2 border border-bege-medio/40 px-3 py-2 text-[10px] uppercase tracking-widest hover:bg-bege-medio/10 disabled:opacity-50">
+                      <Compass size={14} />{changingMap ? 'Atualizando grupo…' : map.id === currentMapId ? 'Mover grupo para esta sala' : 'Definir como mapa ativo'}
+                    </button>
+                  </div>}
+                  <div className="flex gap-2">
+                    <Link href={`/mapas/${map.id}`} className="flex flex-1 items-center justify-center gap-2 border border-bege-escuro/30 py-2 text-xs uppercase tracking-widest hover:bg-bege-escuro/10">
+                      <Edit3 size={14} />Editar
+                    </Link>
+                    <button aria-label="Excluir mapa" onClick={() => void remove(map.id)} className="border border-red-400/30 px-3 text-red-300 hover:bg-red-950/30">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="flex items-center gap-2 text-sm text-bege-medio">

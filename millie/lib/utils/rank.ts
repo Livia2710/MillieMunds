@@ -9,30 +9,34 @@ export function calcRankByLevel(level: number): string {
   return 'D'
 }
 
-// ─── MULTIPLICADORES DE ATRIBUTO POR RANK ────────────────
+// ─── LIMITES DE ATRIBUTO POR RANK ─────────────────────────
+// D/C: 10 | B: 12 | A: 14 | S: 16. Rank E legado usa o limite de D.
+
+const RANK_ATTRIBUTE_LIMIT: Record<string, number> = {
+  E: 10,
+  D: 10,
+  C: 10,
+  B: 12,
+  A: 14,
+  S: 16,
+}
 
 export function getRankMultiplier(rank: string): number {
-  const map: Record<string, number> = {
-    E: 1,
-    D: 1,
-    C: 4.5,
-    B: 6.36,
-    A: 8.18,
-    S: 10,
-  }
-  return map[rank] ?? 1
+  return getRankMax(rank) / 10
 }
 
 export function getRankMin(rank: string): number {
-  return Math.ceil(getRankMultiplier(rank))
+  void rank
+  return 1
 }
 
 export function getRankMax(rank: string): number {
-  return Math.floor(10 * getRankMultiplier(rank))
+  return RANK_ATTRIBUTE_LIMIT[rank] ?? RANK_ATTRIBUTE_LIMIT.D
 }
 
 export function getTotalPoints(rank: string): number {
-  return Math.round(25 * getRankMultiplier(rank))
+  void rank
+  return 25
 }
 
 // ─── PV / PM ─────────────────────────────────────────────
@@ -147,18 +151,18 @@ export function getCreationTotalPoints(level: number): number {
   return 25 + Math.floor((safeLevel - 1) / 5)
 }
 
-// ─── RANK ATUAL (nível + herança racial) ────────────────
-// O Rank nunca regride abaixo do birthRank da raça, mas sobe com o nível.
-// Raças marcadas isCorrupted travam permanentemente no birthRank.
+// ─── RANK ATUAL ──────────────────────────────────────────
+// O Rank depende do nível, não da Linhagem. Corrupção impede regressão.
 
-const RANK_ORDER = ['E', 'D', 'C', 'B', 'A', 'S']
+const RANK_ORDER = ['D', 'C', 'B', 'A', 'S']
 
-export function calcCurrentRank(level: number, birthRank: string, isCorrupted: boolean): string {
-  if (isCorrupted) return birthRank
-  const levelRank = calcRankByLevel(level)
-  const birthIdx = RANK_ORDER.indexOf(birthRank)
-  const levelIdx = RANK_ORDER.indexOf(levelRank)
-  return RANK_ORDER[Math.max(birthIdx, levelIdx)]
+export function calcCurrentRank(level: number, birthRank: string, isCorrupted: boolean, rankLosses = 0): string {
+  // Linhagem define o potencial, mas o Rank atual acompanha o nível.
+  // Personagens começam em D independentemente do Rank de nascença.
+  void birthRank
+  const levelIdx = RANK_ORDER.indexOf(calcRankByLevel(level))
+  const losses = isCorrupted ? 0 : Math.max(0, rankLosses)
+  return RANK_ORDER[Math.max(0, levelIdx - losses)]
 }
 
 // ─── NÍVEL POR ANO LETIVO (ALUNO) ────────────────────────

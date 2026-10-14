@@ -18,10 +18,11 @@ type ProfileSection = 'perfil' | 'regras'
 interface Props {
   username: string
   myCharacter: ProfileCharacter | null
-  activeConditions?: { id: string; type: string }[]
+  transferTargets: { id: string; name: string; playerName: string }[]
+  activeConditions?: { id: string; type: string; definition?: { name: string; cause: string; color: string; removalInstructions: string } | null }[]
 }
 
-export default function ProfilePageClient({ username, myCharacter,activeConditions = [] }: Props) {
+export default function ProfilePageClient({ username, myCharacter, activeConditions = [], transferTargets }: Props) {
   const { hasCampaign, isMaster } = useCampaign()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
@@ -82,6 +83,7 @@ export default function ProfilePageClient({ username, myCharacter,activeConditio
             character={myCharacter as ProfileCharacter}
             username={username}
             activeConditions={activeConditions}
+            transferTargets={transferTargets}
           />
         ) : <TabRegras />}
       </div>

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { getItemBySlug } from "@/app/actions/inventory"
 import InventoryBookDetails from "@/componentes/inventario/InventoryBookDetails"
 import InventoryItemDetails from "@/componentes/inventario/InventoryItemDetails"
-import type { InventoryItem, InventoryRarity, InventoryCategory } from "@/lib/types/inventory"
+import type { ConsumableType, EquipmentEffectRecord, EquipmentSubtype, EquipmentType, InventoryItem, InventoryRarity, InventoryCategory } from "@/lib/types/inventory"
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -43,9 +43,19 @@ export default async function InventoryDetailsPage({ params }: Props) {
       ...cover,
     }
   } else if (cat === 'equipamento') {
-    item = { ...base, category: 'equipamento', forgedBy: raw.forgedBy ?? '', effect: raw.effect ?? '' }
+    item = {
+      ...base,
+      category: 'equipamento',
+      forgedBy: raw.forgedBy ?? '',
+      effect: raw.effect ?? '',
+      equipmentType: (raw.equipmentType ?? undefined) as EquipmentType | undefined,
+      equipmentSubtype: (raw.equipmentSubtype ?? undefined) as EquipmentSubtype | undefined,
+      equipmentEffects: Array.isArray(raw.equipmentEffects) ? raw.equipmentEffects as EquipmentEffectRecord[] : [],
+      equipmentDurability: raw.equipmentDurability ?? null,
+      equipmentMaxDurability: raw.equipmentMaxDurability ?? null,
+    }
   } else if (cat === 'consumivel') {
-    item = { ...base, category: 'consumivel', origin: raw.origin ?? '', effect: raw.effect ?? '' }
+    item = { ...base, category: 'consumivel', origin: raw.origin ?? '', effect: raw.effect ?? '', consumableType: (raw.consumableType ?? undefined) as ConsumableType | undefined }
   } else if (cat === 'material') {
     item = { ...base, category: 'material', origin: raw.origin ?? '', effect: raw.effect ?? undefined }
   } else if (cat === 'reliquia') {
@@ -59,7 +69,7 @@ export default async function InventoryDetailsPage({ params }: Props) {
       <PageCorners />
       {item.category === 'livro'
         ? <InventoryBookDetails book={item} />
-        : <InventoryItemDetails item={item} />
+        : <InventoryItemDetails item={item} isMaster={(raw as typeof raw & {viewerRole?: string}).viewerRole === 'MASTER'} canUseConsumable={(raw as typeof raw & {canUseConsumable?: boolean}).canUseConsumable ?? false} />
       }
     </div>
   )

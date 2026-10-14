@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { getMyCharacter } from '@/app/actions/character'
-import { getActiveCampaign } from '@/app/actions/campaign'
 import { getActiveConditions } from '@/app/actions/condition'
+import { getPlayerInventoryTransferTargets } from '@/app/actions/inventory'
 import ProfilePageClient from '@/componentes/perfil/ProfilePageClient'
 import type { ProfileCharacter } from '@/lib/types/profile'
 import type { CharacterRank, CharacterElement } from '@/lib/types/character'
@@ -10,13 +10,10 @@ export default async function ProfilePage() {
   const session  = await auth()
   const username = session?.user?.name ?? session?.user?.email ?? ''
 
-  const [rawCharacter, activeCampaign] = await Promise.all([
-    getMyCharacter(),
-    getActiveCampaign(),
-  ])
+  const [rawCharacter, transferTargets] = await Promise.all([getMyCharacter(), getPlayerInventoryTransferTargets()])
 
   let myCharacter: ProfileCharacter | null = null
-  let activeConditions: { id: string; type: string }[] = []
+  let activeConditions: Awaited<ReturnType<typeof getActiveConditions>> = []
 
   if (rawCharacter) {
     const base = {
@@ -35,7 +32,9 @@ export default async function ProfilePage() {
       pvMax:     rawCharacter.pvMax,
       pm:        rawCharacter.pm,
       pmMax:     rawCharacter.pmMax,
+      currency:  rawCharacter.currency,
       birthRank: rawCharacter.birthRank,
+      unspentAttributePoints: rawCharacter.unspentAttributePoints,
       playerId:  rawCharacter.playerId,
       stats:     rawCharacter.stats,
       inventory: rawCharacter.inventory as unknown as ProfileCharacter['inventory'],
@@ -61,6 +60,7 @@ export default async function ProfilePage() {
       username={username}
       myCharacter={myCharacter}
       activeConditions={activeConditions}
+      transferTargets={transferTargets}
     />
   )
 }

@@ -15,6 +15,7 @@ interface BaseCharacter {
   worldSlug: string; // Mundo Natal
   isLocked?: boolean;
   story?: string;
+  favorByCharacter?: { characterName: string; category: string }[];
 }
 
 // Extensões específicas para cada categoria
@@ -51,8 +52,10 @@ export type MasterCharacter = {
   rank:          CharacterRank
   pv:            number
   pvMax:         number
+  currency:      number
   xp:            number
   maxXp:         number
+  unspentAttributePoints: number
   racePath:      string | null
   evolvedRaceId: string | null
   playerId:      string | null

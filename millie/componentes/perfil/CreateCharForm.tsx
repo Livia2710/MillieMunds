@@ -8,7 +8,7 @@ import { getUniverses, createPlayerCharacter } from '@/app/actions/character'
 import type { CharacterCategory } from '@/lib/types/character'
 import type { BaseRank } from '@/lib/generated/prisma'
 import MillieImageUpload from '@/componentes/ui/MillieImageUpload'
-import { getRankMin, getRankMax, getTotalPoints, calcPV, calcPM } from '@/lib/utils/rank'
+import { getRankMax, calcPV, calcPM } from '@/lib/utils/rank'
 
 // ─── tipos locais ──────────────────────────────────────────
 type Race = { id: string; name: string; element: string; baseRank: string }

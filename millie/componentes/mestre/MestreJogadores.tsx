@@ -1,26 +1,33 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Users, Plus, Minus } from 'lucide-react'
 import { SectionTitle, Empty } from './MestreUI'
 import IniciarLeituraModal from '@/componentes/modais/IniciarLeituraModal'
-import { addXp } from '@/app/actions/character'
+import { addXp, resetSpecialCardsForNewScene, adjustCharacterCurrency } from '@/app/actions/character'
+import { resetFavorSession } from '@/app/actions/exploration'
 import { addCondition, removeCondition } from '@/app/actions/condition'
 import { MANUAL_CONDITIONS, CONDITION_LABELS } from '@/lib/utils/conditions'
 import type { ManualCondition } from '@/lib/utils/conditions'
 import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 import { useToast } from '@/componentes/ui/ToastProvider'
+import type { ConditionDefinition } from './MestreCondicoes'
+import { formatCurrency } from '@/lib/utils/equipment'
+import CurrencyDisplay from '@/componentes/moedas/CurrencyDisplay'
 
 const XP_PRESETS = [50, 100, 250, 500]
 
-export default function MestreJogadores({ players }: { players: MasterPlayer[] }) {
+export default function MestreJogadores({ players, conditionDefinitions = [] }: { players: MasterPlayer[]; conditionDefinitions?: ConditionDefinition[] }) {
   const toast = useToast()
+  const router = useRouter()
   const [leituraChar, setLeituraChar]  = useState<{ id: string; name: string } | null>(null)
   const [expandedId,  setExpandedId]   = useState<string | null>(null)
   const [xpInput,     setXpInput]      = useState<Record<string, string>>({})
   const [feedback,    setFeedback]     = useState<Record<string, string>>({})
+  const [currencyInput, setCurrencyInput] = useState<Record<string, string>>({})
   const [isPending,   startTransition] = useTransition()
 
   function toggleExpand(id: string) {
@@ -36,13 +43,15 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
     startTransition(async () => {
       try {
         const result = await addXp(char.id, amount)
+        const pointMessage = result.attributePointsAwarded > 0 ? ` · ${result.attributePointsAwarded} ponto(s) de atributo disponível(is)` : ''
         const message = result.leveledUp
-          ? `+${amount} XP · Subiu para nível ${result.newLevel}!`
-          : `+${amount} XP para ${char.name}.`
+          ? `+${amount} XP · Subiu para nível ${result.newLevel}!${pointMessage}`
+          : `+${amount} XP para ${char.name}.${pointMessage}`
         showFeedback(char.id, message)
         toast.success(message)
-      } catch (e: any) {
-        showFeedback(char.id, e.message)
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Não foi possível adicionar XP.'
+        showFeedback(char.id, message)
         toast.error(e instanceof Error ? e.message : 'Não foi possível adicionar XP.')
       }
     })
@@ -55,6 +64,43 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
     setXpInput((prev) => ({ ...prev, [char.id]: '' }))
   }
 
+  function handleCurrency(char: MasterCharacter, delta: number) {
+    startTransition(async () => {
+      try {
+        const balance = await adjustCharacterCurrency(char.id, delta)
+        const message = `${char.name}: saldo atualizado para ${formatCurrency(balance)}.`
+        showFeedback(char.id, message)
+        toast.success(message)
+        router.refresh()
+      } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível atualizar as moedas.') }
+    })
+  }
+
+  function handleCustomCurrency(char: MasterCharacter, direction: 1 | -1) {
+    const amount = Number.parseInt(currencyInput[char.id] ?? '', 10)
+    if (!Number.isInteger(amount) || amount <= 0) return
+    handleCurrency(char, amount * direction)
+    setCurrencyInput(previous => ({ ...previous, [char.id]: '' }))
+  }
+
+  function handleNewScene() {
+    startTransition(async () => {
+      try {
+        await resetSpecialCardsForNewScene()
+        toast.success('Nova cena iniciada. Cada personagem pode usar uma carta especial.')
+      } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível iniciar a nova cena.') }
+    })
+  }
+
+  function handleNewSession() {
+    startTransition(async () => {
+      try {
+        await resetFavorSession()
+        toast.success('Nova sessão iniciada. O limite de mudança de Favor foi reiniciado.')
+      } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível iniciar a nova sessão.') }
+    })
+  }
+
   function handleAddCondition(charId: string, type: ManualCondition) {
     startTransition(async () => {
       try {
@@ -62,8 +108,9 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
         const message = `Condição "${CONDITION_LABELS[type]}" aplicada.`
         showFeedback(charId, message)
         toast.success(message)
-      } catch (e: any) {
-        showFeedback(charId, e.message)
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Não foi possível aplicar a condição.'
+        showFeedback(charId, message)
         toast.error(e instanceof Error ? e.message : 'Não foi possível aplicar a condição.')
       }
     })
@@ -76,8 +123,9 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
         const message = `Condição "${label}" removida.`
         showFeedback(charId, message)
         toast.success(message)
-      } catch (e: any) {
-        showFeedback(charId, e.message)
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Não foi possível remover a condição.'
+        showFeedback(charId, message)
         toast.error(e instanceof Error ? e.message : 'Não foi possível remover a condição.')
       }
     })
@@ -87,6 +135,10 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
   return (
     <section className="space-y-3">
       <SectionTitle icon={<Users size={14} />} label="Jogadores" />
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={handleNewScene} disabled={isPending} className="border border-bege-medio/40 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio hover:bg-bege-medio/10 disabled:opacity-40">Iniciar nova cena · liberar carta especial</button>
+        <button type="button" onClick={handleNewSession} disabled={isPending} className="border border-bege-medio/40 px-3 py-2 font-title text-[10px] uppercase tracking-widest text-bege-medio hover:bg-bege-medio/10 disabled:opacity-40">Iniciar nova sessão · limite de Favor</button>
+      </div>
 
       {players.length === 0 ? (
         <Empty label="Nenhum jogador na campanha ainda." />
@@ -161,6 +213,16 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
                     )}
 
                     <div className="space-y-2">
+                      <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">Moedas · <CurrencyDisplay amount={char.currency} iconSize={14} /></p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[1, 10, 100].map(amount => <button key={amount} type="button" onClick={() => handleCurrency(char, amount)} disabled={isPending} className="border border-bege-escuro/30 px-2 py-1.5 font-title text-[10px] uppercase text-bege-escuro/70 hover:border-bege-medio hover:text-bege-medio disabled:opacity-40">+{amount}</button>)}
+                        <input type="number" min={1} placeholder="Estilhaços" value={currencyInput[char.id] ?? ''} onChange={event => setCurrencyInput(previous => ({ ...previous, [char.id]: event.target.value }))} className="w-24 border border-bege-escuro/30 bg-transparent px-2 py-1.5 text-[10px] text-bege-claro placeholder:text-bege-escuro/40" />
+                        <button type="button" onClick={() => handleCustomCurrency(char, 1)} disabled={isPending} className="border border-bege-escuro/30 px-2 py-1.5 text-xs disabled:opacity-40" aria-label="Adicionar moedas">+</button>
+                        <button type="button" onClick={() => handleCustomCurrency(char, -1)} disabled={isPending} className="border border-bege-escuro/30 px-2 py-1.5 text-xs disabled:opacity-40" aria-label="Remover moedas">−</button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
                       <p className="font-title text-[10px] uppercase tracking-[0.18em] text-bege-escuro/50">
                         Conceder XP · atual {char.xp}/{char.maxXp}
                       </p>
@@ -201,17 +263,16 @@ export default function MestreJogadores({ players }: { players: MasterPlayer[] }
                           Condições ativas
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {char.activeConditions.map((cond) => (
-                            <button
-                              key={cond.id}
-                              onClick={() => handleRemoveCondition(char.id, cond.id, CONDITION_LABELS[cond.type as ManualCondition] ?? cond.type)}
-                              disabled={isPending}
-                              className="flex items-center gap-1.5 border border-red-500/30 bg-red-500/10 px-2.5 py-1 font-title text-[9px] uppercase tracking-widest text-red-400 hover:border-red-400 transition disabled:opacity-40"
-                            >
-                              <Minus size={8} />
-                              {CONDITION_LABELS[cond.type as ManualCondition] ?? cond.type}
-                            </button>
-                          ))}
+                          {char.activeConditions.map((cond) => {
+                            const definition = cond.type.startsWith('custom:') ? conditionDefinitions.find(item => item.id === cond.type.slice(7)) : undefined
+                            const label = definition?.name ?? CONDITION_LABELS[cond.type as ManualCondition] ?? cond.type
+                            const color = definition?.color ?? '#F87171'
+                            return (
+                              <button key={cond.id} title={definition ? `Causa: ${definition.cause} · Remoção: ${definition.removalInstructions}` : undefined} onClick={() => handleRemoveCondition(char.id, cond.id, label)} disabled={isPending} className="flex items-center gap-1.5 border px-2.5 py-1 font-title text-[9px] uppercase tracking-widest hover:border-red-400 transition disabled:opacity-40" style={{ color, borderColor: `${color}60`, backgroundColor: `${color}12` }}>
+                                <Minus size={8} />{label}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     )}

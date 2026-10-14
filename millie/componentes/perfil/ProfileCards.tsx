@@ -4,9 +4,12 @@ import { useState, useEffect, useTransition, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { ProfileCharacter } from '@/lib/types/profile'
 import { PrimaryButton } from '../PrimaryButton'
-import { getSpecialCards, saveSpecialCard, useSpecialCard, updateCharacterPoints } from '@/app/actions/character'
-import { calcAutoConditions, CONDITION_LABELS, CONDITION_COLORS } from '@/lib/utils/conditions'
-import type { AutoCondition } from '@/lib/utils/conditions'
+import { getSpecialCards, saveSpecialCard, consumeSpecialCard, updateCharacterPoints, spendAttributePoint } from '@/app/actions/character'
+import { calcAutoConditions, calcRankCondition, CONDITION_LABELS, CONDITION_COLORS } from '@/lib/utils/conditions'
+import { getRankMax } from '@/lib/utils/rank'
+import { drawNormalCard } from '@/app/actions/rules'
+import { formatCurrency } from '@/lib/utils/equipment'
+import CurrencyDisplay from '@/componentes/moedas/CurrencyDisplay'
 import { useToast } from '@/componentes/ui/ToastProvider'
 
 interface ProfileCardsProps {
@@ -16,9 +19,6 @@ interface ProfileCardsProps {
 // ── baralho ───────────────────────────────────────────────
 const NAIPES = ['paus', 'copas', 'espadas', 'ouro'] as const
 const VALORES = ['as', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'valete', 'cavaleiro', 'rainha', 'rei'] as const
-
-type Naipe = typeof NAIPES[number]
-type Valor = typeof VALORES[number]
 
 type Carta = {
   id: string
@@ -66,6 +66,8 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
   // ── estado local de PV/PM (otimista) ──────────────────
   const [pv, setPv] = useState(character.pv)
   const [pm, setPm] = useState(character.pm)
+  const [stats, setStats] = useState(character.stats)
+  const [unspentAttributePoints, setUnspentAttributePoints] = useState(character.unspentAttributePoints)
   const pvMax = character.pvMax
   const pmMax = character.pmMax
 
@@ -104,7 +106,8 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
   // limpa timer ao desmontar
   useEffect(() => () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }, [])
 
-  const autoConditions = calcAutoConditions(pv, pvMax)
+  const autoConditions = [...calcAutoConditions(pv, pvMax), ...calcRankCondition(character.rank, stats)]
+  const overLimitAttributes = Object.entries(stats).filter(([, value]) => value > getRankMax(character.rank)).map(([key]) => key)
 
   useEffect(() => {
     getSpecialCards(character.id)
@@ -113,13 +116,17 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
   }, [character.id, toast])
 
   // ── sorteio ───────────────────────────────────────────
-  function sortear() {
-    const pesoTotal = BARALHO.reduce((t, c) => t + c.peso, 0)
-    let sorteio = Math.random() * pesoTotal
-    const carta = BARALHO.find((c) => { sorteio -= c.peso; return sorteio <= 0 }) ?? BARALHO[0]
-    setActiveCard(carta)
-    setIsFlipped(true)
-    setTimeout(() => setIsAnimating(false), 700)
+  async function sortear() {
+    try {
+      const drawn = await drawNormalCard(character.id)
+      const carta = BARALHO.find((item) => item.id === drawn.cardId) ?? BARALHO[0]
+      setActiveCard(carta)
+      setIsFlipped(true)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não foi possível tirar a carta.')
+    } finally {
+      setTimeout(() => setIsAnimating(false), 300)
+    }
   }
 
   function handleGerar() {
@@ -128,9 +135,9 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
     setSavedMsg('')
     if (isFlipped) {
       setIsFlipped(false)
-      setTimeout(sortear, 400)
+      setTimeout(() => { void sortear() }, 400)
     } else {
-      sortear()
+      void sortear()
     }
   }
 
@@ -153,13 +160,26 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
   function handleUsar(cardId: string) {
     startTransition(async () => {
       try {
-        await useSpecialCard(cardId)
+        await consumeSpecialCard(cardId)
         setSpecialCards((prev) =>
           prev.map((c) => c.id === cardId ? { ...c, isAvailable: false, usedAt: new Date() } : c)
         )
         toast.success('Carta usada.')
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : 'Não foi possível usar a carta.')
+      }
+    })
+  }
+
+  function handleSpendAttribute(attribute: keyof typeof stats) {
+    startTransition(async () => {
+      try {
+        const result = await spendAttributePoint(character.id, attribute)
+        setStats(previous => ({ ...previous, [attribute]: result.value }))
+        setUnspentAttributePoints(result.remaining)
+        toast.success(`Ponto aplicado em ${attribute}.`)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Não foi possível aplicar o ponto.')
       }
     })
   }
@@ -353,6 +373,11 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
               </div>
             </div>
 
+            <div className="flex items-center justify-between border-t border-bege-escuro/20 pt-3">
+              <span className="font-title text-sm text-bege-medio uppercase tracking-widest">Moedas</span>
+              <CurrencyDisplay amount={character.currency ?? 100} iconSize={18} className="font-mono text-sm text-bege-claro" />
+            </div>
+
           </div>
         </div>
 
@@ -363,11 +388,13 @@ export default function ProfileCards({ character }: ProfileCardsProps) {
             <Image src="/assets/svgs/divider.svg" alt="" width={120} height={8} className="mx-auto my-2 opacity-80" />
           </div>
           <div className="space-y-4 mt-2">
-            {Object.entries(character.stats).map(([key, value]) => (
+            {overLimitAttributes.length > 0 && <p role="status" className="border border-amber-300/40 bg-amber-950/15 p-3 text-xs text-amber-100">Esta ficha tem valores antigos acima do limite do Rank {character.rank} ({getRankMax(character.rank)}): {overLimitAttributes.join(', ')}. Testes, descansos e novos pontos já usam o limite; os registros da ficha não foram reduzidos automaticamente.</p>}
+            {unspentAttributePoints > 0 && <p className="border border-bege-medio/30 bg-bege-medio/5 p-3 text-xs text-bege-medio">Você tem {unspentAttributePoints} ponto(s) de atributo para distribuir. Cada atributo respeita o limite do seu Rank ({getRankMax(character.rank)}).</p>}
+            {Object.entries(stats).map(([key, value]) => (
               <div key={key} className="space-y-1.5">
                 <div className="flex justify-between text-[11px] uppercase tracking-widest text-bege-escuro">
                   <span className="font-title text-sm capitalize">{key}</span>
-                  <span className="font-mono text-sm">{value}</span>
+                  <span className="flex items-center gap-2 font-mono text-sm">{value}{unspentAttributePoints > 0 && <button type="button" aria-label={`Aplicar ponto em ${key}`} onClick={() => handleSpendAttribute(key as keyof typeof stats)} disabled={isPending || value >= getRankMax(character.rank)} className="w-6 h-6 border border-bege-medio/50 text-bege-medio hover:bg-bege-medio/10 disabled:opacity-30">+</button>}</span>
                 </div>
                 <div className="w-full h-1.5 rounded-sm overflow-hidden border border-roxo">
                   <div className="h-full bg-bege-medio rounded-sm transition-all duration-500" style={{ width: `${(value / 20) * 100}%` }} />

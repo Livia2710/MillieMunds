@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { InventoryItem, InventoryRarity } from '@/lib/types/inventory'
+import type { ConsumableType, EquipmentEffectRecord, EquipmentType, InventoryItem, InventoryRarity } from '@/lib/types/inventory'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import NoCampaign from '@/componentes/NoCampaign'
@@ -24,6 +24,12 @@ type Item = {
   effect: string | null
   origin: string | null
   forgedBy: string | null
+  equipmentType: string | null
+  equipmentSubtype: string | null
+  equipmentEffects: unknown
+  equipmentDurability?: number | null
+  equipmentMaxDurability?: number | null
+  consumableType?: string | null
   worldSlug: string | null
   author: string | null
   coverType: string | null
@@ -89,10 +95,20 @@ export default function InventarioClient({ items, isMaster, hasCampaign, playerC
     }
   }
   if (item.category === 'equipamento') {
-    return { ...base, category: 'equipamento' as const, forgedBy: item.forgedBy ?? '', effect: item.effect ?? '' }
+    return {
+      ...base,
+      category: 'equipamento' as const,
+      forgedBy: item.forgedBy ?? '',
+      effect: item.effect ?? '',
+      equipmentType: (item.equipmentType ?? undefined) as EquipmentType | undefined,
+      equipmentSubtype: (item.equipmentSubtype ?? undefined) as import('@/lib/types/inventory').EquipmentSubtype | undefined,
+      equipmentEffects: Array.isArray(item.equipmentEffects) ? item.equipmentEffects as EquipmentEffectRecord[] : [],
+      equipmentDurability: item.equipmentDurability ?? null,
+      equipmentMaxDurability: item.equipmentMaxDurability ?? null,
+    }
   }
   if (item.category === 'consumivel') {
-    return { ...base, category: 'consumivel' as const, origin: item.origin ?? '', effect: item.effect ?? '' }
+    return { ...base, category: 'consumivel' as const, origin: item.origin ?? '', effect: item.effect ?? '', consumableType: (item.consumableType ?? undefined) as ConsumableType | undefined }
   }
   if (item.category === 'material') {
     return { ...base, category: 'material' as const, origin: item.origin ?? '', effect: item.effect ?? undefined }

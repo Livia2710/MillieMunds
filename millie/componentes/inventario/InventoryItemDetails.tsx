@@ -1,11 +1,24 @@
 import Image from "next/image";
 import type { InventoryItem } from "@/lib/types/inventory";
+import { getEquipmentPrice, getEquipmentMaxDurability, getPotionPrice } from "@/lib/utils/equipment";
+import CurrencyDisplay from "@/componentes/moedas/CurrencyDisplay";
+import EquipmentDurabilityControl from "@/componentes/inventario/EquipmentDurabilityControl";
+import UseHealingPotionControl from "@/componentes/inventario/UseHealingPotionControl";
 
 type RegularInventoryItem = Exclude<InventoryItem, { category: "livro" }>;
 
 type InventoryItemDetailsProps = {
   item: RegularInventoryItem;
+  isMaster?: boolean;
+  canUseConsumable?: boolean;
 };
+
+type DetailField = { label: string; value?: string; currencyAmount?: number };
+
+const equipmentTypeLabels: Record<string, string> = {
+  arma: "Arma", armadura: "Armadura", escudo: "Escudo", outro: "Outro",
+};
+const equipmentSubtypeLabels: Record<string, string> = { corpo_a_corpo: 'Corpo a corpo', leve: 'Leve', distancia: 'À distância', foco_magico: 'Foco mágico', leve_armadura: 'Leve', media_armadura: 'Média', pesada_armadura: 'Pesada' };
 
 const rarityCrests: Record<string, string> = {
   comum: "/assets/svgs/raridade/Comum.svg",
@@ -15,20 +28,36 @@ const rarityCrests: Record<string, string> = {
   lendario: "/assets/svgs/raridade/Lendario.svg",
   mitico: "/assets/svgs/raridade/Mitico.svg",
 };
+const categoryLabels: Record<string, string> = {
+  equipamento: "Equipamento", consumivel: "Consumível", material: "Material",
+  reliquia: "Artefato", livro: "Livro", outro: "Outro",
+};
+function potionEffect(rarity: string, type: 'cura_pv' | 'cura_pm') {
+  const percentages: Record<string, number> = { comum: 15, incomum: 25, raro: 40, epico: 40, lendario: 60, mitico: 60 };
+  const resource = type === 'cura_pv' ? 'PV' : 'PM';
+  const extra = rarity === 'epico' ? ' e remove 1 condição' : rarity === 'mitico' ? ' e remove todas as condições' : '';
+  return `Recupera ${percentages[rarity] ?? 0}% dos ${resource} máximos${extra}.`;
+}
 
-function getSpecificFields(item: RegularInventoryItem) {
+function getSpecificFields(item: RegularInventoryItem): DetailField[] {
   switch (item.category) {
     case "equipamento":
       return [
+        { label: "Tipo", value: equipmentTypeLabels[item.equipmentType ?? ""] ?? "Não definido" },
+        ...(item.equipmentSubtype ? [{ label: "Subtipo", value: equipmentSubtypeLabels[item.equipmentSubtype] ?? item.equipmentSubtype }] : []),
+        { label: "Preço base", currencyAmount: getEquipmentPrice(item.rarity, item.equipmentSubtype) },
         { label: "Forjado por", value: item.forgedBy },
-        { label: "Efeito", value: item.effect },
+        { label: "Efeitos", value: item.equipmentEffects?.length
+          ? item.equipmentEffects.map(effect => `${effect.name}${effect.rule === 'custom' ? ' · personalizado' : ' · propriedade nativa'}\n${effect.description}`).join("\n\n")
+          : item.effect || "Nenhum efeito cadastrado" },
       ];
 
     case "consumivel":
     case "reliquia":
       return [
         { label: "Origem", value: item.origin },
-        { label: "Efeito", value: item.effect },
+        ...(item.category === 'consumivel' ? [{ label: "Preço base", currencyAmount: getPotionPrice(item.rarity) }] : []),
+        { label: "Efeito", value: item.category === 'consumivel' && item.consumableType && item.consumableType !== 'outro' ? potionEffect(item.rarity, item.consumableType) : item.effect },
       ];
 
     case "material":
@@ -45,9 +74,7 @@ function getSpecificFields(item: RegularInventoryItem) {
   }
 }
 
-export default function InventoryItemDetails({
-  item,
-}: InventoryItemDetailsProps) {
+export default function InventoryItemDetails({ item, isMaster = false, canUseConsumable = false }: InventoryItemDetailsProps) {
 
   const fields = getSpecificFields(item);
 
@@ -89,7 +116,7 @@ export default function InventoryItemDetails({
           <div className="flex items-center gap-3 md:justify-start max-md:flex-col max-md:text-center">
 
             <p className=" font-title text-xs uppercase tracking-[0.25em] text-bege-escuro">
-            {item.category} / {item.rarity}
+            {categoryLabels[item.category] ?? item.category} / {item.rarity}
             </p>
           </div>
 
@@ -122,8 +149,12 @@ export default function InventoryItemDetails({
                 key={field.label}
                 label={field.label}
                 value={field.value}
+                currencyAmount={field.currencyAmount}
               />
             ))}
+
+            {item.category === 'equipamento' && item.equipmentType !== 'outro' && <EquipmentDurabilityControl itemId={item.id} durability={item.equipmentDurability ?? null} maxDurability={item.equipmentMaxDurability ?? getEquipmentMaxDurability(item.rarity)} isMaster={isMaster} />}
+            {item.category === 'consumivel' && <UseHealingPotionControl itemId={item.id} type={item.consumableType} canUse={canUseConsumable} />}
 
           </div>
         </div>
@@ -134,10 +165,12 @@ export default function InventoryItemDetails({
 
 function DetailLine({
   label,
-  value
+  value,
+  currencyAmount,
 }:{
   label:string;
-  value:string;
+  value?:string;
+  currencyAmount?:number;
 }){
 return (
   <p className=" flex flex-col gap-1 border-b border-bege-escuro/15 pb-3 sm:flex-row sm:gap-3">
@@ -145,8 +178,8 @@ return (
     {label}:
     </strong>
 
-    <span className="text-bege-claro/90">
-    {value}
+    <span className="whitespace-pre-line text-bege-claro/90">
+    {currencyAmount !== undefined ? <CurrencyDisplay amount={currencyAmount} iconSize={20} /> : value}
     </span>
   </p>
 );

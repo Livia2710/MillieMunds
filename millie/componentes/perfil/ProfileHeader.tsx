@@ -8,6 +8,7 @@ import type { AutoCondition } from '@/lib/utils/conditions'
 type ActiveCondition = {
   id: string
   type: string
+  definition?: { name: string; cause: string; color: string; removalInstructions: string } | null
 }
 
 interface ProfileHeaderProps {

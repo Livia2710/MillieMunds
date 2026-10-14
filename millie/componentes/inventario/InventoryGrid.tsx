@@ -138,11 +138,11 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
         className="mt-3 max-w-55 sm:max-w-75 md:mt-4 md:max-w-[80%]" 
       />
       <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:text-2xl">
-        {usedSpaces}/200 espaços utilizados
+        {usedSpaces} unidades cadastradas
       </p>
       {isMaster && (
         <p className="mt-2 font-title text-base text-bege-medio/80">
-          Todos os itens registrados da campanha
+          Estoque da campanha sem limite de capacidade
         </p>
       )}
     </div>

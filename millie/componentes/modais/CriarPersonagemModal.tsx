@@ -16,7 +16,6 @@ import type { BaseRank } from "@/lib/generated/prisma";
 import { createCharacter, getUniverses } from "@/app/actions/character";
 
 import { 
-  getRankMin, 
   getRankMax, 
   calcPV, 
   calcPM, 
@@ -56,7 +55,6 @@ const CATEGORY_OPTIONS: {
   { value: "monstro", label: "Monstro" },
 ];
 
-const RANK_OPTIONS = ["D", "C", "B", "A", "S"];
 
 const ATTR_LABELS: Record<string, string> = {
   agilidade: "Agilidade",
@@ -82,17 +80,6 @@ function getAttributePoints(rank: string) {
   }
 }
 
-function getStudentRank(year: number) {
-  switch (year) {
-    case 1: return "D";
-    case 2: return "C";
-    case 3: return "B";
-    case 4: return "A";
-    case 5: return "S";
-    default: return "D";
-  }
-}
-
 type Props = {
   isOpen: boolean;
   onClose: () => void;
@@ -113,7 +100,6 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const [element, setElement] = useState("");
 
   const [baseRank, setBaseRank] = useState("D");
-  const [manualRank, setManualRank] = useState("D");
 
   const [year, setYear] = useState("1");
   const [subject, setSubject] = useState("");
@@ -169,11 +155,8 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
 
   const raceIsCorrupted = races.find((r) => r.id === raceId)?.isCorrupted ?? false;
 
-  const currentRank = category === "aluno"
-    ? getStudentRank(Number(year))
-    : category === "professor" || category === "npc"
-      ? manualRank
-      : calcCurrentRank(startLevel, baseRank, raceIsCorrupted);
+  const currentRank = calcCurrentRank(startLevel, baseRank, raceIsCorrupted);
+  const attributeMax = getRankMax(currentRank);
 
   const totalPoints = getAttributePoints(currentRank);
   const usedPoints = ATTR_KEYS.reduce((total, key) => total + attrs[key], 0);
@@ -209,13 +192,13 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
     const val = parseInt(raw);
     if (isNaN(val)) return;
 
-    const clamped = Math.max(1, val);
+    const clamped = Math.max(1, Math.min(attributeMax, val));
     const otherSum = ATTR_KEYS
       .filter((k) => k !== key)
       .reduce((sum, k) => sum + attrs[k], 0);
 
     const maxAllowed = totalPoints - otherSum;
-    const finalValue = Math.min(clamped, maxAllowed);
+    const finalValue = Math.min(clamped, maxAllowed, attributeMax);
 
     setAttrs((prev) => ({
       ...prev,
@@ -236,7 +219,6 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
     setImage("");
     setError("");
     setManualLevel("1");
-    setManualRank("D");
 
     setAttrs({
       agilidade: 1,
@@ -364,7 +346,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 {baseRank}
               </span>
               <span className="font-title text-[10px] text-bege-escuro/50">
-                {getRankMin(baseRank)} – {getRankMax(baseRank)}
+                Linhagem {baseRank}
               </span>
             </div>
           </div>
@@ -406,12 +388,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 onChange={(e) => setManualLevel(e.target.value)}
               />
 
-              <MillieSelect
-                label="Rank Atual"
-                options={RANK_OPTIONS.map((rank) => ({ value: rank, label: rank }))}
-                value={manualRank}
-                onChange={(e) => setManualRank(e.target.value)}
-              />
+              <div className="border border-bege-escuro/20 bg-roxo-escuro/40 px-3 py-2.5"><span className="font-title text-[10px] uppercase tracking-widest text-bege-escuro/60">Rank Atual</span><p className="font-title text-sm text-bege-medio">{currentRank}</p></div>
             </div>
           </>
         )}
@@ -432,12 +409,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 onChange={(e) => setManualLevel(e.target.value)}
               />
 
-              <MillieSelect
-                label="Rank Atual"
-                options={RANK_OPTIONS.map((rank) => ({ value: rank, label: rank }))}
-                value={manualRank}
-                onChange={(e) => setManualRank(e.target.value)}
-              />
+              <div className="border border-bege-escuro/20 bg-roxo-escuro/40 px-3 py-2.5"><span className="font-title text-[10px] uppercase tracking-widest text-bege-escuro/60">Rank Atual</span><p className="font-title text-sm text-bege-medio">{currentRank}</p></div>
             </div>
           </>
         )}
@@ -474,6 +446,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
               {remainingPoints} / {totalPoints} pts
             </span>
           </div>
+          <p className="text-[10px] text-bege-escuro/60">Limite por atributo no Rank {currentRank}: 1–{attributeMax}.</p>
 
           {ATTR_KEYS.map((key) => (
             <div key={key} className="flex items-center gap-3">
@@ -484,6 +457,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
               <input
                 type="number"
                 min={1}
+                max={attributeMax}
                 value={attrs[key]}
                 onChange={(e) => handleAttrChange(key, e.target.value)}
                 className="w-20 bg-roxo-escuro/40 border border-bege-escuro/30 p-1.5 text-xs text-bege-claro font-title outline-none focus:border-bege-medio text-center"
@@ -550,7 +524,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
 
           <PrimaryButton
             onClick={handleSubmit}
-            disabled={isPending || remainingPoints !== 0}
+            disabled={isPending || remainingPoints !== 0 || ATTR_KEYS.some((key) => attrs[key] > attributeMax)}
           >
             {isPending ? "Criando..." : "Criar Personagem"}
           </PrimaryButton>

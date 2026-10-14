@@ -4,9 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ProfileCharacter } from '@/lib/types/profile';
 import { InventoryItem } from '@/lib/types/inventory';
+import { Send } from 'lucide-react'
+import TransferirItemJogadorModal from '@/componentes/inventario/TransferirItemJogadorModal'
 
 interface ProfileInventoryProps {
   character: ProfileCharacter;
+  transferTargets: { id: string; name: string; playerName: string }[]
 }
 
 // Mapeamento dos brasões de raridade oficiais do projeto baseado nos SVGs públicos
@@ -19,8 +22,10 @@ const rarityCrests: Record<string, string> = {
   mitico: "/assets/svgs/raridade/Mitico.svg",
 };
 
-export default function ProfileInventory({ character }: ProfileInventoryProps) {
+export default function ProfileInventory({ character, transferTargets }: ProfileInventoryProps) {
   const [activeTab, setActiveTab] = useState<'itens' | 'livros'>('itens');
+  const [itemToTransfer, setItemToTransfer] = useState<InventoryItem | null>(null)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
 
   // Filtra itens usando a nova lógica categórica
   const filteredItems = character.inventory.filter((item) => {
@@ -35,7 +40,10 @@ export default function ProfileInventory({ character }: ProfileInventoryProps) {
   return (
     <div className="relative w-full border border-bege-escuro/40 p-6 backdrop-blur-sm shadow-card mt-6">
       <div className="text-left w-full">
-          <h2 className="text-md text-bege-medio tracking-[0.2em] font-title uppercase">Inventário</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-md text-bege-medio tracking-[0.2em] font-title uppercase">Inventário</h2>
+            {transferTargets.length > 0 && character.inventory.length > 0 && <button type="button" onClick={() => { setItemToTransfer(null); setIsTransferModalOpen(true) }} className="inline-flex items-center gap-1 border border-bege-escuro/30 px-2 py-1 text-[10px] uppercase tracking-wider text-bege-medio hover:border-bege-medio"><Send size={12} /> Transferir item</button>}
+          </div>
           <Image 
             src="/assets/svgs/divider.svg" 
             alt="" 
@@ -86,6 +94,7 @@ export default function ProfileInventory({ character }: ProfileInventoryProps) {
                 className="arcane-hover relative aspect-square bg-roxo-escuro border border-bege-escuro/20 rounded p-2 flex flex-col items-center justify-center group hover:border-bege-medio transition-colors overflow-hidden shadow-card"
                 title={`${item.name} (${item.rarity})`}
               >
+                {transferTargets.length > 0 && <button type="button" onClick={() => { setItemToTransfer(item); setIsTransferModalOpen(true) }} aria-label={`Transferir ${item.name} para outro jogador`} title="Transferir para outro jogador" className="absolute left-1 top-1 z-20 grid h-7 w-7 place-items-center border border-bege-escuro/40 bg-roxo-escuro/90 text-bege-medio hover:border-bege-medio"><Send size={13} /></button>}
                 {/* Brasão Dinâmico de Raridade posicionado no canto superior direito do slot */}
                 <div className="absolute top-1 right-1 w-3.5 h-3.5 z-10 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
                   <Image 
@@ -129,6 +138,7 @@ export default function ProfileInventory({ character }: ProfileInventoryProps) {
           <span className="text-[10px] tracking-wider uppercase font-title mt-1">Ver todos</span>
         </Link>
       </div>
+      <TransferirItemJogadorModal key={itemToTransfer?.id ?? (isTransferModalOpen ? 'select-item' : 'closed')} isOpen={isTransferModalOpen} item={itemToTransfer} items={character.inventory} targets={transferTargets} onClose={() => { setItemToTransfer(null); setIsTransferModalOpen(false) }} />
     </div>
   );
 }

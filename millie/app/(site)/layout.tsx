@@ -1,5 +1,6 @@
 import { Header } from "@/componentes/Header";
 import { MasterOrb } from "@/componentes/MasterOrb";
+import { CampaignOrb } from "@/componentes/CampaignOrb";
 
 export default function SiteLayout({
   children,
@@ -20,6 +21,7 @@ export default function SiteLayout({
         </p>
       </footer>
        <MasterOrb />
+      <CampaignOrb />
 
     </>
   );

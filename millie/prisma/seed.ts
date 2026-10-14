@@ -281,6 +281,7 @@ async function main() {
     { name: 'Barbatos',        element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Amon',            element: 'trevas', baseRank: 'B', canAscend: false, canCorrupt: false },
     { name: 'Buer',            element: 'trevas', baseRank: 'C', canAscend: true, canCorrupt: false }, 
+    { name: 'Zagan',           element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false }, 
     { name: 'Oriens',          element: 'trevas', baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Marbas',          element: 'trevas', baseRank: 'A', canAscend: false, canCorrupt: false },
     { name: 'Agares',          element: 'trevas', baseRank: 'B', canAscend: true, canCorrupt: false }, 

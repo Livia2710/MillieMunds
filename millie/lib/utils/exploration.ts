@@ -1,6 +1,6 @@
 import type { MapAccess, MapObject, MapRoom, PublicDoor } from '@/lib/types/exploration'
 
-export const isOnce = (o: Pick<MapObject, 'type' | 'discoveredOnce'>) => o.type === 'item' || o.discoveredOnce !== false
+export const isOnce = (o: Pick<MapObject, 'type' | 'discoveredOnce'>) => o.type === 'item' || o.type === 'scene' || o.discoveredOnce !== false
 
 /** Aceita o formato antigo ({type:'code',value}) e o novo (combinável). */
 export function normalizeAccess(raw: unknown): MapAccess {
@@ -34,7 +34,7 @@ export function doorsFor(rooms: MapRoom[], room: MapRoom): PublicDoor[] {
     const dx = t.x + t.width / 2 - (room.x + room.width / 2)
     const dy = t.y + t.height / 2 - (room.y + room.height / 2)
     const direction = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : dy >= 0 ? 'down' : 'up'
-    return [{ roomId, label: t.name, direction, needsCode: !!a.code, minLevel: a.level ?? null, needsItem: !!a.itemId, needsAffinity: !!a.affinityCharacterId } as PublicDoor]
+    return [{ roomId, label: t.name, direction, needsCode: !!a.code, minLevel: a.level ?? null, needsItem: !!a.itemId, needsAffinity: !!a.affinityCharacterId, isStairs: (t.floorId ?? 'ground') !== (room.floorId ?? 'ground') } as PublicDoor]
   })
 }
 

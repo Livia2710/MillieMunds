@@ -140,6 +140,10 @@ export default function CharacterCard({ character }: CharacterCardProps) {
                 <strong className="font-title uppercase text-bege-escuro">Mundo:</strong>
                 <span className="truncate max-w-[100px] lg:max-w-[140px]">{character.worldSlug}</span>
               </p>
+              {character.favorByCharacter?.map(favor => <p key={favor.characterName} className="flex gap-2 border-t border-bege-escuro/10 pt-1 lg:justify-between">
+                <strong className="font-title uppercase text-bege-escuro">Favor de {character.name} com {favor.characterName}:</strong>
+                <span>{favor.category}</span>
+              </p>)}
             </div>
           </div>
         </article>

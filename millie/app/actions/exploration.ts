@@ -59,7 +59,7 @@ function checkedRooms(value: unknown): MapRoom[] {
 
     // Validação dos objetos/elementos da sala
     for (const object of room.objects) {
-      if (!object || !object.id || !['scene', 'item', 'character', 'portal'].includes(object.type)) {
+      if (!object || !object.id || !['scene', 'item', 'character', 'portal', 'mission'].includes(object.type)) {
         throw new Error('Elemento inválido');
       }
 
@@ -87,6 +87,16 @@ function checkedRooms(value: unknown): MapRoom[] {
       if (object.type === 'portal' && (!object.targetMapId || !object.targetRoomId)) {
         throw new Error(`Configure o mapa e a sala de destino do portal "${object.title}"`);
       }
+      if (object.type === 'portal' && object.portalState !== undefined && !['active', 'inactive', 'blocked'].includes(object.portalState)) {
+        throw new Error(`Estado inválido para o portal "${object.title}"`)
+      }
+      if (object.type === 'portal' && object.portalStyle !== undefined && !['arch', 'rune-circle', 'mirror', 'rift'].includes(object.portalStyle)) {
+        throw new Error(`Forma inválida para o portal "${object.title}"`)
+      }
+      if (object.type === 'mission' && (!object.missionObjectiveItemId || !Number.isInteger(object.missionObjectiveQuantity) || (object.missionObjectiveQuantity ?? 0) < 1 || (object.missionObjectiveQuantity ?? 0) > 999))
+        throw new Error(`Configure o item e a quantidade do objetivo da missão "${object.title}"`)
+      if (object.type === 'mission' && (!Number.isInteger(object.missionFavorDelta ?? 0) || Math.abs(object.missionFavorDelta ?? 0) > 3 || !Number.isInteger(object.missionCurrencyDelta ?? 0)))
+        throw new Error(`Recompensa inválida na missão "${object.title}"`)
 
       // Validação das opções da cena (garantindo que é um array antes de testar)
       if (Array.isArray(object.options)) {
@@ -107,9 +117,25 @@ export async function listExplorationMaps() {
   const rows = m.role === 'MASTER'
     ? await prisma.$queryRaw<MapRow[]>`SELECT "id","name","rooms","floors","isEditing","isPublished" FROM "ExplorationMap" WHERE "campaignId"=${m.campaignId} ORDER BY "createdAt" DESC`
     : await prisma.$queryRaw<MapRow[]>`SELECT "id","name","rooms","floors","isEditing","isPublished" FROM "ExplorationMap" WHERE "campaignId"=${m.campaignId} AND "isPublished"=true ORDER BY "createdAt" DESC`
-     const list = rows.map(mapRecord)
-   return (m.role === 'MASTER' ? list : list.map(x => ({ ...x, rooms: [] }))) satisfies ExplorationMapRecord[]
+  const [state] = await prisma.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
+  const maps = rows.map(mapRecord)
+  return {
+    maps: (m.role === 'MASTER' ? maps : maps.map(map => ({ ...map, rooms: [] }))) satisfies ExplorationMapRecord[],
+    currentMapId: state?.currentMapId ?? null,
+    currentRoomId: state?.currentRoomId ?? null,
+  }
 }
+
+export async function getActiveExplorationMap() {
+  const m = await member()
+  const [state] = await prisma.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
+  if (!state?.currentMapId) return null
+  const [map] = await prisma.$queryRaw<Array<{ name: string; rooms: unknown }>>`SELECT "name","rooms" FROM "ExplorationMap" WHERE "id"=${state.currentMapId} AND "campaignId"=${m.campaignId} LIMIT 1`
+  if (!map) return null
+  const room = ((map.rooms ?? []) as MapRoom[]).find(candidate => candidate.id === state.currentRoomId)
+  return { mapName: map.name, roomName: room?.name ?? null }
+}
+
 export async function createExplorationMap(name = 'Novo mapa') {
   const m = await member('MASTER'); const id = randomUUID(); const clean = name.trim().slice(0,80) || 'Novo mapa'
   await prisma.$executeRaw`INSERT INTO "ExplorationMap" ("id","campaignId","name","rooms") VALUES (${id},${m.campaignId},${clean},'[]'::jsonb)`
@@ -131,6 +157,10 @@ export async function getExplorationMap(id: string) {
 }
 export async function saveExplorationMap(id: string, name: string, value: unknown, floorValue?: unknown) {
   const m = await member('MASTER'); const rooms = checkedRooms(value); const clean = name.trim().slice(0,80) || 'Mapa sem nome'; const floors = Array.isArray(floorValue) ? floorValue.filter((f): f is MapFloor => !!f && typeof f.id === 'string' && typeof f.name === 'string' && !!f.name.trim()).slice(0,20) : [{id:'ground',name:'Térreo'}]; if(!floors.length) throw new Error('Adicione pelo menos um andar'); const floorIds=new Set(floors.map(f=>f.id)); if(rooms.some(r=>!floorIds.has(r.floorId??'ground'))) throw new Error('Cada sala precisa pertencer a um andar existente')
+  const missionItems = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission').map(object => object.missionObjectiveItemId!)))]
+  const missionFavorCharacters = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission' && (object.missionFavorDelta ?? 0) !== 0).map(object => object.missionFavorCharacterId).filter((value): value is string => !!value)))]
+  if (missionItems.length && await prisma.inventoryItem.count({ where: { id: { in: missionItems }, campaignId: m.campaignId } }) !== missionItems.length) throw new Error('Uma missão referencia um item que não pertence à campanha')
+  if (missionFavorCharacters.length && await prisma.character.count({ where: { id: { in: missionFavorCharacters }, campaignId: m.campaignId } }) !== missionFavorCharacters.length) throw new Error('Uma missão referencia um personagem inválido para a recompensa de Favor')
   const n = await prisma.$executeRaw`UPDATE "ExplorationMap" SET "name"=${clean},"rooms"=${JSON.stringify(rooms)}::jsonb,"floors"=${JSON.stringify(floors)}::jsonb,"updatedAt"=NOW() WHERE "id"=${id} AND "campaignId"=${m.campaignId} AND "isEditing"=true`
   if (!n) throw new Error('Mapa não encontrado ou edição encerrada'); revalidatePath('/mapas')
 }
@@ -141,24 +171,39 @@ export async function finishExplorationMap(id: string) {
     if (!rows.length) throw new Error('Adicione pelo menos uma sala antes de liberar o mapa')
     const rooms = rows[0].rooms as MapRoom[]
     const states = await tx.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
-    if (!states.length) await tx.$executeRaw`INSERT INTO "CampaignExplorationState" ("campaignId","currentMapId","currentRoomId","discovered","updatedAt") VALUES (${m.campaignId},${id},${rooms[0].id},'[]'::jsonb,NOW())`
-    else if (!states[0].currentMapId) await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentMapId"=${id},"currentRoomId"=${rooms[0].id},"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
-    else if (states[0].currentMapId === id && !rooms.some(r => r.id === states[0].currentRoomId))
-      await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentRoomId"=${rooms[0].id},"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    if (!states.length) {
+      const interaction = await firstEntryScene(tx, m.campaignId, id, rooms[0], m.userId)
+      await tx.$executeRaw`INSERT INTO "CampaignExplorationState" ("campaignId","currentMapId","currentRoomId","discovered","activeInteraction","updatedAt") VALUES (${m.campaignId},${id},${rooms[0].id},'[]'::jsonb,${interaction ? JSON.stringify(interaction) : null}::jsonb,NOW())`
+    } else if (!states[0].currentMapId) {
+      const interaction = await firstEntryScene(tx, m.campaignId, id, rooms[0], m.userId)
+      await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentMapId"=${id},"currentRoomId"=${rooms[0].id},"activeInteraction"=${interaction ? JSON.stringify(interaction) : null}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    } else if (states[0].currentMapId === id && !rooms.some(r => r.id === states[0].currentRoomId)) {
+      const interaction = await firstEntryScene(tx, m.campaignId, id, rooms[0], m.userId)
+      await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentRoomId"=${rooms[0].id},"activeInteraction"=${interaction ? JSON.stringify(interaction) : null}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    }
   })
   revalidatePath('/mapas')
 }
 
-async function assertAccess(tx: Tx, campaignId: string, raw: unknown, code?: string) {
+async function assertAccess(tx: Tx, campaignId: string, playerId: string, raw: unknown, code?: string) {
   const a = normalizeAccess(raw)
   if (a.code && a.code.toLowerCase() !== (code ?? '').trim().toLowerCase()) throw new Error('Código incorreto')
   if (!a.level && !a.itemId && !a.affinityCharacterId) return
-  const party = await tx.character.findMany({ where: { campaignId, playerId: { not: null } }, select: { id: true, level: true } })
-  if (a.level && !party.some(c => c.level >= a.level!)) throw new Error(`Nenhum personagem do grupo tem nível ${a.level}`)
+  const party = await tx.character.findMany({ where: { campaignId, playerId }, select: { id: true, level: true, category: true } })
+  if (a.level && !party.some(c => c.level >= a.level!)) throw new Error(`Seu personagem precisa ter nível ${a.level}`)
   if (a.itemId && !(await tx.inventoryItem.count({ where: { id: a.itemId, campaignId, ownerId: { in: party.map(c => c.id) } } })))
-    throw new Error('O grupo não possui o item necessário')
-  if (a.affinityCharacterId && (!party.length || !(await tx.$queryRaw<Array<{ ok: number }>>`SELECT 1 AS ok FROM "CharacterAffinity" WHERE "campaignId"=${campaignId} AND "targetCharacterId"=${a.affinityCharacterId} AND "sourceCharacterId" IN (${Prisma.join(party.map(c => c.id))}) AND "value">=${a.affinity ?? 0} LIMIT 1`).length))
-    throw new Error(`O grupo precisa de afinidade ${a.affinity ?? 0} com o personagem exigido`)
+    throw new Error('Seu personagem não possui o item necessário')
+  const students = party.filter(character => character.category === 'aluno')
+  if (a.affinityCharacterId && (!students.length || !(await tx.$queryRaw<Array<{ ok: number }>>`SELECT 1 AS ok FROM "CharacterAffinity" WHERE "campaignId"=${campaignId} AND "sourceCharacterId"=${a.affinityCharacterId} AND "targetCharacterId" IN (${Prisma.join(students.map(c => c.id))}) AND "value">=${a.affinity ?? 0} LIMIT 1`).length))
+    throw new Error(`Um aluno precisa ter Favor ${a.affinity ?? 0} com o personagem exigido`)
+}
+
+async function firstEntryScene(tx: Tx, campaignId: string, mapId: string, room: MapRoom, userId: string) {
+  for (const scene of room.objects.filter(object => object.type === 'scene')) {
+    const inserted = await tx.$executeRaw`INSERT INTO "ExplorationDiscovery" ("campaignId","mapId","objectId","type","title","foundByUserId") VALUES (${campaignId},${mapId},${scene.id},'scene',${scene.title},${userId}) ON CONFLICT DO NOTHING`
+    if (inserted) return { id: scene.id, mapId, roomId: room.id, objectId: scene.id, title: scene.title, type: 'scene', image: scene.image ?? null, description: scene.description ?? '', options: [], choiceText: '' }
+  }
+  return null
 }
 
 export async function beginExplorationMapEdit(id:string) { const m=await member('MASTER'); const n=await prisma.$executeRaw`UPDATE "ExplorationMap" SET "isEditing"=true,"updatedAt"=NOW() WHERE "id"=${id} AND "campaignId"=${m.campaignId}`; if(!n) throw new Error('Mapa não encontrado'); revalidatePath('/mapas') }
@@ -181,14 +226,22 @@ export async function getPlayerExplorationSnapshot(previewMapId?: string, previe
 
   const found = await prisma.$queryRaw<Array<{ objectId: string }>>`SELECT "objectId" FROM "ExplorationDiscovery" WHERE "campaignId"=${m.campaignId} AND "mapId"=${row.id}`
   const done = new Set(found.map(f => f.objectId))
+  if (m.role === 'PLAYER' && s?.currentMapId === row.id && s.currentRoomId === room.id && room.objects.some(o => o.type === 'scene' && !done.has(o.id))) {
+    await prisma.$transaction(async tx => {
+      const [state] = await tx.$queryRaw<Array<{currentMapId:string|null;currentRoomId:string|null;activeInteraction:unknown}>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+      if (!state || state.currentMapId !== row.id || state.currentRoomId !== room.id || state.activeInteraction) return
+      const interaction = await firstEntryScene(tx, m.campaignId, row.id, room, m.userId)
+      if (interaction) await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    })
+  }
   const itemIds = room.objects.flatMap(o => (o.type === 'item' && o.inventoryItemId ? [o.inventoryItemId] : []))
   const free = new Set((await prisma.inventoryItem.findMany({ where: { id: { in: itemIds }, campaignId: m.campaignId, ownerId: null, isLocked: false }, select: { id: true } })).map(i => i.id))
   const objects: PublicObject[] = room.objects
-    .filter(o => !(isOnce(o) && done.has(o.id)) && (o.type !== 'item' || (!!o.inventoryItemId && free.has(o.inventoryItemId))))
-    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, image: o.image, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
+    .filter(o => (o.type !== 'scene' || m.role === 'MASTER') && !(isOnce(o) && done.has(o.id)) && (o.type !== 'item' || (!!o.inventoryItemId && free.has(o.inventoryItemId))))
+    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, image: o.image, portalState: o.type === 'portal' ? (o.portalState ?? 'active') : undefined, portalStyle: o.type === 'portal' ? (o.portalStyle ?? 'arch') : undefined, description: o.type === 'mission' ? o.description : undefined, missionObjectiveItemId: o.type === 'mission' ? o.missionObjectiveItemId : undefined, missionObjectiveQuantity: o.type === 'mission' ? o.missionObjectiveQuantity : undefined, missionFavorCharacterId: o.type === 'mission' ? o.missionFavorCharacterId : undefined, missionFavorDelta: o.type === 'mission' ? o.missionFavorDelta : undefined, missionCurrencyDelta: o.type === 'mission' ? o.missionCurrencyDelta : undefined, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
 
   const mine = m.role === 'PLAYER'
-    ? await prisma.character.findMany({ where: { campaignId: m.campaignId, playerId: m.userId }, select: { id: true, name: true, forca: true, level: true, birthRank: true, race: { select: { isCorrupted: true } } } })
+    ? await prisma.character.findMany({ where: { campaignId: m.campaignId, playerId: m.userId }, select: { id: true, name: true, forca: true, level: true, birthRank: true, rankLosses: true, race: { select: { isCorrupted: true } } } })
     : []
   const inv = mine.length ? await prisma.inventoryItem.findMany({ where: { campaignId: m.campaignId, ownerId: { in: mine.map(c => c.id) } }, select: { id: true, name: true, ownerId: true } }) : []
   const characters = mine.map(c => {
@@ -197,7 +250,8 @@ export async function getPlayerExplorationSnapshot(previewMapId?: string, previe
   })
 
   const [stateRow] = !previewMapId && s?.currentMapId === row.id ? await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1` : []
-  const activeInteraction = stateRow?.activeInteraction as {mapId:string;roomId:string;objectId:string;title:string;type:string;image?:string;description?:string;options?:MapRoom['objects'][number]['options'];choiceText?:string}|null
+  const storedInteraction = stateRow?.activeInteraction as {mapId:string;roomId:string;objectId:string;title:string;type:string;image?:string;description?:string;options?:MapRoom['objects'][number]['options'];choiceText?:string}|null
+  const activeInteraction = storedInteraction
   return {
     map: { id: row.id, name: row.name },
     room: { id: room.id, name: room.name, floorName: ((row.floors ?? []) as MapFloor[]).find(f => f.id === (room.floorId ?? 'ground'))?.name ?? 'Térreo', background: room.background ?? null, objects },
@@ -224,8 +278,9 @@ export async function moveExplorationGroup(fromRoomId: string, roomId: string, a
     const dest = rooms.find(r => r.id === roomId)
     const door = current?.connections.find(c => c.roomId === roomId) ?? dest?.connections.find(c => c.roomId === s.currentRoomId)
     if (!dest || !door) throw new Error('Esse caminho não está conectado a esta sala')
-    await assertAccess(tx, m.campaignId, door.access, accessCode)
-    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentRoomId"=${roomId},"activeInteraction"=NULL,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    await assertAccess(tx, m.campaignId, m.userId, door.access, accessCode)
+    const interaction = await firstEntryScene(tx, m.campaignId, s.currentMapId, dest, m.userId)
+    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentRoomId"=${roomId},"activeInteraction"=${interaction ? JSON.stringify(interaction) : null}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
     return dest.name
   })
   revalidatePath('/mapas'); return moved
@@ -245,6 +300,8 @@ export async function discoverExplorationObject(mapId: string, roomId: string, o
     const base = { title: object.title, type: object.type, description: object.description ?? '', image: object.image ?? '', options: object.options ?? [] }
     // A visão do Mestre é apenas uma prévia, inclusive para portais e itens.
     if (m.role === 'MASTER') return { ...base, targetMapId: null, preview: true as const }
+    if (object.type === 'portal' && object.portalState === 'inactive') throw new Error('Este portal está inativo')
+    if (object.type === 'portal' && object.portalState === 'blocked') throw new Error('Este portal está bloqueado')
     if (once) {
       const done = await tx.$queryRaw<Array<{ ok: number }>>`SELECT 1 AS "ok" FROM "ExplorationDiscovery" WHERE "campaignId"=${m.campaignId} AND "mapId"=${mapId} AND "objectId"=${objectId}`
       if (done.length) throw new Error('Outro jogador já encontrou isso')
@@ -274,14 +331,17 @@ export async function discoverExplorationObject(mapId: string, roomId: string, o
     }
 
     if (object.type === 'portal' && object.targetMapId && object.targetRoomId) {
-      await assertAccess(tx, m.campaignId, object.access, accessCode)
+      await assertAccess(tx, m.campaignId, m.userId, object.access, accessCode)
       const [target] = await tx.$queryRaw<Array<{ isPublished: boolean; isEditing: boolean; rooms: unknown }>>`SELECT "isPublished","isEditing","rooms" FROM "ExplorationMap" WHERE "id"=${object.targetMapId} AND "campaignId"=${m.campaignId} LIMIT 1`
       if (!target?.isPublished || target.isEditing || !(target.rooms as MapRoom[]).some(r => r.id === object.targetRoomId)) throw new Error('Portal indisponível')
-      await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentMapId"=${object.targetMapId},"currentRoomId"=${object.targetRoomId},"activeInteraction"=NULL,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+      const targetRoom = (target.rooms as MapRoom[]).find(r => r.id === object.targetRoomId)!
+      const interaction = await firstEntryScene(tx, m.campaignId, object.targetMapId, targetRoom, m.userId)
+      await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentMapId"=${object.targetMapId},"currentRoomId"=${object.targetRoomId},"activeInteraction"=${interaction ? JSON.stringify(interaction) : null}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
       nextMapId = object.targetMapId
     }
 
-    if (object.type === 'scene' || object.type === 'character') {
+    if (object.type === 'scene' && m.role !== 'MASTER') throw new Error('A cena da sala aparece automaticamente na primeira entrada')
+    if (object.type === 'character') {
       const interaction = { id: objectId, mapId, roomId, objectId, title: object.title, type: object.type, image: object.image ?? null, description: object.description ?? '', options: object.options ?? [], choiceText: '' }
       await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
     }
@@ -302,8 +362,8 @@ export async function chooseExplorationSceneOption(mapId: string, roomId: string
   await prisma.$transaction(async tx => {
     const [state] = await tx.$queryRaw<Array<{currentMapId:string;currentRoomId:string;activeInteraction:unknown}>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
     if (state?.currentMapId !== mapId || state.currentRoomId !== roomId) throw new Error('O grupo já mudou de sala')
-    const interaction = state.activeInteraction as {mapId:string;roomId:string;objectId:string;options?:MapRoom['objects'][number]['options'];chosenOptionId?:string} | null
-    if (!interaction || interaction.mapId !== mapId || interaction.roomId !== roomId || interaction.objectId !== objectId) throw new Error('Esta conversa não está mais ativa')
+    const interaction = state.activeInteraction as {mapId:string;roomId:string;objectId:string;type?:string;options?:MapRoom['objects'][number]['options'];chosenOptionId?:string} | null
+    if (!interaction || interaction.type !== 'character' || interaction.mapId !== mapId || interaction.roomId !== roomId || interaction.objectId !== objectId) throw new Error('Esta conversa não está mais ativa')
     if (interaction.chosenOptionId) throw new Error('O grupo já fez uma escolha nesta conversa')
     const option = interaction.options?.find(o => o.id === optionId)
     if (!option) throw new Error('Opção indisponível')
@@ -311,11 +371,27 @@ export async function chooseExplorationSceneOption(mapId: string, roomId: string
     const choiceText = option.resultText || `O grupo escolheu: ${option.label}`
     await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"="activeInteraction" || ${JSON.stringify({choiceText,chosenOptionId:optionId})}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
     if (option.affinityCharacterId && option.affinityDelta) {
-      const party = await tx.character.findMany({where:{campaignId:m.campaignId,playerId:{not:null}},select:{id:true}})
-      for (const character of party) await tx.$executeRaw`INSERT INTO "CharacterAffinity" ("campaignId","sourceCharacterId","targetCharacterId","value") VALUES (${m.campaignId},${character.id},${option.affinityCharacterId},GREATEST(0,${option.affinityDelta})) ON CONFLICT ("campaignId","sourceCharacterId","targetCharacterId") DO UPDATE SET "value"=GREATEST(0,"CharacterAffinity"."value"+${option.affinityDelta})`
+      if (!Number.isInteger(option.affinityDelta) || Math.abs(option.affinityDelta) > 3) throw new Error('A mudança de Favor deve ser de 1 a 3 pontos')
+      const characters = await tx.character.findMany({where:{campaignId:m.campaignId,playerId:m.userId},select:{id:true}})
+      for (const character of characters) {
+        const [relation] = await tx.$queryRaw<Array<{value:number;sessionChange:number}>>`SELECT "value","sessionChange" FROM "CharacterAffinity" WHERE "campaignId"=${m.campaignId} AND "sourceCharacterId"=${option.affinityCharacterId} AND "targetCharacterId"=${character.id} FOR UPDATE`
+        const sessionChange = Math.max(-3, Math.min(3, (relation?.sessionChange ?? 0) + option.affinityDelta))
+        const appliedDelta = sessionChange - (relation?.sessionChange ?? 0)
+        if (!appliedDelta) continue
+        if (relation) await tx.$executeRaw`UPDATE "CharacterAffinity" SET "value"=GREATEST(-9,LEAST(9,"value"+${appliedDelta})),"sessionChange"=${sessionChange} WHERE "campaignId"=${m.campaignId} AND "sourceCharacterId"=${option.affinityCharacterId} AND "targetCharacterId"=${character.id}`
+        else await tx.$executeRaw`INSERT INTO "CharacterAffinity" ("campaignId","sourceCharacterId","targetCharacterId","value","sessionChange") VALUES (${m.campaignId},${option.affinityCharacterId},${character.id},GREATEST(-9,LEAST(9,${appliedDelta})),${sessionChange}) ON CONFLICT ("campaignId","sourceCharacterId","targetCharacterId") DO NOTHING`
+      }
     }
   })
   revalidatePath('/mapas')
+  revalidatePath('/personagens')
+}
+
+/** O Mestre abre uma nova sessão e zera o limite de mudança de Favor. */
+export async function resetFavorSession() {
+  const m = await member('MASTER')
+  await prisma.$executeRaw`UPDATE "CharacterAffinity" SET "sessionChange"=0 WHERE "campaignId"=${m.campaignId}`
+  revalidatePath('/personagens')
 }
 
 export async function closeExplorationInteraction(mapId:string,roomId:string,objectId:string) {
@@ -353,6 +429,10 @@ export async function setExplorationLocation(mapId: string, roomId: string) {
   const m = await member('MASTER')
   const [row] = await prisma.$queryRaw<Array<{ rooms: unknown; isPublished: boolean; isEditing: boolean }>>`SELECT "rooms","isPublished","isEditing" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} LIMIT 1`
   if (!row?.isPublished || row.isEditing || !(row.rooms as MapRoom[]).some(r => r.id === roomId)) throw new Error('Mapa ou sala indisponível')
-  await prisma.$executeRaw`INSERT INTO "CampaignExplorationState" ("campaignId","currentMapId","currentRoomId","discovered","updatedAt") VALUES (${m.campaignId},${mapId},${roomId},'[]'::jsonb,NOW()) ON CONFLICT ("campaignId") DO UPDATE SET "currentMapId"=EXCLUDED."currentMapId","currentRoomId"=EXCLUDED."currentRoomId","updatedAt"=NOW()`
+  const targetRoom = (row.rooms as MapRoom[]).find(room => room.id === roomId)!
+  await prisma.$transaction(async tx => {
+    const interaction = await firstEntryScene(tx, m.campaignId, mapId, targetRoom, m.userId)
+    await tx.$executeRaw`INSERT INTO "CampaignExplorationState" ("campaignId","currentMapId","currentRoomId","discovered","activeInteraction","updatedAt") VALUES (${m.campaignId},${mapId},${roomId},'[]'::jsonb,${interaction ? JSON.stringify(interaction) : null}::jsonb,NOW()) ON CONFLICT ("campaignId") DO UPDATE SET "currentMapId"=EXCLUDED."currentMapId","currentRoomId"=EXCLUDED."currentRoomId","activeInteraction"=EXCLUDED."activeInteraction","updatedAt"=NOW()`
+  })
   revalidatePath('/mapas')
 }

@@ -110,6 +110,8 @@ model Campaign {
   explorationMaps ExplorationMap[]
   explorationState CampaignExplorationState?
   explorationDiscoveries ExplorationDiscovery[]
+  conditionDefinitions CampaignConditionDefinition[]
+  mapMissionProgress MapMissionProgress[]
 }
 
 model CampaignMember {
@@ -138,6 +140,7 @@ model ExplorationMap {
   updatedAt   DateTime @updatedAt
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   discoveries ExplorationDiscovery[]
+  missionProgress MapMissionProgress[]
 
   @@index([campaignId])
 }
@@ -168,6 +171,20 @@ model ExplorationDiscovery {
 
   @@id([campaignId, mapId, objectId])
   @@index([campaignId, createdAt])
+}
+
+model MapMissionProgress {
+  campaignId String
+  mapId String
+  missionId String
+  characterId String
+  acceptedAt DateTime @default(now())
+  completedAt DateTime?
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  map ExplorationMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@id([campaignId, mapId, missionId, characterId])
+  @@index([campaignId, characterId])
 }
 
 // ─── MUNDO ────────────────────────────────────────────────
@@ -298,6 +315,9 @@ model Character {
   level Int @default(1)
   xp    Int @default(0)
   maxXp Int @default(100)
+  unspentAttributePoints Int @default(0)
+  specialCardUsedThisScene Boolean @default(false)
+  rankLosses Int @default(0)
 
   // rank de nascença (vem da raça, nunca muda)
   // rank atual é calculado pelo level no código — não salvo no banco
@@ -319,6 +339,7 @@ model Character {
   pvMax Int @default(12)
   pm    Int @default(12)
   pmMax Int @default(12)
+  currency Int @default(100) // em Estilhaços
 
   // relações
   raceId       String
@@ -330,6 +351,7 @@ model Character {
   specialCards SpecialCard[]
   affinitiesGiven CharacterAffinity[] @relation("AffinitySource")
   affinitiesReceived CharacterAffinity[] @relation("AffinityTarget")
+  mapMissionProgress MapMissionProgress[]
 
   conditions   CharacterCondition[]
   @@index([campaignId, playerId])
@@ -340,6 +362,7 @@ model CharacterAffinity {
   sourceCharacterId String
   targetCharacterId String
   value Int @default(0)
+  sessionChange Int @default(0)
   source Character @relation("AffinitySource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
   target Character @relation("AffinityTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
   @@id([campaignId, sourceCharacterId, targetCharacterId])
@@ -353,6 +376,20 @@ model CharacterCondition {
   appliedAt   DateTime  @default(now())
   removedAt   DateTime?
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model CampaignConditionDefinition {
+  id                 String   @id @default(cuid())
+  campaignId         String
+  name               String
+  cause              String   @db.Text
+  color              String   @default("#D8B35E")
+  removalInstructions String  @db.Text
+  createdAt          DateTime @default(now())
+  campaign           Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, name])
+  @@index([campaignId])
 }
 
 // ─── HABILIDADES ──────────────────────────────────────────
@@ -424,7 +461,13 @@ model InventoryItem {
   // campos específicos por tipo (nullable)
   forgedBy   String? // equipamento
   effect     String? // equipamento | consumivel | reliquia
+  equipmentType    String? // arma | armadura | escudo | outro
+  equipmentSubtype String? // subtipo de arma ou armadura
+  equipmentEffects Json?   // efeitos com valores calculados pela raridade
+  equipmentDurability Int? // durabilidade atual; nulo para itens Míticos
+  equipmentMaxDurability Int?
   origin     String? // consumivel | material | reliquia | outro
+  consumableType String? // cura_pv | cura_pm | outro
   author     String? // livro
   coverType  String? // livro: color | image
   coverColor String? // livro

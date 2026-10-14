@@ -4,12 +4,13 @@ type CapacityInput = {
   level: number
   forca: number
   birthRank: Parameters<typeof calcCurrentRank>[1]
+  rankLosses?: number
   race: { isCorrupted: boolean }
 }
 const ABOVE_D: string[] = ['C', 'B', 'A', 'S']
 
 /** 10 + Força + 5 por faixa acima de D. Cada item distinto (pilha) ocupa 1 espaço. */
 export function calcInventoryCapacity(c: CapacityInput) {
-  const rank = calcCurrentRank(c.level, c.birthRank, c.race.isCorrupted)
+  const rank = calcCurrentRank(c.level, c.birthRank, c.race.isCorrupted, c.rankLosses ?? 0)
   return 10 + c.forca + (ABOVE_D.indexOf(rank) + 1) * 5
 }

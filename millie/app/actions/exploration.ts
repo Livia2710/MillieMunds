@@ -340,7 +340,7 @@ export async function discoverExplorationObject(mapId: string, roomId: string, o
       nextMapId = object.targetMapId
     }
 
-    if (object.type === 'scene' && m.role !== 'MASTER') throw new Error('A cena da sala aparece automaticamente na primeira entrada')
+    if (object.type === 'scene') throw new Error('A cena da sala aparece automaticamente na primeira entrada')
     if (object.type === 'character') {
       const interaction = { id: objectId, mapId, roomId, objectId, title: object.title, type: object.type, image: object.image ?? null, description: object.description ?? '', options: object.options ?? [], choiceText: '' }
       await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`

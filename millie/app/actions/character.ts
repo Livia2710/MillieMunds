@@ -551,7 +551,7 @@ export async function spendAttributePoint(characterId: string, attribute: 'agili
     const current = character[attribute]
     const maximum = getRankMax(rank)
     if (current >= maximum) throw new Error(`Esse atributo já atingiu o limite do Rank ${rank} (${maximum})`)
-    const updated = await tx.character.update({ where: { id: characterId }, data: { [attribute]: current + 1, unspentAttributePoints: { decrement: 1 } }, select: { [attribute]: true, unspentAttributePoints: true } })
+    const updated = await tx.character.update({ where: { id: characterId }, data: { [attribute]: current + 1, unspentAttributePoints: { decrement: 1 } }, select: { agilidade: true, inteligencia: true, forca: true, vigor: true, sorte: true, unspentAttributePoints: true } })
     return { value: updated[attribute], remaining: updated.unspentAttributePoints }
   })
   revalidatePath('/perfil')

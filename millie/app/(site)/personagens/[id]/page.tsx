@@ -4,7 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getCharacterById } from "@/app/actions/character"
 import CharacterDetails from "@/componentes/personagens/CharacterDetails"
-import type { Character, CharacterRank, CharacterElement, CharacterCategory } from "@/lib/types/character"
+import type { Character, CharacterRank, CharacterElement } from "@/lib/types/character"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -40,12 +40,11 @@ export default async function CharacterDetailsPage({ params }: Props) {
   }
 
   let character: Character
-  const cat = raw.category as CharacterCategory
-  if (cat === 'aluno') {
+  if (raw.category === 'aluno') {
     character = { ...base, category: 'aluno', year: (raw.year ?? 1) as 1|2|3|4|5 }
-  } else if (cat === 'professor') {
+  } else if (raw.category === 'professor') {
     character = { ...base, category: 'professor', subject: raw.subject ?? '' }
-  } else if (cat === 'npc') {
+  } else if (raw.category === 'npc') {
     character = { ...base, category: 'npc', occupation: raw.occupation ?? '' }
   } else {
     character = { ...base, category: 'monstro', dangerLevel: (raw.dangerLevel ?? 'Iniciante') as 'Iniciante'|'Intermediário'|'Avançado'|'Calamidade' }

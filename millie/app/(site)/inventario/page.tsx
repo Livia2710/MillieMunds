@@ -13,7 +13,7 @@ export default async function InventarioPage() {
 
   return (
     <InventarioClient
-      items={items}
+      items={items as unknown as Parameters<typeof InventarioClient>[0]['items']}
       isMaster={isMaster}
       hasCampaign={!!activeCampaign}
       playerCharacters={playerCharacters}

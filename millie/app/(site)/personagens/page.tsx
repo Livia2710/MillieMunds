@@ -14,7 +14,7 @@ export default async function PersonagensPage() {
   const characters = rawCharacters.map((c) => ({
     ...c,
     race: { name: c.race as string },
-  }))
+  })) as unknown as Parameters<typeof PersonagensClient>[0]['characters']
 
   return (
     <PersonagensClient

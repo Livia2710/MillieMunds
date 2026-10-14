@@ -11,6 +11,7 @@ export default async function InventoryDetailsPage({ params }: Props) {
   const { slug } = await params
   const raw = await getItemBySlug(slug)
   if (!raw) notFound()
+  const detail = raw as typeof raw & { equipmentType?: string | null; equipmentSubtype?: string | null; equipmentEffects?: unknown; equipmentDurability?: number | null; equipmentMaxDurability?: number | null; consumableType?: string | null }
 
   const base = {
     id: raw.id,
@@ -48,14 +49,14 @@ export default async function InventoryDetailsPage({ params }: Props) {
       category: 'equipamento',
       forgedBy: raw.forgedBy ?? '',
       effect: raw.effect ?? '',
-      equipmentType: (raw.equipmentType ?? undefined) as EquipmentType | undefined,
-      equipmentSubtype: (raw.equipmentSubtype ?? undefined) as EquipmentSubtype | undefined,
-      equipmentEffects: Array.isArray(raw.equipmentEffects) ? raw.equipmentEffects as EquipmentEffectRecord[] : [],
-      equipmentDurability: raw.equipmentDurability ?? null,
-      equipmentMaxDurability: raw.equipmentMaxDurability ?? null,
+      equipmentType: (detail.equipmentType ?? undefined) as EquipmentType | undefined,
+      equipmentSubtype: (detail.equipmentSubtype ?? undefined) as EquipmentSubtype | undefined,
+      equipmentEffects: Array.isArray(detail.equipmentEffects) ? detail.equipmentEffects as EquipmentEffectRecord[] : [],
+      equipmentDurability: detail.equipmentDurability ?? null,
+      equipmentMaxDurability: detail.equipmentMaxDurability ?? null,
     }
   } else if (cat === 'consumivel') {
-    item = { ...base, category: 'consumivel', origin: raw.origin ?? '', effect: raw.effect ?? '', consumableType: (raw.consumableType ?? undefined) as ConsumableType | undefined }
+    item = { ...base, category: 'consumivel', origin: raw.origin ?? '', effect: raw.effect ?? '', consumableType: (detail.consumableType ?? undefined) as ConsumableType | undefined }
   } else if (cat === 'material') {
     item = { ...base, category: 'material', origin: raw.origin ?? '', effect: raw.effect ?? undefined }
   } else if (cat === 'reliquia') {

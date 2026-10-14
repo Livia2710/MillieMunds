@@ -4,19 +4,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { getCharactersByActiveCampaign } from '@/app/actions/character'
+import type { ProfileCharacter } from '@/lib/types/profile'
 
-type DashboardChar = {
-  id: string
-  name: string
-  category: string
-  image: string | null
-  rank: string
-  level: number
-  year: number | null
-  subject: string | null
-  occupation: string | null
-  dangerLevel: string | null
-}
+type DashboardChar = Pick<ProfileCharacter, 'id' | 'name' | 'category' | 'image' | 'rank' | 'level'> & { year?: number; subject?: string; occupation?: string; dangerLevel?: string }
 
 export default function MasterDashboard() {
   const [characters, setCharacters] = useState<DashboardChar[]>([])
@@ -24,7 +14,13 @@ export default function MasterDashboard() {
 
   useEffect(() => {
     getCharactersByActiveCampaign()
-      .then((data) => setCharacters(data as DashboardChar[]))
+      .then((data) => setCharacters(data.map(char => ({
+        ...char,
+        year: 'year' in char ? char.year : undefined,
+        subject: 'subject' in char ? char.subject : undefined,
+        occupation: 'occupation' in char ? char.occupation : undefined,
+        dangerLevel: 'dangerLevel' in char ? char.dangerLevel : undefined,
+      }))))
       .finally(() => setLoading(false))
   }, [])
 

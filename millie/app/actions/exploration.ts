@@ -145,7 +145,8 @@ export async function getActiveExplorationMap() {
 
 export async function createExplorationMap(name = 'Novo mapa') {
   const m = await member('MASTER'); const id = randomUUID(); const clean = name.trim().slice(0,80) || 'Novo mapa'
-  await prisma.$executeRaw`INSERT INTO "ExplorationMap" ("id","campaignId","name","rooms") VALUES (${id},${m.campaignId},${clean},'[]'::jsonb)`
+  // Raw SQL bypasses Prisma's @updatedAt handling, so provide both timestamps.
+  await prisma.$executeRaw`INSERT INTO "ExplorationMap" ("id","campaignId","name","rooms","floors","isEditing","isPublished","createdAt","updatedAt") VALUES (${id},${m.campaignId},${clean},'[]'::jsonb,'[{"id":"ground","name":"Térreo"}]'::jsonb,true,false,NOW(),NOW())`
   revalidatePath('/mapas'); return id
 }
 export async function getExplorationAssets() {

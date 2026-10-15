@@ -20,6 +20,9 @@ export default function MapsHome() {
   const [error, setError] = useState('')
   const [changingMap, setChangingMap] = useState(false)
   const [asPlayer, setAsPlayer] = useState(false)
+  const [showCreateMap, setShowCreateMap] = useState(false)
+  const [newMapName, setNewMapName] = useState('Novo mapa')
+  const [creatingMap, setCreatingMap] = useState(false)
   const router = useRouter()
 
   async function refresh() {
@@ -54,13 +57,19 @@ export default function MapsHome() {
   }, [contextLoading, hasCampaign, isMaster])
 
   async function create() {
+    const mapName = newMapName.trim()
+    if (!mapName) {
+      setError('Informe um nome para o mapa.')
+      return
+    }
+    setCreatingMap(true)
+    setError('')
     try {
-      const mapName = window.prompt('Qual será o nome deste mapa?', 'Novo mapa')
-      if (mapName === null) return
       const id = await createExplorationMap(mapName)
       router.push(`/mapas/${id}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao criar mapa')
+      setCreatingMap(false)
     }
   }
 
@@ -163,7 +172,7 @@ export default function MapsHome() {
               Ver como jogador
             </button>
             <button
-              onClick={create}
+              onClick={() => { setNewMapName('Novo mapa'); setShowCreateMap(true) }}
               className="flex items-center gap-2 border border-bege-medio/50 bg-roxo px-4 py-3 font-title text-xs uppercase tracking-widest text-bege-claro hover:bg-bege-escuro/10"
             >
               <Plus size={16} />
@@ -181,6 +190,20 @@ export default function MapsHome() {
           {error}
         </p>
       )}
+
+      {showCreateMap && <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !creatingMap) setShowCreateMap(false) }}>
+        <form role="dialog" aria-modal="true" aria-labelledby="create-map-title" onSubmit={event => { event.preventDefault(); void create() }} className="w-full max-w-md border border-bege-medio/50 bg-[#1d1020] p-6 text-bege-claro shadow-2xl">
+          <h2 id="create-map-title" className="font-title text-lg uppercase tracking-widest">Criar mapa</h2>
+          <p className="mt-2 text-sm text-bege-medio">Dê um nome ao mapa. Você poderá adicionar salas e andares no editor.</p>
+          <label className="mt-5 block text-xs uppercase tracking-widest">Nome do mapa
+            <input autoFocus maxLength={80} value={newMapName} onChange={event => setNewMapName(event.target.value)} className="mt-2 w-full border border-bege-escuro/40 bg-black/20 px-3 py-3 text-sm normal-case tracking-normal outline-none focus:border-bege-medio" />
+          </label>
+          <div className="mt-6 flex justify-end gap-2">
+            <button type="button" disabled={creatingMap} onClick={() => setShowCreateMap(false)} className="border border-bege-escuro/40 px-4 py-2 text-xs uppercase tracking-widest disabled:opacity-50">Cancelar</button>
+            <button type="submit" disabled={creatingMap || !newMapName.trim()} className="border border-bege-medio/50 bg-roxo px-4 py-2 text-xs uppercase tracking-widest disabled:opacity-50">{creatingMap ? 'Criando…' : 'Criar mapa'}</button>
+          </div>
+        </form>
+      </div>}
 
       {maps.length === 0 ? (
         <section className="border border-bege-escuro/20 bg-roxo-escuro/30 p-12 text-center">

@@ -9,6 +9,7 @@ import MestreEvolucao from '@/componentes/mestre/MestreEvolucao'
 import MestreTaro from '@/componentes/mestre/MestreTaro'
 import MestreCondicoes from '@/componentes/mestre/MestreCondicoes'
 import MestreConteudos from '@/componentes/mestre/MestreConteudos'
+import MestreCampaignControl from '@/componentes/mestre/MestreCampaignControl'
 import type { MasterPlayer, MasterCharacter } from '@/lib/types/character'
 
 type RawTarotDraw = {
@@ -28,6 +29,7 @@ type TarotDraw = RawTarotDraw & { characterName: string }
 type MasterData = {
   inviteCode:           string
   campaignName:         string
+  campaignActive:       boolean
   players:              MasterPlayer[]
   characters:           MasterCharacter[]
   eligibleForEvolution: MasterCharacter[]
@@ -82,6 +84,7 @@ export default function MestrePage() {
       </div>
 
       <MestreInvite inviteCode={data.inviteCode} />
+      <MestreCampaignControl isActive={data.campaignActive} playerCount={data.players.length} onChange={refreshData} />
       <MestreConteudos />
       <MestreCondicoes initial={data.conditionDefinitions} characters={data.characters.map(({ id, name }) => ({ id, name }))} onChange={refreshData} />
       <MestreJogadores players={data.players} conditionDefinitions={data.conditionDefinitions} />

@@ -51,6 +51,13 @@ function checkedRooms(value: unknown): MapRoom[] {
     if (!okUrl(room.background)) {
       throw new Error('Imagem de fundo inválida');
     }
+    if (room.class) {
+      const lesson = room.class
+      if (typeof lesson.prompt !== 'string' || lesson.prompt.length > 2000 || !Array.isArray(lesson.options) || lesson.options.length < 2 || lesson.options.length > 6 || lesson.options.some(option => !option?.id || typeof option.label !== 'string' || !option.label.trim() || option.label.length > 160) || !lesson.correctOptionId || !lesson.options.some(option => option.id === lesson.correctOptionId) || !lesson.teacherCharacterId || !Number.isInteger(lesson.favorReward ?? 1) || (lesson.favorReward ?? 1) < 1 || (lesson.favorReward ?? 1) > 3 || !okUrl(lesson.image)) {
+        throw new Error(`Configure professor, pergunta, imagem opcional e de 2 a 6 respostas para a aula de "${room.name}"`)
+      }
+      if (lesson.ritualSymbol && lesson.ritualSymbol.length > 500) throw new Error('O símbolo de ritual deve ter no máximo 500 caracteres')
+    }
 
     // Validação das conexões entre salas
     if (room.connections.some((c) => !c || c.roomId === room.id || !ids.has(c.roomId))) {
@@ -159,8 +166,10 @@ export async function saveExplorationMap(id: string, name: string, value: unknow
   const m = await member('MASTER'); const rooms = checkedRooms(value); const clean = name.trim().slice(0,80) || 'Mapa sem nome'; const floors = Array.isArray(floorValue) ? floorValue.filter((f): f is MapFloor => !!f && typeof f.id === 'string' && typeof f.name === 'string' && !!f.name.trim()).slice(0,20) : [{id:'ground',name:'Térreo'}]; if(!floors.length) throw new Error('Adicione pelo menos um andar'); const floorIds=new Set(floors.map(f=>f.id)); if(rooms.some(r=>!floorIds.has(r.floorId??'ground'))) throw new Error('Cada sala precisa pertencer a um andar existente')
   const missionItems = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission').map(object => object.missionObjectiveItemId!)))]
   const missionFavorCharacters = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission' && (object.missionFavorDelta ?? 0) !== 0).map(object => object.missionFavorCharacterId).filter((value): value is string => !!value)))]
+  const classTeachers = [...new Set(rooms.map(room => room.class?.teacherCharacterId).filter((value): value is string => !!value))]
   if (missionItems.length && await prisma.inventoryItem.count({ where: { id: { in: missionItems }, campaignId: m.campaignId } }) !== missionItems.length) throw new Error('Uma missão referencia um item que não pertence à campanha')
   if (missionFavorCharacters.length && await prisma.character.count({ where: { id: { in: missionFavorCharacters }, campaignId: m.campaignId } }) !== missionFavorCharacters.length) throw new Error('Uma missão referencia um personagem inválido para a recompensa de Favor')
+  if (classTeachers.length && await prisma.character.count({ where: { id: { in: classTeachers }, campaignId: m.campaignId } }) !== classTeachers.length) throw new Error('Uma aula referencia um professor que não pertence à campanha')
   const n = await prisma.$executeRaw`UPDATE "ExplorationMap" SET "name"=${clean},"rooms"=${JSON.stringify(rooms)}::jsonb,"floors"=${JSON.stringify(floors)}::jsonb,"updatedAt"=NOW() WHERE "id"=${id} AND "campaignId"=${m.campaignId} AND "isEditing"=true`
   if (!n) throw new Error('Mapa não encontrado ou edição encerrada'); revalidatePath('/mapas')
 }
@@ -251,7 +260,15 @@ export async function getPlayerExplorationSnapshot(previewMapId?: string, previe
 
   const [stateRow] = !previewMapId && s?.currentMapId === row.id ? await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1` : []
   const storedInteraction = stateRow?.activeInteraction as {mapId:string;roomId:string;objectId:string;title:string;type:string;image?:string;description?:string;options?:MapRoom['objects'][number]['options'];choiceText?:string}|null
-  const activeInteraction = storedInteraction
+  let activeInteraction = storedInteraction
+  if (activeInteraction?.type === 'class') {
+    const lesson = activeInteraction as typeof activeInteraction & { correctOptionId?: string; answers?: Record<string, {correct:boolean;selectedOptionId:string}> }
+    const ownIds = new Set(mine.map(character => character.id))
+    activeInteraction = {
+      ...lesson,
+      ...(m.role === 'PLAYER' ? { correctOptionId: undefined, answers: Object.fromEntries(Object.entries(lesson.answers ?? {}).filter(([id]) => ownIds.has(id))) } : {}),
+    }
+  }
   return {
     map: { id: row.id, name: row.name },
     room: { id: room.id, name: room.name, floorName: ((row.floors ?? []) as MapFloor[]).find(f => f.id === (room.floorId ?? 'ground'))?.name ?? 'Térreo', background: room.background ?? null, objects },
@@ -385,6 +402,66 @@ export async function chooseExplorationSceneOption(mapId: string, roomId: string
   })
   revalidatePath('/mapas')
   revalidatePath('/personagens')
+}
+
+/** O Mestre inicia uma aula configurada na sala atual; a sessão é compartilhada com os jogadores. */
+export async function startMapClassSession(mapId: string, roomId: string) {
+  const m = await member('MASTER')
+  await prisma.$transaction(async tx => {
+    const [state] = await tx.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+    const [map] = await tx.$queryRaw<Array<{ rooms: unknown; isEditing: boolean; isPublished: boolean }>>`SELECT "rooms","isEditing","isPublished" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} LIMIT 1`
+    if (!map?.isPublished || map.isEditing || state?.currentMapId !== mapId || state.currentRoomId !== roomId) throw new Error('O grupo precisa estar nesta sala e o mapa deve estar liberado')
+    const room = (map.rooms as MapRoom[]).find(entry => entry.id === roomId)
+    const lesson = room?.class
+    if (!lesson?.teacherCharacterId || !lesson.correctOptionId || lesson.options.length < 2) throw new Error('Configure a aula nesta sala antes de iniciá-la')
+    const teacher = await tx.character.findFirst({ where: { id: lesson.teacherCharacterId, campaignId: m.campaignId }, select: { name: true } })
+    if (!teacher) throw new Error('O professor configurado não pertence à campanha')
+    const interaction = { id: randomUUID(), sessionId: randomUUID(), mapId, roomId, objectId: `class:${roomId}`, title: `Aula — ${room?.name ?? "Sala"}`, type: 'class', image: lesson.image ?? null, description: lesson.prompt, ritualSymbol: lesson.ritualSymbol ?? '', teacherCharacterId: lesson.teacherCharacterId, teacherName: teacher.name, favorReward: lesson.favorReward ?? 1, correctOptionId: lesson.correctOptionId, options: lesson.options, answers: {} }
+    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+  })
+  revalidatePath('/mapas')
+}
+
+/** Cada personagem responde uma vez por sessão; acertos concedem Favor ao professor configurado. */
+export async function answerMapClass(characterId: string, optionId: string) {
+  const m = await member('PLAYER')
+  const result = await prisma.$transaction(async tx => {
+    const [state] = await tx.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null; activeInteraction: unknown }>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+    const lesson = state?.activeInteraction as {mapId:string;roomId:string;type:string;correctOptionId:string;teacherCharacterId:string;favorReward:number;options:Array<{id:string;label:string}>;answers:Record<string,{correct:boolean;selectedOptionId:string;gainedFavor?:boolean}>}|null
+    if (!lesson || lesson.type !== 'class' || lesson.mapId !== state?.currentMapId || lesson.roomId !== state?.currentRoomId) throw new Error('Não há aula ativa nesta sala')
+    const character = await tx.character.findFirst({ where: { id: characterId, campaignId: m.campaignId, playerId: m.userId }, select: { id: true } })
+    if (!character) throw new Error('Escolha um personagem seu para responder')
+    if (!lesson.options.some(option => option.id === optionId)) throw new Error('Resposta inválida')
+    const answers = lesson.answers ?? {}
+    if (answers[characterId]) throw new Error('Este personagem já respondeu à aula')
+    const correct = optionId === lesson.correctOptionId
+    let gainedFavor = false
+    if (correct) {
+      const [relation] = await tx.$queryRaw<Array<{value:number;sessionChange:number}>>`SELECT "value","sessionChange" FROM "CharacterAffinity" WHERE "campaignId"=${m.campaignId} AND "sourceCharacterId"=${lesson.teacherCharacterId} AND "targetCharacterId"=${characterId} FOR UPDATE`
+      const sessionChange = Math.max(-3, Math.min(3, (relation?.sessionChange ?? 0) + lesson.favorReward))
+      const delta = sessionChange - (relation?.sessionChange ?? 0)
+      gainedFavor = delta > 0 && (relation?.value ?? 0) < 9
+      if (delta > 0) {
+        if (relation) await tx.$executeRaw`UPDATE "CharacterAffinity" SET "value"=LEAST(9,"value"+${delta}),"sessionChange"=${sessionChange} WHERE "campaignId"=${m.campaignId} AND "sourceCharacterId"=${lesson.teacherCharacterId} AND "targetCharacterId"=${characterId}`
+        else await tx.$executeRaw`INSERT INTO "CharacterAffinity" ("campaignId","sourceCharacterId","targetCharacterId","value","sessionChange") VALUES (${m.campaignId},${lesson.teacherCharacterId},${characterId},${delta},${delta}) ON CONFLICT ("campaignId","sourceCharacterId","targetCharacterId") DO NOTHING`
+      }
+    }
+    answers[characterId] = { correct, selectedOptionId: optionId, gainedFavor }
+    const updated = { ...lesson, answers }
+    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(updated)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+    return { correct, gainedFavor }
+  })
+  revalidatePath('/mapas'); revalidatePath('/personagens')
+  return result
+}
+
+export async function endMapClassSession(mapId: string, roomId: string) {
+  const m = await member('MASTER')
+  const [state] = await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} AND "currentMapId"=${mapId} AND "currentRoomId"=${roomId} LIMIT 1`
+  const active = state?.activeInteraction as {type?:string;objectId?:string}|null
+  if (active?.type !== 'class' || active.objectId !== `class:${roomId}`) throw new Error('Não há aula ativa nesta sala')
+  await prisma.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=NULL,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId} AND "currentMapId"=${mapId} AND "currentRoomId"=${roomId} AND "activeInteraction"->>'type'='class'`
+  revalidatePath('/mapas')
 }
 
 /** O Mestre abre uma nova sessão e zera o limite de mudança de Favor. */

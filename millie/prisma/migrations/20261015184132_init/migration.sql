@@ -70,6 +70,7 @@ CREATE TABLE "Campaign" (
     "description" TEXT,
     "inviteCode" TEXT NOT NULL,
     "masterId" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
     "archived" BOOLEAN NOT NULL DEFAULT false,
     "archivedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -90,6 +91,61 @@ CREATE TABLE "CampaignMember" (
 );
 
 -- CreateTable
+CREATE TABLE "ExplorationMap" (
+    "id" TEXT NOT NULL,
+    "campaignId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "rooms" JSONB NOT NULL DEFAULT '[]',
+    "floors" JSONB NOT NULL DEFAULT '[{"id":"ground","name":"Térreo"}]',
+    "isEditing" BOOLEAN NOT NULL DEFAULT true,
+    "isPublished" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ExplorationMap_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CampaignExplorationState" (
+    "campaignId" TEXT NOT NULL,
+    "currentMapId" TEXT,
+    "currentRoomId" TEXT,
+    "discovered" JSONB NOT NULL DEFAULT '[]',
+    "activeInteraction" JSONB,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CampaignExplorationState_pkey" PRIMARY KEY ("campaignId")
+);
+
+-- CreateTable
+CREATE TABLE "ExplorationDiscovery" (
+    "campaignId" TEXT NOT NULL,
+    "mapId" TEXT NOT NULL,
+    "objectId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "inventoryItemId" TEXT,
+    "itemName" TEXT,
+    "foundByUserId" TEXT,
+    "characterId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ExplorationDiscovery_pkey" PRIMARY KEY ("campaignId","mapId","objectId")
+);
+
+-- CreateTable
+CREATE TABLE "MapMissionProgress" (
+    "campaignId" TEXT NOT NULL,
+    "mapId" TEXT NOT NULL,
+    "missionId" TEXT NOT NULL,
+    "characterId" TEXT NOT NULL,
+    "acceptedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "MapMissionProgress_pkey" PRIMARY KEY ("campaignId","mapId","missionId","characterId")
+);
+
+-- CreateTable
 CREATE TABLE "World" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -97,7 +153,12 @@ CREATE TABLE "World" (
     "description" TEXT,
     "coverColor" TEXT,
     "coverImage" TEXT,
+    "pageColor" TEXT NOT NULL DEFAULT '#f7f3e9',
+    "pageTexture" BOOLEAN NOT NULL DEFAULT true,
+    "pageHeader" TEXT NOT NULL DEFAULT '',
+    "pageFooter" TEXT NOT NULL DEFAULT '',
     "isLocked" BOOLEAN NOT NULL DEFAULT true,
+    "isDraft" BOOLEAN NOT NULL DEFAULT false,
     "campaignId" TEXT NOT NULL,
 
     CONSTRAINT "World_pkey" PRIMARY KEY ("id")
@@ -201,6 +262,9 @@ CREATE TABLE "Character" (
     "level" INTEGER NOT NULL DEFAULT 1,
     "xp" INTEGER NOT NULL DEFAULT 0,
     "maxXp" INTEGER NOT NULL DEFAULT 100,
+    "unspentAttributePoints" INTEGER NOT NULL DEFAULT 0,
+    "specialCardUsedThisScene" BOOLEAN NOT NULL DEFAULT false,
+    "rankLosses" INTEGER NOT NULL DEFAULT 0,
     "birthRank" "BaseRank" NOT NULL DEFAULT 'D',
     "racePath" "RacePath",
     "evolvedRaceId" TEXT,
@@ -213,9 +277,21 @@ CREATE TABLE "Character" (
     "pvMax" INTEGER NOT NULL DEFAULT 12,
     "pm" INTEGER NOT NULL DEFAULT 12,
     "pmMax" INTEGER NOT NULL DEFAULT 12,
+    "currency" INTEGER NOT NULL DEFAULT 100,
     "raceId" TEXT NOT NULL,
 
     CONSTRAINT "Character_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CharacterAffinity" (
+    "campaignId" TEXT NOT NULL,
+    "sourceCharacterId" TEXT NOT NULL,
+    "targetCharacterId" TEXT NOT NULL,
+    "value" INTEGER NOT NULL DEFAULT 0,
+    "sessionChange" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "CharacterAffinity_pkey" PRIMARY KEY ("campaignId","sourceCharacterId","targetCharacterId")
 );
 
 -- CreateTable
@@ -227,6 +303,19 @@ CREATE TABLE "CharacterCondition" (
     "removedAt" TIMESTAMP(3),
 
     CONSTRAINT "CharacterCondition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CampaignConditionDefinition" (
+    "id" TEXT NOT NULL,
+    "campaignId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "cause" TEXT NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#D8B35E',
+    "removalInstructions" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CampaignConditionDefinition_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -287,15 +376,26 @@ CREATE TABLE "InventoryItem" (
     "image" TEXT,
     "worldSlug" TEXT,
     "isLocked" BOOLEAN NOT NULL DEFAULT false,
+    "isDraft" BOOLEAN NOT NULL DEFAULT false,
     "campaignId" TEXT NOT NULL,
     "ownerId" TEXT,
     "forgedBy" TEXT,
     "effect" TEXT,
+    "equipmentType" TEXT,
+    "equipmentSubtype" TEXT,
+    "equipmentEffects" JSONB,
+    "equipmentDurability" INTEGER,
+    "equipmentMaxDurability" INTEGER,
     "origin" TEXT,
+    "consumableType" TEXT,
     "author" TEXT,
     "coverType" TEXT,
     "coverColor" TEXT,
     "coverImage" TEXT,
+    "pageColor" TEXT NOT NULL DEFAULT '#f7f3e9',
+    "pageTexture" BOOLEAN NOT NULL DEFAULT true,
+    "pageHeader" TEXT NOT NULL DEFAULT '',
+    "pageFooter" TEXT NOT NULL DEFAULT '',
 
     CONSTRAINT "InventoryItem_pkey" PRIMARY KEY ("id")
 );
@@ -321,6 +421,20 @@ CREATE TABLE "SecurityRateLimit" (
     CONSTRAINT "SecurityRateLimit_pkey" PRIMARY KEY ("key")
 );
 
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "href" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readAt" TIMESTAMP(3),
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -343,6 +457,15 @@ CREATE UNIQUE INDEX "Campaign_inviteCode_key" ON "Campaign"("inviteCode");
 CREATE UNIQUE INDEX "CampaignMember_userId_campaignId_key" ON "CampaignMember"("userId", "campaignId");
 
 -- CreateIndex
+CREATE INDEX "ExplorationMap_campaignId_idx" ON "ExplorationMap"("campaignId");
+
+-- CreateIndex
+CREATE INDEX "ExplorationDiscovery_campaignId_createdAt_idx" ON "ExplorationDiscovery"("campaignId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MapMissionProgress_campaignId_characterId_idx" ON "MapMissionProgress"("campaignId", "characterId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "World_slug_campaignId_key" ON "World"("slug", "campaignId");
 
 -- CreateIndex
@@ -358,10 +481,28 @@ CREATE UNIQUE INDEX "Race_name_universeWorldId_key" ON "Race"("name", "universeW
 CREATE UNIQUE INDEX "CharacterRaceSkill_characterId_raceSkillId_key" ON "CharacterRaceSkill"("characterId", "raceSkillId");
 
 -- CreateIndex
+CREATE INDEX "Character_campaignId_playerId_idx" ON "Character"("campaignId", "playerId");
+
+-- CreateIndex
+CREATE INDEX "CharacterAffinity_campaignId_targetCharacterId_idx" ON "CharacterAffinity"("campaignId", "targetCharacterId");
+
+-- CreateIndex
+CREATE INDEX "CampaignConditionDefinition_campaignId_idx" ON "CampaignConditionDefinition"("campaignId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CampaignConditionDefinition_campaignId_name_key" ON "CampaignConditionDefinition"("campaignId", "name");
+
+-- CreateIndex
+CREATE INDEX "InventoryItem_campaignId_ownerId_idx" ON "InventoryItem"("campaignId", "ownerId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "InventoryItem_slug_campaignId_key" ON "InventoryItem"("slug", "campaignId");
 
 -- CreateIndex
 CREATE INDEX "SecurityRateLimit_windowStartedAt_idx" ON "SecurityRateLimit"("windowStartedAt");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_readAt_createdAt_idx" ON "Notification"("userId", "readAt", "createdAt");
 
 -- AddForeignKey
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -374,6 +515,27 @@ ALTER TABLE "CampaignMember" ADD CONSTRAINT "CampaignMember_userId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "CampaignMember" ADD CONSTRAINT "CampaignMember_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExplorationMap" ADD CONSTRAINT "ExplorationMap_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CampaignExplorationState" ADD CONSTRAINT "CampaignExplorationState_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExplorationDiscovery" ADD CONSTRAINT "ExplorationDiscovery_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExplorationDiscovery" ADD CONSTRAINT "ExplorationDiscovery_mapId_fkey" FOREIGN KEY ("mapId") REFERENCES "ExplorationMap"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MapMissionProgress" ADD CONSTRAINT "MapMissionProgress_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MapMissionProgress" ADD CONSTRAINT "MapMissionProgress_mapId_fkey" FOREIGN KEY ("mapId") REFERENCES "ExplorationMap"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MapMissionProgress" ADD CONSTRAINT "MapMissionProgress_characterId_fkey" FOREIGN KEY ("characterId") REFERENCES "Character"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "World" ADD CONSTRAINT "World_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -406,7 +568,16 @@ ALTER TABLE "Character" ADD CONSTRAINT "Character_raceId_fkey" FOREIGN KEY ("rac
 ALTER TABLE "Character" ADD CONSTRAINT "Character_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CharacterAffinity" ADD CONSTRAINT "CharacterAffinity_sourceCharacterId_fkey" FOREIGN KEY ("sourceCharacterId") REFERENCES "Character"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CharacterAffinity" ADD CONSTRAINT "CharacterAffinity_targetCharacterId_fkey" FOREIGN KEY ("targetCharacterId") REFERENCES "Character"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "CharacterCondition" ADD CONSTRAINT "CharacterCondition_characterId_fkey" FOREIGN KEY ("characterId") REFERENCES "Character"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CampaignConditionDefinition" ADD CONSTRAINT "CampaignConditionDefinition_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Skill" ADD CONSTRAINT "Skill_characterId_fkey" FOREIGN KEY ("characterId") REFERENCES "Character"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -423,3 +594,5 @@ ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_campaignId_fkey" FOREI
 -- AddForeignKey
 ALTER TABLE "ItemChapter" ADD CONSTRAINT "ItemChapter_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

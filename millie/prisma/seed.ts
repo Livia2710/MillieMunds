@@ -37,6 +37,7 @@ async function main() {
         where: { name_universeWorldId: { name: raca.name, universeWorldId: mundo.id } },
         update: {
           baseRank: raca.baseRank as any,
+          element: raca.element,
           canAscend: raca.canAscend,
           canCorrupt: raca.canCorrupt,
           description: raceDescriptions[raca.name] ?? null,
@@ -107,6 +108,7 @@ async function main() {
   const claArlatala      = await criarUniverso('Clã Arlatala')
   const arcan             = await criarUniverso('Arcan')
   const veyron             = await criarUniverso('Veyron')
+  const rachadura          = await criarUniverso('Rachadura')
 
   // =========================================================================
   // MUNDOS E RAÇAS
@@ -170,6 +172,11 @@ async function main() {
     { name: 'Cxiinainaizx — Vento do Vazio',                element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Cxiinainaizx — Vento do Destino',              element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
     { name: 'Cxiinainaizx — Vento da Voz',                  element: 'vento',  baseRank: 'S', canAscend: false, canCorrupt: false },
+  ])
+
+  // ─── RACHADURA — RIMA ────────────────────────────────────────────────────
+  await criarMundo(rachadura, 'Rima', [
+    { name: 'Ritualista', element: 'escolha', baseRank: 'C', canAscend: false, canCorrupt: false },
   ])
 
   // ─── CLÃ ARLATALA ─────────────────────────────────────────────────────────

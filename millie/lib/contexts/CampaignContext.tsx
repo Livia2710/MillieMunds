@@ -11,6 +11,7 @@ export type UserCampaign = {
   inviteCode: string;
   role: "MASTER" | "PLAYER";
   active: boolean;
+  isCampaignActive: boolean;
 };
 
 type CampaignContextType = {
@@ -40,8 +41,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id) return;
-
     void fetchCampaigns();
+    const timer = setInterval(() => void fetchCampaigns(), 15_000);
+    return () => clearInterval(timer);
   }, [fetchCampaigns, session?.user?.id, status]);
 
   const activeCampaign = campaigns.find((c) => c.active) ?? null;

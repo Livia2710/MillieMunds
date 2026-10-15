@@ -1,6 +1,7 @@
 // Gerado a partir do Compendio.pdf — descrições de raças para o preview
 // no CriarPersonagemModal. Chave = nome exato da raça como cadastrado no seed.ts.
 export const raceDescriptions: Record<string, string> = {
+  'Ritualista': 'Pessoas de aparência humana, cuja característica marcante é estudar e traçar a Geometria Ritualística. Nascem no Rank C e escolhem livremente um dos seis elementos; sua inteligência excepcional permite trabalhar com rituais de maior custo em PM.',
   'Dalalilaz — Zlaz (Linhagem Dourada)': 'Escamas douradas tão intensas que parecem ouro líquido solidificado, olhos como metal derretido. Não valorizam riqueza material — brilham para serem vistos, lembrados e reconhecidos, e objetos guardados perto de um Zlaz por muito tempo acabam ganhando tons dourados.',
   'Dalalilaz — Ialaaila (Prata Viva)': 'Escamas prateadas com brilho de lâmina recém-polida. Disciplinados, silenciosos e precisos — preferem um único golpe bem executado a cem ataques impulsivos. Suas asas produzem um som que lembra o atrito de espadas em voo.',
   'Dalalilaz — Lassllo': 'Escamas azuladas e comportamento sereno, associados a lagos, mares e regiões silenciosas. De todos os Dalalilaz, foram os que mais se afastaram da forma rochosa original em direção à água e ao movimento fluido.',

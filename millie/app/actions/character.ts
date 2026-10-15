@@ -10,6 +10,7 @@ import { calcCurrentRank, calcXpToNextLevel, calcFirstSkillUnlock, getRankMax } 
 import { oneOf, validatedInteger, validatedText, validateImageUrl } from '@/lib/validation'
 import { createUserNotification } from '@/lib/notifications'
 import { getFavorCategory } from '@/lib/utils/favor'
+import { applyRaceAttributeModifiers } from '@/lib/utils/raceTraits'
 
 // ─── helper: shape de retorno compartilhado ───────────────
 function formatCharacter<T extends {
@@ -285,11 +286,23 @@ export async function createPlayerCharacter(data: {
   if (attributes.some((value) => !Number.isInteger(value) || value < 1 || value > 10) || attributes.reduce((sum, value) => sum + value, 0) !== 25) {
     throw new Error('Os atributos devem ser inteiros entre 1 e 10, totalizando 25 pontos')
   }
-  const race = await prisma.race.findUnique({ where: { id: data.raceId }, select: { baseRank: true, element: true } })
+  const race = await prisma.race.findUnique({ where: { id: data.raceId }, select: { name: true, baseRank: true, element: true } })
   if (!race) throw new Error('Raça inválida')
+  const allowedElements = ['trevas', 'luz', 'terra', 'agua', 'vento', 'fogo']
+  const isRitualista = race.name.trim().toLocaleLowerCase('pt-BR') === 'ritualista'
+  if (isRitualista ? !allowedElements.includes(data.element) : data.element !== race.element) {
+    throw new Error(isRitualista ? 'Escolha um dos seis elementos para o Ritualista' : 'O elemento não corresponde à raça escolhida')
+  }
+  const finalAttributes = applyRaceAttributeModifiers({
+    agilidade: data.agilidade,
+    inteligencia: data.inteligencia,
+    forca: data.forca,
+    vigor: data.vigor,
+    sorte: data.sorte,
+  }, race.name, race.baseRank)
   // Recalcula campos derivados e usa a raça cadastrada como fonte de verdade.
-  const pvCalc  = 10 + data.vigor        * 2
-  const pmCalc  = 10 + data.inteligencia * 2
+  const pvCalc  = 10 + finalAttributes.vigor * 2
+  const pmCalc  = 10 + finalAttributes.inteligencia * 2
 
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "CampaignMember" WHERE "id" = ${membership.id} FOR UPDATE`
@@ -308,7 +321,7 @@ export async function createPlayerCharacter(data: {
       data: {
         name,
         category: data.category,
-        element: race.element,
+        element: isRitualista ? data.element : race.element,
         worldSlug,
         birthRank: race.baseRank,
         isLocked: false,
@@ -319,11 +332,7 @@ export async function createPlayerCharacter(data: {
         year,
         subject,
         occupation,
-        agilidade: data.agilidade,
-        inteligencia: data.inteligencia,
-        forca: data.forca,
-        vigor: data.vigor,
-        sorte: data.sorte,
+        ...finalAttributes,
         pv: pvCalc,
         pvMax: pvCalc,
         pm: pmCalc,
@@ -452,6 +461,7 @@ export async function getMasterPageData() {
   return {
     inviteCode: campaign.inviteCode,
     campaignName: campaign.name,
+    campaignActive: campaign.isActive,
     players,
     characters,
     eligibleForEvolution,

@@ -9,6 +9,7 @@ import type { CharacterCategory } from '@/lib/types/character'
 import type { BaseRank } from '@/lib/generated/prisma'
 import MillieImageUpload from '@/componentes/ui/MillieImageUpload'
 import { getRankMax, calcPV, calcPM } from '@/lib/utils/rank'
+import { applyRaceAttributeModifiers, getRaceAttributeModifiers } from '@/lib/utils/raceTraits'
 
 // ─── tipos locais ──────────────────────────────────────────
 type Race = { id: string; name: string; element: string; baseRank: string }
@@ -114,19 +115,23 @@ export default function CreateCharForm() {
   const worlds = selectedUniverse?.worlds ?? []
   const selectedWorld = worlds.find((w) => w.id === worldId)
   const races = selectedWorld?.races ?? []
+  const selectedRace = races.find((r) => r.id === raceId)
+  const racialModifiers = selectedRace ? getRaceAttributeModifiers(selectedRace.name) : {}
+  const effectiveAttrs = selectedRace ? applyRaceAttributeModifiers(attrs, selectedRace.name, baseRank) : attrs
 
   useEffect(() => { if (worlds[0]) setWorldId(worlds[0].id) }, [universeId])
   useEffect(() => {
     if (races[0]) {
       setRaceId(races[0].id)
-      setElement(races[0].element)
+      setElement(races[0].element === 'escolha' ? 'terra' : races[0].element)
       setBaseRank(races[0].baseRank)
     }
   }, [worldId])
   useEffect(() => {
     const race = races.find((r) => r.id === raceId)
     if (race) {
-      setElement(race.element)
+      if (race.element === 'escolha') setElement(current => ['trevas', 'luz', 'terra', 'agua', 'vento', 'fogo'].includes(current) ? current : 'terra')
+      else setElement(race.element)
       setBaseRank(race.baseRank)
     }
   }, [raceId])
@@ -194,8 +199,8 @@ export default function CreateCharForm() {
   const umAUmConcluido = Object.keys(assignedAttrs).length === 5
 
   // ─── PV e PM ─────────────────────────────────────────────
-  const pv = calcPV(attrs.vigor)
-  const pm = calcPM(attrs.inteligencia)
+  const pv = calcPV(effectiveAttrs.vigor)
+  const pm = calcPM(effectiveAttrs.inteligencia)
 
   // ─── aleatorio pronto? ───────────────────────────────────
   const aleatorioPronto =
@@ -299,9 +304,7 @@ export default function CreateCharForm() {
             </div>
             <div>
               <label className="block text-[10px] text-bege-escuro/70 uppercase tracking-widest font-title mb-1">Elemento</label>
-              <div className="w-full bg-roxo-escuro/20 border border-bege-escuro/20 p-2 text-xs text-bege-medio font-title uppercase tracking-widest">
-                {element || '—'}
-              </div>
+              {selectedRace?.element === 'escolha' ? <select value={element} onChange={e=>setElement(e.target.value)} className="w-full bg-roxo-escuro border border-bege-escuro/30 p-2 text-xs text-bege-claro font-title uppercase tracking-widest"><option value="">Escolha seu elemento</option>{[['trevas','Trevas'],['luz','Luz'],['terra','Terra'],['agua','Água'],['vento','Vento'],['fogo','Fogo']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select> : <div className="w-full bg-roxo-escuro/20 border border-bege-escuro/20 p-2 text-xs text-bege-medio font-title uppercase tracking-widest">{element || '—'}</div>}
             </div>
           </div>
         )}
@@ -386,7 +389,7 @@ export default function CreateCharForm() {
                     <div className="absolute inset-y-0 left-0 bg-bege-escuro/40 transition-all"
                       style={{ width: `${((attrs[key] - CREATION_MIN) / (CREATION_MAX - CREATION_MIN)) * 100}%` }} />
                   </div>
-                  <span className="text-[10px] text-bege-escuro/40 font-title w-8 text-right">{CREATION_MAX}</span>
+                  <span className="min-w-8 text-right text-[10px] text-bege-escuro/60 font-title" title={racialModifiers[key] ? `Valor base ${attrs[key]}, modificador racial ${racialModifiers[key]! > 0 ? '+' : ''}${racialModifiers[key]}, valor final ${effectiveAttrs[key]}` : `Valor final ${effectiveAttrs[key]}`}>{racialModifiers[key] ? `${attrs[key]} → ${effectiveAttrs[key]}` : effectiveAttrs[key]}</span>
                 </div>
               ))}
             </div>
@@ -536,12 +539,12 @@ export default function CreateCharForm() {
             <div className="bg-roxo-escuro/30 border border-bege-escuro/20 p-3 text-center">
               <div className="text-[10px] text-bege-escuro/60 font-title uppercase tracking-widest mb-1">Pontos de Vida</div>
               <div className="text-xl text-bege-medio font-title">{pv}</div>
-              <div className="text-[10px] text-bege-escuro/40 font-title">10 + (Vigor {attrs.vigor} × 2)</div>
+              <div className="text-[10px] text-bege-escuro/40 font-title">10 + (Vigor {effectiveAttrs.vigor} × 2)</div>
             </div>
             <div className="bg-roxo-escuro/30 border border-bege-escuro/20 p-3 text-center">
               <div className="text-[10px] text-bege-escuro/60 font-title uppercase tracking-widest mb-1">Pontos de Mana</div>
               <div className="text-xl text-bege-medio font-title">{pm}</div>
-              <div className="text-[10px] text-bege-escuro/40 font-title">10 + (Int {attrs.inteligencia} × 2)</div>
+              <div className="text-[10px] text-bege-escuro/40 font-title">10 + (Int {effectiveAttrs.inteligencia} × 2)</div>
             </div>
           </div>
         </div>

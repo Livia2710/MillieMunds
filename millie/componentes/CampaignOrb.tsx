@@ -44,16 +44,16 @@ export function CampaignOrb() {
         if (!cancelled) setActiveMap(null);
       }
     };
-    if (hasCampaign) {
+    if (hasCampaign && activeCampaign?.isCampaignActive) {
       void refreshMap();
       const timer = setInterval(() => void refreshMap(), 15_000);
       return () => { cancelled = true; clearInterval(timer); };
     }
     setActiveMap(null);
     return () => { cancelled = true; };
-  }, [activeCampaign?.id, hasCampaign]);
+  }, [activeCampaign?.id, activeCampaign?.isCampaignActive, hasCampaign]);
 
-  if (!hasCampaign || !activeCampaign) return null;
+  if (!hasCampaign || !activeCampaign?.isCampaignActive) return null;
 
   function changeCampaign(id: string) {
     startTransition(async () => {

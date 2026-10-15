@@ -59,6 +59,7 @@ export async function joinCampaign(code: string) {
 
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.user.id} FOR UPDATE`
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id"=${campaign.id} FOR UPDATE`
     const currentCampaign = await tx.campaign.findUnique({ where: { id: campaign.id }, select: { archived: true } })
     if (!currentCampaign || currentCampaign.archived) throw new Error('Esta campanha está arquivada')
     const currentMembership = await tx.campaignMember.findUnique({
@@ -96,6 +97,53 @@ export async function switchCampaign(campaignId: string) {
   revalidatePath('/')
 }
 
+/** O Mestre controla se a OrbCampaign fica disponível para os membros da campanha. */
+export async function setCampaignActive(isActive: boolean) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Não autenticado')
+  if (typeof isActive !== 'boolean') throw new Error('Estado de campanha inválido')
+
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER', campaign: { archived: false } },
+    select: { campaignId: true },
+  })
+  if (!membership) throw new Error('Apenas o Mestre pode ativar ou desativar a campanha')
+
+  const state = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id"=${membership.campaignId} FOR UPDATE`
+    const campaign = await tx.campaign.findFirst({
+      where: { id: membership.campaignId, masterId: session.user.id, archived: false },
+      select: { id: true },
+    })
+    if (!campaign) throw new Error('Campanha não encontrada ou sem permissão')
+
+    const playerCount = await tx.campaignMember.count({ where: { campaignId: campaign.id, role: 'PLAYER' } })
+    if (isActive && playerCount === 0) throw new Error('Convide pelo menos um jogador antes de ativar a campanha')
+    await tx.campaign.update({ where: { id: campaign.id }, data: { isActive } })
+    return { isActive, playerCount }
+  })
+
+  revalidatePath('/')
+  revalidatePath('/mestre')
+  return state
+}
+
+/** Estado leve para atualizar o painel do Mestre sem recarregar todos os dados da campanha. */
+export async function getCampaignActivationState() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+  const membership = await prisma.campaignMember.findFirst({
+    where: { userId: session.user.id, active: true, role: 'MASTER', campaign: { archived: false } },
+    select: { campaignId: true },
+  })
+  if (!membership) return null
+  const [campaign, playerCount] = await Promise.all([
+    prisma.campaign.findFirst({ where: { id: membership.campaignId, archived: false }, select: { isActive: true } }),
+    prisma.campaignMember.count({ where: { campaignId: membership.campaignId, role: 'PLAYER' } }),
+  ])
+  return campaign ? { isActive: campaign.isActive, playerCount } : null
+}
+
 export async function getUserCampaigns() {
   const session = await auth()
   if (!session?.user?.id) return null
@@ -113,6 +161,7 @@ export async function getUserCampaigns() {
     inviteCode: m.role === 'MASTER' && !m.campaign.archived ? m.campaign.inviteCode : '',
     role: m.role,
     active: m.active,
+    isCampaignActive: m.campaign.isActive,
   }))
 }
 
@@ -134,6 +183,7 @@ export async function getActiveCampaign() {
     inviteCode: membership.role === 'MASTER' ? membership.campaign.inviteCode : '',
     role: membership.role,
     active: true,
+    isCampaignActive: membership.campaign.isActive,
   }
 }
 
@@ -178,6 +228,8 @@ export async function transferMastership(newMasterUserId: string) {
     await tx.campaignMember.update({ where: { id: currentMaster.id }, data: { role: 'PLAYER' } })
     await tx.campaignMember.update({ where: { id: currentTarget.id }, data: { role: 'MASTER' } })
     await tx.campaign.update({ where: { id: membership.campaignId }, data: { masterId: newMasterUserId } })
+    const remainingPlayers = await tx.campaignMember.count({ where: { campaignId: membership.campaignId, role: 'PLAYER' } })
+    if (remainingPlayers === 0) await tx.campaign.update({ where: { id: membership.campaignId }, data: { isActive: false } })
   })
 
   revalidatePath('/')
@@ -200,14 +252,17 @@ export async function leaveCampaign() {
     throw new Error('Transfira a liderança antes de sair da campanha')
   }
 
-  await prisma.$transaction([
-    // personagem e progresso continuam salvos — só desvincula do jogador
-    prisma.character.updateMany({
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id"=${membership.campaignId} FOR UPDATE`
+    // Personagem e progresso continuam salvos — só desvincula do jogador.
+    await tx.character.updateMany({
       where: { campaignId: membership.campaignId, playerId: session.user.id },
       data: { playerId: null },
-    }),
-    prisma.campaignMember.delete({ where: { id: membership.id } }),
-  ])
+    })
+    await tx.campaignMember.delete({ where: { id: membership.id } })
+    const remainingPlayers = await tx.campaignMember.count({ where: { campaignId: membership.campaignId, role: 'PLAYER' } })
+    if (remainingPlayers === 0) await tx.campaign.update({ where: { id: membership.campaignId }, data: { isActive: false } })
+  })
 
   revalidatePath('/')
 }
@@ -227,7 +282,7 @@ export async function archiveCampaign() {
   await prisma.$transaction([
     prisma.campaign.update({
       where: { id: membership.campaignId },
-      data: { archived: true, archivedAt: new Date() },
+      data: { archived: true, archivedAt: new Date(), isActive: false },
     }),
     prisma.campaignMember.updateMany({
       where: { campaignId: membership.campaignId, active: true },

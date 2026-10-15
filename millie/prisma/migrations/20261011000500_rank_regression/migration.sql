@@ -1,2 +1,0 @@
-ALTER TABLE "Character"
-  ADD COLUMN "rankLosses" INTEGER NOT NULL DEFAULT 0;

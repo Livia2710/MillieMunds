@@ -63,6 +63,9 @@ function checkedRooms(value: unknown): MapRoom[] {
     if (room.connections.some((c) => !c || c.roomId === room.id || !ids.has(c.roomId))) {
       throw new Error('Conexão inválida entre salas');
     }
+    if (room.roomChoiceTargets !== undefined && (!Array.isArray(room.roomChoiceTargets) || room.roomChoiceTargets.length > 80 || room.roomChoiceTargets.some(id => typeof id !== 'string' || id === room.id || !ids.has(id)) || new Set(room.roomChoiceTargets).size !== room.roomChoiceTargets.length)) {
+      throw new Error(`Destinos inválidos na escolha de sala de "${room.name}"`)
+    }
 
     // Validação dos objetos/elementos da sala
     for (const object of room.objects) {
@@ -164,7 +167,7 @@ export async function getExplorationMap(id: string) {
   return rows[0] ? mapRecord(rows[0]) : null
 }
 export async function saveExplorationMap(id: string, name: string, value: unknown, floorValue?: unknown) {
-  const m = await member('MASTER'); const rooms = checkedRooms(value); const clean = name.trim().slice(0,80) || 'Mapa sem nome'; const floors = Array.isArray(floorValue) ? floorValue.filter((f): f is MapFloor => !!f && typeof f.id === 'string' && typeof f.name === 'string' && !!f.name.trim()).slice(0,20) : [{id:'ground',name:'Térreo'}]; if(!floors.length) throw new Error('Adicione pelo menos um andar'); const floorIds=new Set(floors.map(f=>f.id)); if(rooms.some(r=>!floorIds.has(r.floorId??'ground'))) throw new Error('Cada sala precisa pertencer a um andar existente')
+  const m = await member('MASTER'); const rooms = checkedRooms(value).map(room => ({...room,connections:room.connections.map(connection => ({...connection,accessMode:connection.accessMode ?? (Object.values(normalizeAccess(connection.access)).some(Boolean) ? 'restricted' : 'open')}))})); const clean = name.trim().slice(0,80) || 'Mapa sem nome'; const floors = Array.isArray(floorValue) ? floorValue.filter((f): f is MapFloor => !!f && typeof f.id === 'string' && typeof f.name === 'string' && !!f.name.trim()).slice(0,20) : [{id:'ground',name:'Térreo'}]; if(!floors.length) throw new Error('Adicione pelo menos um andar'); const floorIds=new Set(floors.map(f=>f.id)); if(rooms.some(r=>!floorIds.has(r.floorId??'ground'))) throw new Error('Cada sala precisa pertencer a um andar existente')
   const missionItems = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission').map(object => object.missionObjectiveItemId!)))]
   const missionFavorCharacters = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission' && (object.missionFavorDelta ?? 0) !== 0).map(object => object.missionFavorCharacterId).filter((value): value is string => !!value)))]
   const classTeachers = [...new Set(rooms.map(room => room.class?.teacherCharacterId).filter((value): value is string => !!value))]
@@ -302,6 +305,64 @@ export async function moveExplorationGroup(fromRoomId: string, roomId: string, a
     return dest.name
   })
   revalidatePath('/mapas'); return moved
+}
+
+/** Abre uma escolha de destino para o grupo, limitada às salas do mapa ativo. */
+export async function startExplorationRoomChoice() {
+  const m = await member('MASTER')
+  await prisma.$transaction(async tx => {
+    const [state] = await tx.$queryRaw<Array<{currentMapId:string|null;currentRoomId:string|null;activeInteraction:unknown}>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+    if (!state?.currentMapId || !state.currentRoomId) throw new Error('Ative um mapa e coloque o grupo em uma sala antes de pedir uma escolha')
+    const [map] = await tx.$queryRaw<Array<{name:string;rooms:unknown;floors:unknown;isPublished:boolean;isEditing:boolean}>>`SELECT "name","rooms","floors","isPublished","isEditing" FROM "ExplorationMap" WHERE "id"=${state.currentMapId} AND "campaignId"=${m.campaignId} FOR UPDATE`
+    if (!map?.isPublished || map.isEditing) throw new Error('O mapa precisa estar publicado e fora de edição')
+    if (state.activeInteraction) throw new Error('Encerre a interação atual antes de abrir a escolha de sala')
+    const rooms = map.rooms as MapRoom[]
+    const currentRoom = rooms.find(room => room.id === state.currentRoomId)
+    if (!currentRoom) throw new Error('A sala ativa não pertence mais ao mapa')
+    const targets = currentRoom.roomChoiceTargets ?? rooms.filter(room => room.id !== currentRoom.id).map(room => room.id)
+    const floors = (map.floors ?? []) as MapFloor[]
+    const options = rooms.filter(room => room.id !== currentRoom.id && targets.includes(room.id)).map(room => {
+      const floorName = floors.find(floor => floor.id === (room.floorId ?? 'ground'))?.name
+      return {id:room.id,label:floorName ? `${room.name} · ${floorName}` : room.name,targetRoomId:room.id}
+    })
+    if (!options.length) throw new Error('Este mapa não possui outras salas para escolher')
+    const interaction = {id:randomUUID(),mapId:state.currentMapId,roomId:state.currentRoomId,objectId:'room-choice',title:'Escolham o próximo destino',type:'room-choice',description:'O Mestre abriu uma escolha de destino. O grupo pode selecionar uma sala deste mapa.',options}
+    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+  })
+  revalidatePath('/mapas')
+}
+
+export async function cancelExplorationRoomChoice() {
+  const m = await member('MASTER')
+  const n = await prisma.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=NULL,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId} AND "activeInteraction"->>'type'='room-choice'`
+  if (!n) throw new Error('Não há uma escolha de sala ativa')
+  revalidatePath('/mapas')
+}
+
+export async function getExplorationRoomChoice() {
+  const m = await member()
+  const [state] = await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
+  const interaction = state?.activeInteraction as {id:string;mapId:string;roomId:string;objectId:string;title:string;type:string;description:string;options:Array<{id:string;label:string;targetRoomId:string}>}|null
+  if (!interaction || interaction.type !== 'room-choice') return null
+  return {id:interaction.id,mapId:interaction.mapId,roomId:interaction.roomId,title:interaction.title,description:interaction.description,options:interaction.options}
+}
+
+export async function chooseExplorationRoom(mapId: string, choiceId: string, targetRoomId: string) {
+  const m = await member('PLAYER')
+  await prisma.$transaction(async tx => {
+    const [state] = await tx.$queryRaw<Array<{currentMapId:string|null;currentRoomId:string|null;activeInteraction:unknown}>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+    const interaction = state?.activeInteraction as {id:string;mapId:string;roomId:string;type:string;options:Array<{id:string;label:string;targetRoomId:string}>}|null
+    if (!interaction || interaction.type !== 'room-choice' || interaction.id !== choiceId || interaction.mapId !== mapId || state?.currentMapId !== mapId || state.currentRoomId !== interaction.roomId) throw new Error('Esta escolha de sala não está mais ativa')
+    const option = interaction.options.find(entry => entry.targetRoomId === targetRoomId)
+    if (!option) throw new Error('Sala indisponível nesta escolha')
+    const [map] = await tx.$queryRaw<Array<{rooms:unknown;isPublished:boolean;isEditing:boolean}>>`SELECT "rooms","isPublished","isEditing" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} FOR UPDATE`
+    if (!map?.isPublished || map.isEditing) throw new Error('O mapa está temporariamente fechado para edição')
+    const dest = (map.rooms as MapRoom[]).find(room => room.id === targetRoomId)
+    if (!dest) throw new Error('A sala escolhida não pertence mais a este mapa')
+    const scene = await firstEntryScene(tx,m.campaignId,mapId,dest,m.userId)
+    await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "currentRoomId"=${dest.id},"activeInteraction"=${scene?JSON.stringify(scene):null}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
+  })
+  revalidatePath('/mapas')
 }
 
 export async function discoverExplorationObject(mapId: string, roomId: string, objectId: string, characterId?: string, replaceItemId?: string, accessCode?: string) {

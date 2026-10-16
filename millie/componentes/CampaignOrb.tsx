@@ -6,7 +6,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, Compass, Dices, Package, ScrollText, Shield, Users, X } from "lucide-react";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
-import { getActiveExplorationMap } from "@/app/actions/exploration";
+import { cancelExplorationRoomChoice, getActiveExplorationMap, getExplorationRoomChoice, startExplorationRoomChoice } from "@/app/actions/exploration";
+
+type RoomChoice = {id:string;mapId:string;roomId:string;title:string;description:string;options:Array<{id:string;label:string;targetRoomId:string}>}
 
 const campaignLinks = [
   { href: "/perfil", label: "Perfil e regras", icon: <Dices size={16} /> },
@@ -24,6 +26,9 @@ export function CampaignOrb() {
   const [isGuarding, setIsGuarding] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [activeMap, setActiveMap] = useState<{ mapName: string; roomName: string | null } | null>(null);
+  const [roomChoice, setRoomChoice] = useState<RoomChoice | null>(null)
+  const [choiceBusy, setChoiceBusy] = useState(false)
+  const [choiceError, setChoiceError] = useState('')
   const isExploring = pathname === "/mapas" || pathname.startsWith("/mapas/");
   const previousPath = useRef(pathname);
 
@@ -53,6 +58,22 @@ export function CampaignOrb() {
     return () => { cancelled = true; };
   }, [activeCampaign?.id, activeCampaign?.isCampaignActive, hasCampaign]);
 
+  useEffect(() => {
+    let cancelled = false
+    const refreshChoice = async () => {
+      try {
+        const choice = await getExplorationRoomChoice()
+        if (!cancelled) setRoomChoice(choice)
+      } catch {
+        if (!cancelled) setRoomChoice(null)
+      }
+    }
+    if (!hasCampaign || !activeCampaign?.isCampaignActive) { setRoomChoice(null); return }
+    void refreshChoice()
+    const timer = setInterval(() => void refreshChoice(), 2500)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [activeCampaign?.id, activeCampaign?.isCampaignActive, hasCampaign])
+
   if (!hasCampaign || !activeCampaign?.isCampaignActive) return null;
 
   function changeCampaign(id: string) {
@@ -69,6 +90,20 @@ export function CampaignOrb() {
     router.push(href);
   }
 
+  async function openRoomChoice() {
+    setChoiceBusy(true); setChoiceError('')
+    try { await startExplorationRoomChoice(); setRoomChoice(await getExplorationRoomChoice()) }
+    catch (error) { setChoiceError(error instanceof Error ? error.message : 'Não foi possível abrir a escolha') }
+    finally { setChoiceBusy(false) }
+  }
+
+  async function cancelRoomChoice() {
+    setChoiceBusy(true); setChoiceError('')
+    try { await cancelExplorationRoomChoice(); setRoomChoice(null) }
+    catch (error) { setChoiceError(error instanceof Error ? error.message : 'Não foi possível cancelar a escolha') }
+    finally { setChoiceBusy(false) }
+  }
+
   return (
     <div className="fixed bottom-5 right-5 z-40">
       {isOpen && (
@@ -82,6 +117,7 @@ export function CampaignOrb() {
               {isExploring ? "Na exploração" : isGuarding ? "Guardando · fora do mapa" : "Exploração disponível"}
             </p>
             {activeMap && <p className="mt-1 pl-4 text-[10px] text-bege-claro/65">Mapa: {activeMap.mapName}{activeMap.roomName ? ` · ${activeMap.roomName}` : ""}</p>}
+            {activeCampaign.role === 'MASTER' && <div className="mt-3 border-t border-bege-escuro/20 pt-3"><button type="button" disabled={choiceBusy || !activeMap?.roomName || !!roomChoice} onClick={() => void openRoomChoice()} className="w-full border border-violet-300/50 bg-violet-950/40 px-3 py-2 text-left text-[10px] uppercase tracking-widest text-violet-100 hover:bg-violet-900/50 disabled:opacity-45">{roomChoice ? 'Escolha de sala aberta' : choiceBusy ? 'Abrindo…' : 'Pedir escolha de sala'}</button>{roomChoice && <button type="button" disabled={choiceBusy} onClick={() => void cancelRoomChoice()} className="mt-2 w-full px-3 py-1 text-left text-[10px] uppercase tracking-widest text-bege-claro/60 hover:text-bege-claro disabled:opacity-50">Cancelar escolha</button>}{choiceError && <p role="alert" className="mt-2 text-[10px] text-red-300">{choiceError}</p>}</div>}
             {campaigns.length > 1 && (
               <label className="mt-3 block text-[10px] uppercase tracking-widest text-bege-claro/60">
                 Trocar campanha

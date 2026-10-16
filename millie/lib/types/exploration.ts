@@ -7,7 +7,7 @@ export type MapClassConfig = { teacherCharacterId?: string; prompt: string; imag
 export type MapObject = { id: string; title: string; type: MapObjectType; x: number; y: number; image?: string; description?: string; discoveredOnce?: boolean; targetMapId?: string; targetRoomId?: string; portalState?: PortalState; portalStyle?: PortalStyle; inventoryItemId?: string; characterId?: string; options?: MapSceneOption[]; access?: MapAccess; missionObjectiveItemId?: string; missionObjectiveQuantity?: number; missionFavorCharacterId?: string; missionFavorDelta?: number; missionCurrencyDelta?: number }
 export type MapAccess = { level?: number; code?: string; itemId?: string; affinityCharacterId?: string; affinity?: number }
 type LegacyAccess = { type: 'open' } | { type: 'level'; value: number } | { type: 'code'; value: string }
-export type MapConnection = { roomId: string; label?: string; access?: MapAccess | LegacyAccess }
+export type MapConnection = { roomId: string; label?: string; accessMode?: 'open' | 'restricted'; access?: MapAccess | LegacyAccess }
 
 export type PublicObject = Pick<MapObject, 'id' | 'title' | 'type' | 'x' | 'y' | 'image' | 'description' | 'portalState' | 'portalStyle' | 'missionObjectiveItemId' | 'missionObjectiveQuantity' | 'missionFavorCharacterId' | 'missionFavorDelta' | 'missionCurrencyDelta'> & { needsCode?: boolean }
 export type PublicDoor = {
@@ -15,5 +15,5 @@ export type PublicDoor = {
   needsCode: boolean; minLevel: number | null; needsItem: boolean; needsAffinity?: boolean; isStairs?: boolean
 }
 export type MapFloor = {id: string; name: string}
-export type MapRoom = { floorId?: string; id: string; name: string; x: number; y: number; width: number; height: number; background?: string; connections: MapConnection[]; objects: MapObject[]; class?: MapClassConfig }
+export type MapRoom = { floorId?: string; id: string; name: string; x: number; y: number; width: number; height: number; background?: string; connections: MapConnection[]; roomChoiceTargets?: string[]; objects: MapObject[]; class?: MapClassConfig }
 export type ExplorationMapRecord = { id: string; name: string; rooms: MapRoom[]; floors?: MapFloor[]; isEditing: boolean; isPublished: boolean }

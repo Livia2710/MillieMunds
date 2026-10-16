@@ -14,6 +14,7 @@ import type { CharacterCategory } from "@/lib/types/character";
 import type { BaseRank } from "@/lib/generated/prisma";
 
 import { createCharacter, getUniverses } from "@/app/actions/character";
+import { applyRaceAttributeModifiers, getRaceAttributeModifiers } from "@/lib/utils/raceTraits";
 
 import { 
   getRankMax, 
@@ -157,6 +158,8 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
 
   const currentRank = calcCurrentRank(startLevel, baseRank, raceIsCorrupted);
   const attributeMax = getRankMax(currentRank);
+  const racialModifiers = selectedRaceData ? getRaceAttributeModifiers(selectedRaceData.name) : {};
+  const effectiveAttrs = selectedRaceData ? applyRaceAttributeModifiers(attrs, selectedRaceData.name, currentRank) : attrs;
 
   const totalPoints = getAttributePoints(currentRank);
   const usedPoints = ATTR_KEYS.reduce((total, key) => total + attrs[key], 0);
@@ -206,8 +209,8 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
     }));
   }
 
-  const pv = calcPV(attrs.vigor);
-  const pm = calcPM(attrs.inteligencia);
+  const pv = calcPV(effectiveAttrs.vigor);
+  const pm = calcPM(effectiveAttrs.inteligencia);
 
   function handleClose() {
     setName("");
@@ -322,6 +325,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
               </p>
             </div>
             )}
+            {Object.keys(racialModifiers).length > 0 && <div className="border border-bege-medio/30 bg-bege-medio/5 p-3 text-[10px] text-bege-claro/80"><strong className="font-title uppercase tracking-wider text-bege-medio">Modificadores raciais</strong><p className="mt-1">{Object.entries(racialModifiers).map(([key,value])=>`${ATTR_LABELS[key]} ${value!>0?'+':''}${value}`).join(' · ')}</p><p className="mt-1 text-bege-escuro/70">Aplicados diretamente aos atributos; o valor final respeita o limite do Rank.</p></div>}
           </>
         )}
 
@@ -472,8 +476,8 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 />
               </div>
 
-              <span className="font-title text-[10px] text-bege-escuro/40 w-8 text-right">
-                {attrs[key]}
+              <span className="font-title text-[10px] text-bege-escuro/60 min-w-12 text-right" title={`Base ${attrs[key]}${racialModifiers[key] ? `; modificador racial ${racialModifiers[key]!>0?'+':''}${racialModifiers[key]}` : ''}; final ${effectiveAttrs[key]}`}>
+                {racialModifiers[key] ? `${attrs[key]} → ${effectiveAttrs[key]}` : effectiveAttrs[key]}
               </span>
             </div>
           ))}
@@ -487,7 +491,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 {pv}
               </div>
               <div className="font-title text-[10px] text-bege-escuro/40">
-                10 + (Vigor {attrs.vigor} × 2)
+                10 + (Vigor {effectiveAttrs.vigor} × 2)
               </div>
             </div>
 
@@ -499,7 +503,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
                 {pm}
               </div>
               <div className="font-title text-[10px] text-bege-escuro/40">
-                10 + (Int {attrs.inteligencia} × 2)
+                10 + (Int {effectiveAttrs.inteligencia} × 2)
               </div>
             </div>
           </div>

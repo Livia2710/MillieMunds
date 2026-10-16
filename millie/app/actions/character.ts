@@ -200,7 +200,7 @@ export async function createCharacter(data: {
   const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
   const dangerLevel = data.dangerLevel === undefined ? undefined : validatedText(data.dangerLevel, 'Nível de perigo', { max: 40 })
 
-  const race = await prisma.race.findUnique({ where: { id: raceId }, select: { isCorrupted: true } })
+  const race = await prisma.race.findUnique({ where: { id: raceId }, select: { name: true, isCorrupted: true } })
   if (!race) throw new Error('Raça não encontrada nesta campanha')
   const characterRank = calcCurrentRank(level, birthRank, race.isCorrupted)
   const attributeMax = getRankMax(characterRank)
@@ -209,8 +209,9 @@ export async function createCharacter(data: {
   const forca        = validatedInteger(data.forca ?? 1, 'Força', 1, attributeMax)
   const vigor        = validatedInteger(data.vigor ?? 1, 'Vigor', 1, attributeMax)
   const sorte        = validatedInteger(data.sorte ?? 1, 'Sorte', 1, attributeMax)
-  const pv           = 10 + vigor        * 2
-  const pm           = 10 + inteligencia * 2
+  const finalAttributes = applyRaceAttributeModifiers({ agilidade, inteligencia, forca, vigor, sorte }, race.name, characterRank)
+  const pv           = 10 + finalAttributes.vigor        * 2
+  const pm           = 10 + finalAttributes.inteligencia * 2
 
   await prisma.character.create({
     data: {
@@ -228,11 +229,7 @@ export async function createCharacter(data: {
       subject,
       occupation,
       dangerLevel,
-      agilidade,
-      inteligencia,
-      forca,
-      vigor,
-      sorte,
+      ...finalAttributes,
       pv,
       pvMax: pv,
       pm,

@@ -306,6 +306,7 @@ export default function CreateCharForm() {
               <label className="block text-[10px] text-bege-escuro/70 uppercase tracking-widest font-title mb-1">Elemento</label>
               {selectedRace?.element === 'escolha' ? <select value={element} onChange={e=>setElement(e.target.value)} className="w-full bg-roxo-escuro border border-bege-escuro/30 p-2 text-xs text-bege-claro font-title uppercase tracking-widest"><option value="">Escolha seu elemento</option>{[['trevas','Trevas'],['luz','Luz'],['terra','Terra'],['agua','Água'],['vento','Vento'],['fogo','Fogo']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select> : <div className="w-full bg-roxo-escuro/20 border border-bege-escuro/20 p-2 text-xs text-bege-medio font-title uppercase tracking-widest">{element || '—'}</div>}
             </div>
+            {Object.keys(racialModifiers).length > 0 && <div className="mt-3 border border-bege-medio/30 bg-bege-medio/5 p-3 text-[10px] text-bege-claro/80"><strong className="font-title uppercase tracking-wider text-bege-medio">Modificadores raciais</strong><p className="mt-1">{Object.entries(racialModifiers).map(([key,value])=>`${ATTR_LABELS[key]} ${value!>0?'+':''}${value}`).join(' · ')}</p><p className="mt-1 text-bege-escuro/70">Aplicados diretamente aos atributos; o valor final respeita o limite do Rank.</p></div>}
           </div>
         )}
 
@@ -523,8 +524,8 @@ export default function CreateCharForm() {
                               style={{ width: `${((attrs[key] - CREATION_MIN) / (CREATION_MAX - CREATION_MIN)) * 100}%` }} />
                           )}
                         </div>
-                        <span className={`text-xs font-title w-10 text-right ${assignedAttrs[key] ? 'text-bege-medio' : 'text-bege-escuro/20'}`}>
-                          {assignedAttrs[key] ? attrs[key] : '—'}
+                        <span className={`text-xs font-title min-w-12 text-right ${assignedAttrs[key] ? 'text-bege-medio' : 'text-bege-escuro/20'}`} title={assignedAttrs[key] && racialModifiers[key] ? `Base ${attrs[key]}, racial ${racialModifiers[key]!>0?'+':''}${racialModifiers[key]}, final ${effectiveAttrs[key]}` : undefined}>
+                          {assignedAttrs[key] ? (racialModifiers[key] ? `${attrs[key]} → ${effectiveAttrs[key]}` : effectiveAttrs[key]) : '—'}
                         </span>
                       </div>
                     ))}

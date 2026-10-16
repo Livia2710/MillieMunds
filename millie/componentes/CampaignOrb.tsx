@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, Compass, Dices, Package, ScrollText, Shield, Users, X } from "lucide-react";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
-import { cancelExplorationRoomChoice, getActiveExplorationMap, getExplorationRoomChoice, startExplorationRoomChoice } from "@/app/actions/exploration";
+import { cancelExplorationRoomChoice, endMapClassSession, getActiveExplorationMap, getExplorationRoomChoice, startExplorationRoomChoice, startMapClassSession } from "@/app/actions/exploration";
 
 type RoomChoice = {id:string;mapId:string;roomId:string;title:string;description:string;options:Array<{id:string;label:string;targetRoomId:string}>}
 
@@ -25,7 +25,7 @@ export function CampaignOrb() {
   const [isOpen, setIsOpen] = useState(false);
   const [isGuarding, setIsGuarding] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [activeMap, setActiveMap] = useState<{ mapName: string; roomName: string | null } | null>(null);
+  const [activeMap, setActiveMap] = useState<{mapId:string;roomId:string;mapName:string;roomName:string|null;hasClass:boolean;classActive:boolean} | null>(null);
   const [roomChoice, setRoomChoice] = useState<RoomChoice | null>(null)
   const [choiceBusy, setChoiceBusy] = useState(false)
   const [choiceError, setChoiceError] = useState('')
@@ -51,7 +51,7 @@ export function CampaignOrb() {
     };
     if (hasCampaign && activeCampaign?.isCampaignActive) {
       void refreshMap();
-      const timer = setInterval(() => void refreshMap(), 15_000);
+      const timer = setInterval(() => void refreshMap(), 3_000);
       return () => { cancelled = true; clearInterval(timer); };
     }
     setActiveMap(null);
@@ -97,6 +97,17 @@ export function CampaignOrb() {
     finally { setChoiceBusy(false) }
   }
 
+  async function toggleClassSession() {
+    if (!activeMap) return
+    setChoiceBusy(true); setChoiceError('')
+    try {
+      if (activeMap.classActive) await endMapClassSession(activeMap.mapId,activeMap.roomId)
+      else await startMapClassSession(activeMap.mapId,activeMap.roomId)
+      setActiveMap(await getActiveExplorationMap())
+    } catch (error) { setChoiceError(error instanceof Error ? error.message : 'Não foi possível atualizar a aula') }
+    finally { setChoiceBusy(false) }
+  }
+
   async function cancelRoomChoice() {
     setChoiceBusy(true); setChoiceError('')
     try { await cancelExplorationRoomChoice(); setRoomChoice(null) }
@@ -118,6 +129,7 @@ export function CampaignOrb() {
             </p>
             {activeMap && <p className="mt-1 pl-4 text-[10px] text-bege-claro/65">Mapa: {activeMap.mapName}{activeMap.roomName ? ` · ${activeMap.roomName}` : ""}</p>}
             {activeCampaign.role === 'MASTER' && <div className="mt-3 border-t border-bege-escuro/20 pt-3"><button type="button" disabled={choiceBusy || !activeMap?.roomName || !!roomChoice} onClick={() => void openRoomChoice()} className="w-full border border-violet-300/50 bg-violet-950/40 px-3 py-2 text-left text-[10px] uppercase tracking-widest text-violet-100 hover:bg-violet-900/50 disabled:opacity-45">{roomChoice ? 'Escolha de sala aberta' : choiceBusy ? 'Abrindo…' : 'Pedir escolha de sala'}</button>{roomChoice && <button type="button" disabled={choiceBusy} onClick={() => void cancelRoomChoice()} className="mt-2 w-full px-3 py-1 text-left text-[10px] uppercase tracking-widest text-bege-claro/60 hover:text-bege-claro disabled:opacity-50">Cancelar escolha</button>}{choiceError && <p role="alert" className="mt-2 text-[10px] text-red-300">{choiceError}</p>}</div>}
+            {activeCampaign.role === 'MASTER' && activeMap?.hasClass && <div className="mt-3 border-t border-bege-escuro/20 pt-3"><p className="mb-2 font-title text-[9px] uppercase tracking-widest text-amber-100/80">Aula · {activeMap.roomName}</p><button type="button" disabled={choiceBusy} onClick={() => void toggleClassSession()} className="w-full border border-amber-200/45 bg-amber-950/35 px-3 py-2 text-left text-[10px] uppercase tracking-widest text-amber-100 hover:bg-amber-900/45 disabled:opacity-45">{choiceBusy ? 'Atualizando…' : activeMap.classActive ? 'Encerrar aula' : 'Iniciar aula nesta sala'}</button>{choiceError && <p role="alert" className="mt-2 text-[10px] text-red-300">{choiceError}</p>}</div>}
             {campaigns.length > 1 && (
               <label className="mt-3 block text-[10px] uppercase tracking-widest text-bege-claro/60">
                 Trocar campanha

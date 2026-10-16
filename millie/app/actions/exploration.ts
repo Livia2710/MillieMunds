@@ -77,6 +77,9 @@ function checkedRooms(value: unknown): MapRoom[] {
       if (![object.x, object.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100)) {
         throw new Error('Posição de elemento inválida');
       }
+      if ((object.width !== undefined && (!Number.isFinite(object.width) || object.width < 1 || object.width > 100)) || (object.height !== undefined && (!Number.isFinite(object.height) || object.height < 1 || object.height > 100))) {
+        throw new Error('Tamanho de elemento inválido');
+      }
 
       // Validação de Textos (title e description) e Imagem do objeto
       if (
@@ -139,11 +142,13 @@ export async function listExplorationMaps() {
 export async function getActiveExplorationMap() {
   const m = await member()
   const [state] = await prisma.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
-  if (!state?.currentMapId) return null
-  const [map] = await prisma.$queryRaw<Array<{ name: string; rooms: unknown }>>`SELECT "name","rooms" FROM "ExplorationMap" WHERE "id"=${state.currentMapId} AND "campaignId"=${m.campaignId} LIMIT 1`
+  if (!state?.currentMapId || !state.currentRoomId) return null
+  const [map] = await prisma.$queryRaw<Array<{ name: string; rooms: unknown; isPublished:boolean; isEditing:boolean }>>`SELECT "name","rooms","isPublished","isEditing" FROM "ExplorationMap" WHERE "id"=${state.currentMapId} AND "campaignId"=${m.campaignId} LIMIT 1`
   if (!map) return null
   const room = ((map.rooms ?? []) as MapRoom[]).find(candidate => candidate.id === state.currentRoomId)
-  return { mapName: map.name, roomName: room?.name ?? null }
+  const [explorationState] = await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
+  const active = explorationState?.activeInteraction as {type?:string;mapId?:string;roomId?:string}|null
+  return { mapId:state.currentMapId, roomId:state.currentRoomId, mapName: map.name, roomName: room?.name ?? null, hasClass:!!room?.class && map.isPublished && !map.isEditing, classActive:active?.type==='class' && active.mapId===state.currentMapId && active.roomId===state.currentRoomId }
 }
 
 export async function createExplorationMap(name = 'Novo mapa') {
@@ -251,7 +256,7 @@ export async function getPlayerExplorationSnapshot(previewMapId?: string, previe
   const free = new Set((await prisma.inventoryItem.findMany({ where: { id: { in: itemIds }, campaignId: m.campaignId, ownerId: null, isLocked: false }, select: { id: true } })).map(i => i.id))
   const objects: PublicObject[] = room.objects
     .filter(o => (o.type !== 'scene' || m.role === 'MASTER') && !(isOnce(o) && done.has(o.id)) && (o.type !== 'item' || (!!o.inventoryItemId && free.has(o.inventoryItemId))))
-    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, image: o.image, portalState: o.type === 'portal' ? (o.portalState ?? 'active') : undefined, portalStyle: o.type === 'portal' ? (o.portalStyle ?? 'arch') : undefined, description: o.type === 'mission' ? o.description : undefined, missionObjectiveItemId: o.type === 'mission' ? o.missionObjectiveItemId : undefined, missionObjectiveQuantity: o.type === 'mission' ? o.missionObjectiveQuantity : undefined, missionFavorCharacterId: o.type === 'mission' ? o.missionFavorCharacterId : undefined, missionFavorDelta: o.type === 'mission' ? o.missionFavorDelta : undefined, missionCurrencyDelta: o.type === 'mission' ? o.missionCurrencyDelta : undefined, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
+    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, width: o.width, height: o.height, image: o.image, portalState: o.type === 'portal' ? (o.portalState ?? 'active') : undefined, portalStyle: o.type === 'portal' ? (o.portalStyle ?? 'arch') : undefined, description: o.type === 'mission' ? o.description : undefined, missionObjectiveItemId: o.type === 'mission' ? o.missionObjectiveItemId : undefined, missionObjectiveQuantity: o.type === 'mission' ? o.missionObjectiveQuantity : undefined, missionFavorCharacterId: o.type === 'mission' ? o.missionFavorCharacterId : undefined, missionFavorDelta: o.type === 'mission' ? o.missionFavorDelta : undefined, missionCurrencyDelta: o.type === 'mission' ? o.missionCurrencyDelta : undefined, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
 
   const mine = m.role === 'PLAYER'
     ? await prisma.character.findMany({ where: { campaignId: m.campaignId, playerId: m.userId }, select: { id: true, name: true, forca: true, level: true, birthRank: true, rankLosses: true, race: { select: { isCorrupted: true } } } })
@@ -319,7 +324,7 @@ export async function startExplorationRoomChoice() {
     const rooms = map.rooms as MapRoom[]
     const currentRoom = rooms.find(room => room.id === state.currentRoomId)
     if (!currentRoom) throw new Error('A sala ativa não pertence mais ao mapa')
-    const targets = currentRoom.roomChoiceTargets ?? rooms.filter(room => room.id !== currentRoom.id).map(room => room.id)
+    const targets = currentRoom.roomChoiceTargets ?? []
     const floors = (map.floors ?? []) as MapFloor[]
     const options = rooms.filter(room => room.id !== currentRoom.id && targets.includes(room.id)).map(room => {
       const floorName = floors.find(floor => floor.id === (room.floorId ?? 'ground'))?.name
@@ -470,9 +475,10 @@ export async function chooseExplorationSceneOption(mapId: string, roomId: string
 export async function startMapClassSession(mapId: string, roomId: string) {
   const m = await member('MASTER')
   await prisma.$transaction(async tx => {
-    const [state] = await tx.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null }>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
+    const [state] = await tx.$queryRaw<Array<{ currentMapId: string | null; currentRoomId: string | null; activeInteraction:unknown }>>`SELECT "currentMapId","currentRoomId","activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} FOR UPDATE`
     const [map] = await tx.$queryRaw<Array<{ rooms: unknown; isEditing: boolean; isPublished: boolean }>>`SELECT "rooms","isEditing","isPublished" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} LIMIT 1`
     if (!map?.isPublished || map.isEditing || state?.currentMapId !== mapId || state.currentRoomId !== roomId) throw new Error('O grupo precisa estar nesta sala e o mapa deve estar liberado')
+    if (state.activeInteraction) throw new Error('Encerre a interação atual antes de iniciar a aula')
     const room = (map.rooms as MapRoom[]).find(entry => entry.id === roomId)
     const lesson = room?.class
     if (!lesson?.teacherCharacterId || !lesson.correctOptionId || lesson.options.length < 2) throw new Error('Configure a aula nesta sala antes de iniciá-la')

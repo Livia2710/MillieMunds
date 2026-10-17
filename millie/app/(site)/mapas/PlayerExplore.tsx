@@ -3,12 +3,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Compass, LoaderCircle, Smartphone, Sparkles, X } from 'lucide-react'
+import { ArrowDown, Compass, LoaderCircle, Smartphone, Sparkles, X } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import { answerMapClass, chooseExplorationRoom, chooseExplorationSceneOption, closeExplorationInteraction, discoverExplorationObject, getExplorationRoomChoice, getPlayerExplorationSnapshot, moveExplorationGroup } from '@/app/actions/exploration'
 import type { MapSceneOption, PublicDoor, PublicObject } from '@/lib/types/exploration'
 
-type CharacterChoice = { id: string; name: string; capacity: number; used: number; items: { id: string; name: string }[] }
+type CharacterChoice = { id: string; name: string; image?: string | null; portraitImage?: string | null; capacity: number; used: number; items: { id: string; name: string }[] }
 type FoundObject = Omit<PublicObject, 'type'> & { type: string; description?: string; options?: MapSceneOption[]; itemName?: string; preview?: boolean; objectId?:string; choiceText?:string; chosenOptionId?:string; mapId?:string; roomId?:string; ritualSymbol?:string; teacherCharacterId?:string; teacherName?:string; correctOptionId?:string; favorReward?:number; answers?:Record<string,{correct:boolean;selectedOptionId:string;gainedFavor?:boolean}> }
 type Room = { id:string; name:string; floorName:string; background:string|null; objects:PublicObject[] }
 type Snapshot = {
@@ -27,11 +27,26 @@ type Replacement = { object: PublicObject; items: { id: string; name: string }[]
 const ARROW_ROTATION = { up: '-90deg', down: '90deg', left: '0deg', right: '180deg' } as const
 const FALLBACK_TEXT = 'O grupo descobriu algo neste local.'
 
+function paginateDialogue(text: string, limit = 210) {
+  const pages: string[] = []
+  let remaining = text.trim()
+  while (remaining.length > limit) {
+    let split = remaining.lastIndexOf(' ', limit)
+    if (split < limit * 0.55) split = remaining.indexOf(' ', limit)
+    if (split < 0) split = limit
+    pages.push(remaining.slice(0, split).trim())
+    remaining = remaining.slice(split).trim()
+  }
+  if (remaining || !pages.length) pages.push(remaining)
+  return pages
+}
+
 export default function PlayerExplore() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [scene, setScene] = useState<FoundObject | null>(null)
   const [characterId, setCharacterId] = useState('')
   const [visibleChars, setVisibleChars] = useState(0)
+  const [dialoguePage, setDialoguePage] = useState(0)
   const [replacement, setReplacement] = useState<Replacement | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -84,12 +99,49 @@ export default function PlayerExplore() {
   }, [refresh])
 
   const currentText = scene?.choiceText || scene?.description || (scene?.type === 'scene' ? 'O Mestre ainda não escreveu a narração desta sala.' : FALLBACK_TEXT)
+  const dialoguePages = paginateDialogue(currentText)
+  const currentPageText = dialoguePages[dialoguePage] ?? ''
+  const speakerImage = scene?.choiceText
+    ? (snapshot?.characters.find(character => character.id === activeCharacter)?.portraitImage || snapshot?.characters.find(character => character.id === activeCharacter)?.image)
+    : (scene?.speakerImage || (scene?.type === 'character' ? scene.image : undefined))
+  const advanceDialogue = useCallback(() => {
+    if (!scene) return
+    if (visibleChars < currentPageText.length) {
+      setVisibleChars(currentPageText.length)
+    } else if (dialoguePage < dialoguePages.length - 1) {
+      setDialoguePage(page => page + 1)
+      setVisibleChars(0)
+    } else if (scene.type !== 'class') {
+      setScene(null)
+      if (!snapshot?.masterPreview && snapshot?.map && snapshot?.room) {
+        void closeExplorationInteraction(snapshot.map.id, snapshot.room.id, scene.id).then(() => void refresh())
+      }
+    }
+  }, [scene, visibleChars, currentPageText.length, dialoguePage, dialoguePages.length, snapshot, refresh])
+
+  useEffect(() => {
+    setDialoguePage(0)
+  }, [scene?.id, scene?.choiceText, scene?.description])
+
   useEffect(() => {
     setVisibleChars(0)
     if (!scene?.id) return
-    const timer = setInterval(() => setVisibleChars(n => Math.min(currentText.length, n + 3)), 22)
+    const timer = setInterval(() => setVisibleChars(n => Math.min(currentPageText.length, n + 3)), 22)
     return () => clearInterval(timer)
-  }, [scene?.id, scene?.choiceText, scene?.description, currentText])
+  }, [scene?.id, scene?.choiceText, scene?.description, dialoguePage, currentPageText])
+
+  useEffect(() => {
+    if (!scene) return
+    const handleActionKey = (event: KeyboardEvent) => {
+      if (!['Enter', ' ', 'ArrowRight', 'ArrowDown'].includes(event.key)) return
+      const target = event.target as HTMLElement | null
+      if (target?.tagName === 'SELECT' || target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'BUTTON' || target?.tagName === 'A') return
+      event.preventDefault()
+      advanceDialogue()
+    }
+    window.addEventListener('keydown', handleActionKey)
+    return () => window.removeEventListener('keydown', handleActionKey)
+  }, [scene, advanceDialogue])
 
   async function interact(object: PublicObject, replaceItemId?: string) {
     if (!snapshot?.map || !snapshot.room) return
@@ -169,7 +221,7 @@ export default function PlayerExplore() {
         <span className="ml-auto text-xs text-bege-escuro/60">Prévia do Mestre · somente leitura</span>
       </div>
       {snapshot.notice && <p className="border border-bege-escuro/30 p-8 text-center text-sm">{snapshot.notice}</p>}
-      {snapshot.map && snapshot.room && <RoomView snapshot={snapshot} room={snapshot.room} roomChoice={roomChoice} activeCharacter={activeCharacter} scene={scene} replacement={replacement} busy={busy} error={error} currentText={currentText} visibleChars={visibleChars} imageRatio={imageRatio} setImageRatio={setImageRatio} onInteract={interact} onMove={move} onSelectRoom={selectRoom} onChoose={choose} onAnswer={answerClass} onClose={()=>{setScene(null);if(!snapshot.masterPreview&&scene&&scene.type!=='class')void closeExplorationInteraction(snapshot.map!.id,snapshot.room!.id,scene.id).then(()=>void refresh())}} onCancelReplacement={()=>setReplacement(null)}/>}
+      {snapshot.map && snapshot.room && <RoomView snapshot={snapshot} room={snapshot.room} roomChoice={roomChoice} activeCharacter={activeCharacter} scene={scene} replacement={replacement} busy={busy} error={error} currentText={currentPageText} visibleChars={visibleChars} dialoguePage={dialoguePage} dialoguePageCount={dialoguePages.length} speakerImage={speakerImage} onAdvanceDialogue={advanceDialogue} imageRatio={imageRatio} setImageRatio={setImageRatio} onInteract={interact} onMove={move} onSelectRoom={selectRoom} onChoose={choose} onAnswer={answerClass} onClose={()=>{setScene(null);if(!snapshot.masterPreview&&scene&&scene.type!=='class')void closeExplorationInteraction(snapshot.map!.id,snapshot.room!.id,scene.id).then(()=>void refresh())}} onCancelReplacement={()=>setReplacement(null)}/>}
     </section>
   }
   if (snapshot.notice) return <section className="mx-auto my-10 max-w-3xl border border-bege-escuro/30 bg-roxo-escuro/40 p-10 text-center text-bege-claro"><Compass className="mx-auto mb-4 text-bege-medio"/><h2 className="font-title text-xl uppercase tracking-widest">Exploração</h2><p className="mt-3 text-sm text-bege-escuro/75">{snapshot.notice}</p></section>
@@ -180,11 +232,11 @@ export default function PlayerExplore() {
     <div className="mb-4 flex items-end justify-between"><div><p className="font-title text-[10px] uppercase tracking-[.25em] text-bege-medio">{snapshot.map.name}</p><h1 className="mt-1 font-title text-2xl uppercase tracking-widest">{snapshot.room.name}</h1><p className="mt-1 text-xs text-bege-escuro/60">{snapshot.room.floorName}</p></div><span className="text-xs text-bege-escuro/60">Exploração compartilhada</span></div>
     {snapshot.characters.length > 0 && <label className="mb-3 flex items-center gap-3 text-xs">Personagem ativo<select value={activeCharacter} onChange={e=>setCharacterId(e.target.value)} className="border border-bege-escuro/30 bg-roxo-escuro p-2">{snapshot.characters.map(c=><option key={c.id} value={c.id}>{c.name} · inventário {c.used}/{c.capacity}</option>)}</select><span className="text-bege-escuro/60">Usado para receber itens e responder às aulas.</span></label>}
     {snapshot.characters.length === 0 && <p className="mb-3 text-xs text-bege-escuro/60">Você precisa de um personagem nesta campanha para receber itens ou responder às aulas.</p>}
-    <RoomView snapshot={snapshot} room={snapshot.room} roomChoice={roomChoice} activeCharacter={activeCharacter} scene={scene} replacement={replacement} busy={busy} error={error} currentText={currentText} visibleChars={visibleChars} imageRatio={imageRatio} setImageRatio={setImageRatio} onInteract={interact} onMove={move} onSelectRoom={selectRoom} onChoose={choose} onAnswer={answerClass} onClose={()=>{setScene(null);if(scene&&scene.type!=='class')void closeExplorationInteraction(snapshot.map!.id,snapshot.room!.id,scene.id).then(()=>void refresh())}} onCancelReplacement={()=>setReplacement(null)}/>
+    <RoomView snapshot={snapshot} room={snapshot.room} roomChoice={roomChoice} activeCharacter={activeCharacter} scene={scene} replacement={replacement} busy={busy} error={error} currentText={currentPageText} visibleChars={visibleChars} dialoguePage={dialoguePage} dialoguePageCount={dialoguePages.length} speakerImage={speakerImage} onAdvanceDialogue={advanceDialogue} imageRatio={imageRatio} setImageRatio={setImageRatio} onInteract={interact} onMove={move} onSelectRoom={selectRoom} onChoose={choose} onAnswer={answerClass} onClose={()=>{setScene(null);if(scene&&scene.type!=='class')void closeExplorationInteraction(snapshot.map!.id,snapshot.room!.id,scene.id).then(()=>void refresh())}} onCancelReplacement={()=>setReplacement(null)}/>
   </section>
 }
 
-function RoomView({snapshot,room,roomChoice,activeCharacter,scene,replacement,busy,error,currentText,visibleChars,imageRatio,setImageRatio,onInteract,onMove,onSelectRoom,onChoose,onAnswer,onClose,onCancelReplacement}:{snapshot:Snapshot;room:Room;roomChoice:RoomChoice|null;activeCharacter?:string;scene:FoundObject|null;replacement:Replacement|null;busy:boolean;error:string;currentText:string;visibleChars:number;imageRatio:number;setImageRatio:(value:number)=>void;onInteract:(o:PublicObject,replaceId?:string)=>void;onMove:(d:PublicDoor)=>void;onSelectRoom:(roomId:string)=>void;onChoose:(o:MapSceneOption)=>void;onAnswer:(optionId:string)=>void;onClose:()=>void;onCancelReplacement:()=>void}) {
+function RoomView({snapshot,room,roomChoice,activeCharacter,scene,replacement,busy,error,currentText,visibleChars,dialoguePage,dialoguePageCount,speakerImage,onAdvanceDialogue,imageRatio,setImageRatio,onInteract,onMove,onSelectRoom,onChoose,onAnswer,onClose,onCancelReplacement}:{snapshot:Snapshot;room:Room;roomChoice:RoomChoice|null;activeCharacter?:string;scene:FoundObject|null;replacement:Replacement|null;busy:boolean;error:string;currentText:string;visibleChars:number;dialoguePage:number;dialoguePageCount:number;speakerImage?:string|null;onAdvanceDialogue:()=>void;imageRatio:number;setImageRatio:(value:number)=>void;onInteract:(o:PublicObject,replaceId?:string)=>void;onMove:(d:PublicDoor)=>void;onSelectRoom:(roomId:string)=>void;onChoose:(o:MapSceneOption)=>void;onAnswer:(optionId:string)=>void;onClose:()=>void;onCancelReplacement:()=>void}) {
   return <>
     {error && <p role="alert" className="mb-3 border border-red-400/30 p-3 text-sm text-red-200">{error}</p>}
     <div className="relative mx-auto overflow-hidden border border-bege-medio/70 bg-[#26182c]" style={{width:`min(100%, ${70*imageRatio}vh, ${900*imageRatio}px)`,aspectRatio:imageRatio,maxHeight:'min(70vh, 900px)'}}>
@@ -203,9 +255,11 @@ function RoomView({snapshot,room,roomChoice,activeCharacter,scene,replacement,bu
       {snapshot.doors.map(door=>{const directionDoors=snapshot.doors.filter(d=>d.direction===door.direction);const along=`${((directionDoors.indexOf(door)+1)/(directionDoors.length+1))*100}%`;const style=(door.direction==='up'||door.direction==='down'?{left:along,[door.direction==='up'?'top':'bottom']:8,transform:'translateX(-50%)'}:{top:along,[door.direction==='left'?'left':'right']:8,transform:'translateY(-50%)'}) as CSSProperties;return <button key={door.roomId} disabled={busy||scene?.type==='scene'} onClick={()=>onMove(door)} aria-label={`${door.isStairs?'Escada':'Passagem'} para ${door.label}`} title={`${door.isStairs?'Escada':'Passagem'} para ${door.label}`} style={style} className="absolute z-20 grid h-11 w-12 place-items-center bg-transparent disabled:opacity-50 md:h-14 md:w-14"><span aria-hidden="true" className="block h-9 w-10 bg-contain bg-center bg-no-repeat" style={{backgroundImage:'url(/assets/svgs/arrow.svg)',transform:`rotate(${ARROW_ROTATION[door.direction]})`,filter:'brightness(0) saturate(100%) invert(81%) sepia(24%) saturate(670%) hue-rotate(355deg)'}}/>{door.isStairs&&<span className="absolute -bottom-1 rounded border border-bege-medio/70 bg-roxo-escuro px-1 text-[10px] text-bege-claro">↕</span>}{door.needsCode||door.minLevel||door.needsItem||door.needsAffinity?<span className="absolute right-0 top-0 text-[10px]">🔒</span>:null}</button>})}
       {roomChoice && roomChoice.mapId===snapshot.map?.id && <article role="dialog" aria-modal="false" aria-labelledby="map-room-choice-title" className="absolute inset-x-3 top-3 z-40 max-h-[48%] overflow-y-auto border border-violet-200/60 bg-[#21112f]/95 p-4 text-bege-claro shadow-[0_0_28px_rgba(139,92,246,.35)] backdrop-blur-sm md:inset-x-[12%] md:top-5 md:p-6"><p className="font-title text-[9px] uppercase tracking-[.24em] text-violet-200">Escolha de destino aberta pelo Mestre</p><h2 id="map-room-choice-title" className="mt-1 font-title text-lg uppercase tracking-widest">{roomChoice.title}</h2><p className="mt-1 text-xs text-bege-claro/70">{snapshot.masterPreview?'Prévia: selecione para navegar sem mover o grupo.':'Escolham uma sala deste mapa; a primeira escolha move o grupo.'}</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{roomChoice.options.map(option=><button key={option.id} disabled={busy} onClick={()=>onSelectRoom(option.targetRoomId)} className="min-h-10 border border-violet-200/50 bg-violet-950/60 px-3 py-2 text-left font-title text-[10px] uppercase tracking-wider text-violet-100 transition hover:border-violet-100 hover:bg-violet-800/70 disabled:opacity-50">{option.label}</button>)}</div></article>}
       {replacement&&<article role="dialog" aria-modal="false" className="absolute inset-x-3 bottom-3 z-40 max-h-[48%] overflow-y-auto border-2 border-[#80633f] bg-[#d9c49d] p-4 text-[#241a18] shadow-2xl"><h2 className="font-title text-lg uppercase">Inventário cheio</h2><p className="mt-1 text-sm">O personagem ocupa {replacement.used}/{replacement.capacity} espaços. Escolha um item para devolver ao Mestre e receber {replacement.object.title}.</p><div className="mt-3 flex flex-wrap gap-2">{replacement.items.map(item=><button key={item.id} disabled={busy} onClick={()=>void onInteract(replacement.object,item.id)} className="border border-[#694f3a] px-3 py-2 text-sm hover:bg-[#b49a70]">Devolver: {item.name}</button>)}</div><button onClick={onCancelReplacement} className="absolute right-1 top-1 p-2" aria-label="Cancelar troca"><X size={18}/></button></article>}
-      {scene&&!replacement&&<article role="dialog" aria-modal="false" className="absolute inset-x-2 bottom-2 z-30 max-h-[48%] overflow-y-auto border-[3px] border-[#80633f] p-3 text-[#241a18] shadow-2xl md:inset-x-[14%] md:bottom-4 md:p-5" style={{backgroundColor:'#d9c49d',backgroundImage:'radial-gradient(ellipse at top left,rgba(255,247,219,.62),transparent 55%),radial-gradient(ellipse at bottom right,rgba(155,119,70,.16),transparent 55%),repeating-linear-gradient(0deg,rgba(102,74,45,.035) 0px,rgba(102,74,45,.035) 1px,transparent 1px,transparent 4px)'}}>
-        {scene.type!=='class'&&<button onClick={onClose} className="absolute right-1 top-1 p-2" aria-label="Fechar cena"><X size={17}/></button>}{scene.type==='class'&&scene.image&&<img src={scene.image} alt="Imagem do quadro da aula" className="mb-3 max-h-36 w-full border border-[#80633f] object-contain"/>}<div className={`grid w-full gap-3 pr-7 ${scene.image&&scene.type!=='class'?'grid-cols-[80px_minmax(0,1fr)] items-center md:grid-cols-[112px_minmax(0,1fr)] md:gap-5':'grid-cols-1'}`}>{scene.image&&scene.type!=='class'&&<img src={scene.image} alt={scene.title} className="max-h-24 w-20 object-contain md:max-h-32 md:w-28"/>}<div className="w-full min-w-0"><h2 className="font-title text-base uppercase tracking-wider md:text-lg">{scene.type==='character'?`Encontro — ${scene.title}`:scene.title}</h2>{scene.type==='class'&&scene.teacherName&&<p className="mt-1 text-xs font-semibold">Professor: {scene.teacherName}</p>}{scene.type==='class'&&scene.ritualSymbol&&<p className="mt-2 inline-block border border-[#80633f] bg-[#ead6ae]/60 px-3 py-2 font-mono text-lg tracking-[.2em]">{scene.ritualSymbol}</p>}<p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{currentText.slice(0,visibleChars)}<span className="animate-pulse">{visibleChars<currentText.length?'▍':''}</span></p></div></div>
+      {scene&&!replacement&&<article role="dialog" aria-modal="false" aria-label={`Diálogo: ${scene.title}`} className="absolute inset-x-2 bottom-2 z-30 max-h-[42vh] min-h-[25vh] overflow-hidden border-[3px] border-[#80633f] p-3 pb-12 pt-9 text-[#241a18] shadow-2xl sm:inset-x-[8%] sm:p-5 sm:pb-12 sm:pt-10 md:inset-x-[14%] md:bottom-4" style={{backgroundColor:'#d9c49d',backgroundImage:'radial-gradient(ellipse at top left,rgba(255,247,219,.62),transparent 55%),radial-gradient(ellipse at bottom right,rgba(155,119,70,.16),transparent 55%),repeating-linear-gradient(0deg,rgba(102,74,45,.035) 0px,rgba(102,74,45,.035) 1px,transparent 1px,transparent 4px)'}}>
+        {speakerImage&&<div className="absolute -top-1 left-3 z-10 h-32 w-24 -translate-y-1/3 overflow-hidden rounded-sm border-[3px] border-[#80633f] bg-[#d9c49d] shadow-lg sm:left-5 sm:h-[170px] sm:w-32 md:h-48 md:w-36"><img src={speakerImage} alt={`Retrato de ${scene.choiceText?'seu personagem':scene.type==='class'?scene.teacherName??'professor':scene.title}`} className="h-full w-full object-cover object-top"/></div>}
+        {scene.type!=='class'&&<button onClick={onClose} className="absolute right-1 top-1 z-10 p-2" aria-label="Fechar cena"><X size={17}/></button>}{scene.type==='class'&&scene.image&&<img src={scene.image} alt="Imagem do quadro da aula" className="mb-3 max-h-24 w-full border border-[#80633f] object-contain sm:max-h-32"/>}<div className="max-h-[20vh] overflow-hidden"><h2 className={`font-title text-base uppercase tracking-wider md:text-lg ${speakerImage?'pl-20 sm:pl-28':''}`}>{scene.type==='character'?`Encontro — ${scene.title}`:scene.title}</h2>{scene.type==='class'&&scene.teacherName&&<p className="mt-1 text-xs font-semibold">Professor: {scene.teacherName}</p>}{scene.type==='class'&&scene.ritualSymbol&&<p className="mt-2 inline-block border border-[#80633f] bg-[#ead6ae]/60 px-3 py-2 font-mono text-lg tracking-[.2em]">{scene.ritualSymbol}</p>}<p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{currentText.slice(0,visibleChars)}<span className="animate-pulse">{visibleChars<currentText.length?'▍':''}</span></p></div>
         {scene.type==='item'&&<p className="mt-3 border-t border-[#80633f]/40 pt-2 text-xs">{scene.itemName?`${scene.itemName} foi adicionado ao inventário.`:'Descoberta registrada para todo o grupo.'}</p>}{scene.preview&&<p className="mt-3 border-t border-[#80633f]/40 pt-2 text-xs">Prévia do Mestre — nada foi registrado.</p>}{scene.type==='character'&&(scene.options??[]).map(option=><button key={option.id} disabled={busy||!!scene.chosenOptionId} onClick={()=>onChoose(option)} className="mr-2 mt-3 inline-flex border border-[#694f3a] px-4 py-2 text-sm hover:bg-[#b49a70] disabled:opacity-60">{option.label}</button>)}{scene.type==='class'&&<><div className="mt-3 flex flex-wrap gap-2">{(scene.options??[]).map(option=>{const answer=scene.answers?.[activeCharacter??''];return <button key={option.id} disabled={busy||!!answer||snapshot.masterPreview||!activeCharacter} onClick={()=>onAnswer(option.id)} className="border border-[#694f3a] px-4 py-2 text-sm hover:bg-[#b49a70] disabled:opacity-60">{option.label}</button>})}</div>{scene.answers?.[activeCharacter??'']&&<p className="mt-3 border-t border-[#80633f]/40 pt-2 text-sm font-semibold">{scene.answers[activeCharacter??''].correct?(scene.answers[activeCharacter??''].gainedFavor?'Resposta correta! Você ganhou Favor com o professor.':'Resposta correta! O limite de Favor desta sessão já foi atingido.'):'Resposta registrada. Tente novamente na próxima aula.'}</p>}{snapshot.masterPreview&&<p className="mt-3 text-xs">Prévia do Mestre — a resposta não altera Favor.</p>}</>}
+        <div className="absolute bottom-2 right-2 flex items-center gap-2"><span aria-live="polite" className="text-[9px] tabular-nums">{dialoguePage+1}/{dialoguePageCount}</span><button type="button" onClick={onAdvanceDialogue} className="grid h-8 w-8 place-items-center rounded-full border border-[#80633f]/70 bg-[#ead6ae]/80 transition hover:bg-[#c8ac7c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#80633f]" aria-label={visibleChars<currentText.length?'Mostrar o restante desta fala':dialoguePage+1<dialoguePageCount?'Próxima página do diálogo':'Continuar'} title="Enter, Espaço ou seta para a direita"><ArrowDown size={17}/></button></div>
       </article>}
     </div>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-bege-escuro/60">{room.objects.length?`${room.objects.length} elemento(s) nesta sala`:'Esta sala não tem elementos posicionados.'}</p></div>

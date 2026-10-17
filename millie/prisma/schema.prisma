@@ -302,7 +302,7 @@ model Character {
   image       String?
   portraitImage String?
   worldSlug   String
-  isLocked    Boolean @default(false)
+  isLocked    Boolean @default(true)
   campaignId  String
   playerId    String?
 

@@ -87,7 +87,8 @@ function checkedRooms(value: unknown): MapRoom[] {
         object.title.length > 120 || 
         (object.description && typeof object.description !== 'string') ||
         (object.description?.length ?? 0) > 2000 || 
-        !okUrl(object.image)
+        !okUrl(object.image) ||
+        !okUrl(object.speakerImage)
       ) {
         throw new Error('Elemento com dados inválidos');
       }
@@ -164,7 +165,7 @@ export async function getExplorationAssets() {
     prisma.$queryRaw<Array<{id:string;name:string;category:string;image:string|null}>>`SELECT "id","name","category","image" FROM "InventoryItem" WHERE "campaignId"=${m.campaignId} AND "ownerId" IS NULL AND "isLocked"=false AND "isDraft"=false ORDER BY "name"`,
     prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT "id","name" FROM "InventoryItem" WHERE "campaignId"=${m.campaignId} AND "isDraft"=false ORDER BY "name"`,
   ])
-  const characters=await prisma.character.findMany({where:{campaignId:m.campaignId},select:{id:true,name:true,image:true,category:true},orderBy:{name:'asc'}})
+  const characters=await prisma.character.findMany({where:{campaignId:m.campaignId},select:{id:true,name:true,image:true,portraitImage:true,category:true},orderBy:{name:'asc'}})
   return {maps:maps.map(mapRecord),items, allItems, characters}
 }
 export async function getExplorationMap(id: string) {
@@ -219,7 +220,7 @@ async function assertAccess(tx: Tx, campaignId: string, playerId: string, raw: u
 async function firstEntryScene(tx: Tx, campaignId: string, mapId: string, room: MapRoom, userId: string) {
   for (const scene of room.objects.filter(object => object.type === 'scene')) {
     const inserted = await tx.$executeRaw`INSERT INTO "ExplorationDiscovery" ("campaignId","mapId","objectId","type","title","foundByUserId") VALUES (${campaignId},${mapId},${scene.id},'scene',${scene.title},${userId}) ON CONFLICT DO NOTHING`
-    if (inserted) return { id: scene.id, mapId, roomId: room.id, objectId: scene.id, title: scene.title, type: 'scene', image: scene.image ?? null, description: scene.description ?? '', options: [], choiceText: '' }
+    if (inserted) return { id: scene.id, mapId, roomId: room.id, objectId: scene.id, title: scene.title, type: 'scene', image: scene.image ?? null, speakerImage: scene.speakerImage ?? null, description: scene.description ?? '', options: [], choiceText: '' }
   }
   return null
 }
@@ -254,21 +255,24 @@ export async function getPlayerExplorationSnapshot(previewMapId?: string, previe
   }
   const itemIds = room.objects.flatMap(o => (o.type === 'item' && o.inventoryItemId ? [o.inventoryItemId] : []))
   const free = new Set((await prisma.inventoryItem.findMany({ where: { id: { in: itemIds }, campaignId: m.campaignId, ownerId: null, isLocked: false }, select: { id: true } })).map(i => i.id))
+  const mapCharacterIds = room.objects.flatMap(object => object.type === 'character' && object.characterId ? [object.characterId] : [])
+  const mapCharacters = mapCharacterIds.length ? await prisma.character.findMany({ where: { id: { in: mapCharacterIds }, campaignId: m.campaignId }, select: { id: true, image: true, portraitImage: true } }) : []
+  const characterById = new Map(mapCharacters.map(character => [character.id, character]))
   const objects: PublicObject[] = room.objects
     .filter(o => (o.type !== 'scene' || m.role === 'MASTER') && !(isOnce(o) && done.has(o.id)) && (o.type !== 'item' || (!!o.inventoryItemId && free.has(o.inventoryItemId))))
-    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, width: o.width, height: o.height, image: o.image, portalState: o.type === 'portal' ? (o.portalState ?? 'active') : undefined, portalStyle: o.type === 'portal' ? (o.portalStyle ?? 'arch') : undefined, description: o.type === 'mission' ? o.description : undefined, missionObjectiveItemId: o.type === 'mission' ? o.missionObjectiveItemId : undefined, missionObjectiveQuantity: o.type === 'mission' ? o.missionObjectiveQuantity : undefined, missionFavorCharacterId: o.type === 'mission' ? o.missionFavorCharacterId : undefined, missionFavorDelta: o.type === 'mission' ? o.missionFavorDelta : undefined, missionCurrencyDelta: o.type === 'mission' ? o.missionCurrencyDelta : undefined, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
+    .map(o => ({ id: o.id, title: o.title, type: o.type, x: o.x, y: o.y, width: o.width, height: o.height, image: o.image, speakerImage: o.speakerImage ?? (o.characterId ? characterById.get(o.characterId)?.portraitImage ?? characterById.get(o.characterId)?.image ?? undefined : undefined), portalState: o.type === 'portal' ? (o.portalState ?? 'active') : undefined, portalStyle: o.type === 'portal' ? (o.portalStyle ?? 'arch') : undefined, description: o.type === 'mission' ? o.description : undefined, missionObjectiveItemId: o.type === 'mission' ? o.missionObjectiveItemId : undefined, missionObjectiveQuantity: o.type === 'mission' ? o.missionObjectiveQuantity : undefined, missionFavorCharacterId: o.type === 'mission' ? o.missionFavorCharacterId : undefined, missionFavorDelta: o.type === 'mission' ? o.missionFavorDelta : undefined, missionCurrencyDelta: o.type === 'mission' ? o.missionCurrencyDelta : undefined, needsCode: o.type === 'portal' && !!normalizeAccess(o.access).code }))
 
   const mine = m.role === 'PLAYER'
-    ? await prisma.character.findMany({ where: { campaignId: m.campaignId, playerId: m.userId }, select: { id: true, name: true, forca: true, level: true, birthRank: true, rankLosses: true, race: { select: { isCorrupted: true } } } })
+    ? await prisma.character.findMany({ where: { campaignId: m.campaignId, playerId: m.userId }, select: { id: true, name: true, image: true, portraitImage: true, forca: true, level: true, birthRank: true, rankLosses: true, race: { select: { isCorrupted: true } } } })
     : []
   const inv = mine.length ? await prisma.inventoryItem.findMany({ where: { campaignId: m.campaignId, ownerId: { in: mine.map(c => c.id) } }, select: { id: true, name: true, ownerId: true } }) : []
   const characters = mine.map(c => {
     const owned = inv.filter(i => i.ownerId === c.id)
-    return { id: c.id, name: c.name, capacity: calcInventoryCapacity(c), used: owned.length, items: owned.map(i => ({ id: i.id, name: i.name })) }
+    return { id: c.id, name: c.name, image: c.image, portraitImage: c.portraitImage, capacity: calcInventoryCapacity(c), used: owned.length, items: owned.map(i => ({ id: i.id, name: i.name })) }
   })
 
   const [stateRow] = !previewMapId && s?.currentMapId === row.id ? await prisma.$queryRaw<Array<{activeInteraction:unknown}>>`SELECT "activeInteraction" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1` : []
-  const storedInteraction = stateRow?.activeInteraction as {mapId:string;roomId:string;objectId:string;title:string;type:string;image?:string;description?:string;options?:MapRoom['objects'][number]['options'];choiceText?:string}|null
+  const storedInteraction = stateRow?.activeInteraction as {mapId:string;roomId:string;objectId:string;title:string;type:string;image?:string;speakerImage?:string;description?:string;options?:MapRoom['objects'][number]['options'];choiceText?:string}|null
   let activeInteraction = storedInteraction
   if (activeInteraction?.type === 'class') {
     const lesson = activeInteraction as typeof activeInteraction & { correctOptionId?: string; answers?: Record<string, {correct:boolean;selectedOptionId:string}> }
@@ -381,7 +385,7 @@ export async function discoverExplorationObject(mapId: string, roomId: string, o
     if (!object) throw new Error('Elemento não encontrado')
 
     const once = isOnce(object)
-    const base = { title: object.title, type: object.type, description: object.description ?? '', image: object.image ?? '', options: object.options ?? [] }
+    const base = { title: object.title, type: object.type, description: object.description ?? '', image: object.image ?? '', speakerImage: object.speakerImage ?? '', options: object.options ?? [] }
     // A visão do Mestre é apenas uma prévia, inclusive para portais e itens.
     if (m.role === 'MASTER') return { ...base, targetMapId: null, preview: true as const }
     if (object.type === 'portal' && object.portalState === 'inactive') throw new Error('Este portal está inativo')
@@ -426,7 +430,7 @@ export async function discoverExplorationObject(mapId: string, roomId: string, o
 
     if (object.type === 'scene') throw new Error('A cena da sala aparece automaticamente na primeira entrada')
     if (object.type === 'character') {
-      const interaction = { id: objectId, mapId, roomId, objectId, title: object.title, type: object.type, image: object.image ?? null, description: object.description ?? '', options: object.options ?? [], choiceText: '' }
+      const interaction = { id: objectId, mapId, roomId, objectId, title: object.title, type: object.type, image: object.image ?? null, speakerImage: object.speakerImage ?? null, description: object.description ?? '', options: object.options ?? [], choiceText: '' }
       await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
     }
 
@@ -482,9 +486,9 @@ export async function startMapClassSession(mapId: string, roomId: string) {
     const room = (map.rooms as MapRoom[]).find(entry => entry.id === roomId)
     const lesson = room?.class
     if (!lesson?.teacherCharacterId || !lesson.correctOptionId || lesson.options.length < 2) throw new Error('Configure a aula nesta sala antes de iniciá-la')
-    const teacher = await tx.character.findFirst({ where: { id: lesson.teacherCharacterId, campaignId: m.campaignId }, select: { name: true } })
+    const teacher = await tx.character.findFirst({ where: { id: lesson.teacherCharacterId, campaignId: m.campaignId }, select: { name: true, image: true, portraitImage: true } })
     if (!teacher) throw new Error('O professor configurado não pertence à campanha')
-    const interaction = { id: randomUUID(), sessionId: randomUUID(), mapId, roomId, objectId: `class:${roomId}`, title: `Aula — ${room?.name ?? "Sala"}`, type: 'class', image: lesson.image ?? null, description: lesson.prompt, ritualSymbol: lesson.ritualSymbol ?? '', teacherCharacterId: lesson.teacherCharacterId, teacherName: teacher.name, favorReward: lesson.favorReward ?? 1, correctOptionId: lesson.correctOptionId, options: lesson.options, answers: {} }
+    const interaction = { id: randomUUID(), sessionId: randomUUID(), mapId, roomId, objectId: `class:${roomId}`, title: `Aula — ${room?.name ?? "Sala"}`, type: 'class', image: lesson.image ?? null, speakerImage: teacher.portraitImage ?? teacher.image, description: lesson.prompt, ritualSymbol: lesson.ritualSymbol ?? '', teacherCharacterId: lesson.teacherCharacterId, teacherName: teacher.name, favorReward: lesson.favorReward ?? 1, correctOptionId: lesson.correctOptionId, options: lesson.options, answers: {} }
     await tx.$executeRaw`UPDATE "CampaignExplorationState" SET "activeInteraction"=${JSON.stringify(interaction)}::jsonb,"updatedAt"=NOW() WHERE "campaignId"=${m.campaignId}`
   })
   revalidatePath('/mapas')

@@ -1,7 +1,7 @@
 "use client"
 
 /* eslint-disable @next/next/no-img-element */
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { Upload, X, ZoomIn } from "lucide-react"
 
@@ -9,6 +9,10 @@ type PortraitCrop = {
   value?: string
   onChange: (url: string) => void
   shape?: "circle" | "rectangle"
+  cropRatio?: "square" | "portrait"
+  saveOriginal?: boolean
+  sourceImage?: string
+  cropRequestId?: number
 }
 
 type Props = {
@@ -36,6 +40,7 @@ export default function MillieImageUpload({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
+  const lastCropRequest = useRef(portraitCrop?.cropRequestId ?? 0)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
   const [cropFile, setCropFile] = useState<File | null>(null)
@@ -50,23 +55,39 @@ export default function MillieImageUpload({
     card: "aspect-[11/15]",
   }[aspectRatio]
 
+  const cropWidth = portraitCrop?.cropRatio === "portrait" ? 240 : CROP_SIZE
+  const cropHeight = CROP_SIZE
   const fitScale = naturalSize.width && naturalSize.height
-    ? Math.max(CROP_SIZE / naturalSize.width, CROP_SIZE / naturalSize.height)
+    ? Math.max(cropWidth / naturalSize.width, cropHeight / naturalSize.height)
     : 1
   const drawnWidth = naturalSize.width * fitScale * zoom
   const drawnHeight = naturalSize.height * fitScale * zoom
+
+  useEffect(() => {
+    const requestId = portraitCrop?.cropRequestId
+    const sourceImage = portraitCrop?.sourceImage
+    if (requestId == null || requestId === lastCropRequest.current) return
+    lastCropRequest.current = requestId
+    if (!sourceImage) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Abrir o recorte em resposta ao pedido explícito de seleção de personagem.
+    setError("")
+    setCropFile(null)
+    setCropUrl(sourceImage)
+    setZoom(1)
+    setNaturalSize({ width: 0, height: 0 })
+  }, [portraitCrop?.cropRequestId, portraitCrop?.sourceImage])
 
   function clampOffset(x: number, y: number, scale = zoom) {
     const width = naturalSize.width * fitScale * scale
     const height = naturalSize.height * fitScale * scale
     return {
-      x: Math.max(CROP_SIZE - width, Math.min(0, x)),
-      y: Math.max(CROP_SIZE - height, Math.min(0, y)),
+      x: Math.max(cropWidth - width, Math.min(0, x)),
+      y: Math.max(cropHeight - height, Math.min(0, y)),
     }
   }
 
   function closeCrop() {
-    if (cropUrl) URL.revokeObjectURL(cropUrl)
+    if (cropUrl.startsWith("blob:")) URL.revokeObjectURL(cropUrl)
     setCropUrl("")
     setCropFile(null)
     setNaturalSize({ width: 0, height: 0 })
@@ -94,7 +115,7 @@ export default function MillieImageUpload({
 
     setError("")
     if (portraitCrop) {
-      if (cropUrl) URL.revokeObjectURL(cropUrl)
+      if (cropUrl.startsWith("blob:")) URL.revokeObjectURL(cropUrl)
       const localUrl = URL.createObjectURL(file)
       setCropFile(file)
       setCropUrl(localUrl)
@@ -127,16 +148,16 @@ export default function MillieImageUpload({
     const baseScale = Math.max(CROP_SIZE / width, CROP_SIZE / height)
     setNaturalSize({ width, height })
     setOffset({
-      x: (CROP_SIZE - width * baseScale) / 2,
-      y: (CROP_SIZE - height * baseScale) / 2,
+      x: (cropWidth - width * baseScale) / 2,
+      y: (cropHeight - height * baseScale) / 2,
     })
   }
 
   function handleZoom(nextZoom: number) {
     const factor = nextZoom / zoom
     const next = clampOffset(
-      CROP_SIZE / 2 - (CROP_SIZE / 2 - offset.x) * factor,
-      CROP_SIZE / 2 - (CROP_SIZE / 2 - offset.y) * factor,
+      cropWidth / 2 - (cropWidth / 2 - offset.x) * factor,
+      cropHeight / 2 - (cropHeight / 2 - offset.y) * factor,
       nextZoom,
     )
     setZoom(nextZoom)
@@ -144,30 +165,33 @@ export default function MillieImageUpload({
   }
 
   async function handleConfirmCrop() {
-    if (!cropFile || !cropUrl || !naturalSize.width || !naturalSize.height) return
+    if (!cropUrl || !naturalSize.width || !naturalSize.height) return
     setError("")
     setUploading(true)
     onUploadingChange?.(true)
     try {
       const image = new window.Image()
+      image.crossOrigin = "anonymous"
       image.src = cropUrl
       await image.decode()
       const scale = fitScale * zoom
-      const sourceX = Math.max(0, Math.min(naturalSize.width - CROP_SIZE / scale, -offset.x / scale))
-      const sourceY = Math.max(0, Math.min(naturalSize.height - CROP_SIZE / scale, -offset.y / scale))
-      const sourceSize = Math.min(naturalSize.width - sourceX, naturalSize.height - sourceY, CROP_SIZE / scale)
+      const sourceWidth = cropWidth / scale
+      const sourceHeight = cropHeight / scale
+      const sourceX = Math.max(0, Math.min(naturalSize.width - sourceWidth, -offset.x / scale))
+      const sourceY = Math.max(0, Math.min(naturalSize.height - sourceHeight, -offset.y / scale))
       const canvas = document.createElement("canvas")
       canvas.width = 768
-      canvas.height = 768
+      canvas.height = portraitCrop?.cropRatio === "portrait" ? 1024 : 768
       const context = canvas.getContext("2d")
       if (!context) throw new Error("Não foi possível preparar o recorte.")
-      context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, canvas.width, canvas.height)
+      context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Falha ao gerar o recorte.")), "image/webp", 0.9)
       })
-      const croppedFile = new File([blob], `${cropFile.name.replace(/\.[^.]+$/, "")}-retrato.webp`, { type: "image/webp" })
-      const [originalUrl, portraitUrl] = await Promise.all([uploadFile(cropFile), uploadFile(croppedFile)])
-      onChange(originalUrl)
+      const sourceName = cropFile?.name.replace(/\.[^.]+$/, "") ?? "retrato-dialogo"
+      const croppedFile = new File([blob], `${sourceName}-retrato.webp`, { type: "image/webp" })
+      const portraitUrl = await uploadFile(croppedFile)
+      if (portraitCrop?.saveOriginal !== false && cropFile) onChange(await uploadFile(cropFile))
       portraitCrop?.onChange(portraitUrl)
       closeCrop()
     } catch (err: unknown) {
@@ -191,7 +215,7 @@ export default function MillieImageUpload({
       {value ? (
         <div className={`relative w-full ${aspectClass} overflow-hidden border border-bege-escuro/40`}>
           <Image src={value} alt="Imagem enviada" fill className={portraitCrop ? "object-contain" : "object-cover"} />
-          {portraitCrop?.value && (
+          {portraitCrop?.value && portraitCrop.saveOriginal !== false && (
             <div className="absolute bottom-2 left-2 h-12 w-12 overflow-hidden rounded-full border border-bege-medio bg-roxo-escuro">
               <Image src={portraitCrop.value} alt="Prévia do retrato recortado" fill className="object-cover" />
             </div>
@@ -216,7 +240,7 @@ export default function MillieImageUpload({
       )}
 
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={disabled || uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(file); e.currentTarget.value = "" }} />
-      {portraitCrop && <p className="text-[9px] text-bege-escuro/50">A imagem original será mantida; o recorte será usado em retratos e cards.</p>}
+      {portraitCrop && <p className="text-[9px] text-bege-escuro/50">{portraitCrop.saveOriginal === false ? "Ajuste o enquadramento vertical para mostrar o rosto e o tronco no diálogo." : "A imagem original será mantida; o recorte será usado em retratos e cards."}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
 
       {cropUrl && (
@@ -227,8 +251,8 @@ export default function MillieImageUpload({
               <h2 className="font-title text-sm uppercase tracking-widest text-bege-medio">Ajustar retrato</h2>
               <button type="button" onClick={closeCrop} className="text-bege-medio" aria-label="Fechar"><X size={18} /></button>
             </div>
-            <p className="mb-3 text-xs text-bege-escuro/70">Arraste a imagem para enquadrar o rosto ou busto e ajuste o zoom.</p>
-            <div className={`relative mx-auto h-80 w-80 max-w-full touch-none overflow-hidden border border-bege-medio/70 bg-black ${portraitCrop?.shape === "circle" ? "rounded-full" : "rounded-sm"}`} onPointerDown={(e) => { dragRef.current = { pointerX: e.clientX, pointerY: e.clientY, x: offset.x, y: offset.y }; e.currentTarget.setPointerCapture(e.pointerId) }} onPointerMove={(e) => { if (!dragRef.current) return; const drag = dragRef.current; setOffset(clampOffset(drag.x + e.clientX - drag.pointerX, drag.y + e.clientY - drag.pointerY)) }} onPointerUp={() => { dragRef.current = null }} onPointerCancel={() => { dragRef.current = null }}>
+            <p className="mb-3 text-xs text-bege-escuro/70">Arraste e ajuste o zoom para enquadrar o rosto e o tronco no retrato.</p>
+            <div className={`relative mx-auto h-80 ${portraitCrop?.cropRatio === "portrait" ? "w-60" : "w-80"} max-w-full touch-none overflow-hidden border border-bege-medio/70 bg-black ${portraitCrop?.shape === "circle" ? "rounded-full" : "rounded-sm"}`} onPointerDown={(e) => { dragRef.current = { pointerX: e.clientX, pointerY: e.clientY, x: offset.x, y: offset.y }; e.currentTarget.setPointerCapture(e.pointerId) }} onPointerMove={(e) => { if (!dragRef.current) return; const drag = dragRef.current; setOffset(clampOffset(drag.x + e.clientX - drag.pointerX, drag.y + e.clientY - drag.pointerY)) }} onPointerUp={() => { dragRef.current = null }} onPointerCancel={() => { dragRef.current = null }}>
               <img src={cropUrl} alt="Prévia para recorte" draggable={false} onLoad={(e) => handleImageLoad(e.currentTarget)} className="pointer-events-none absolute max-w-none select-none" style={{ left: offset.x, top: offset.y, width: drawnWidth, height: drawnHeight }} />
             </div>
             <label className="mt-4 flex items-center gap-3 text-xs text-bege-escuro/70"><ZoomIn size={15} /><span className="flex-1">Zoom</span><input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(e) => handleZoom(Number(e.target.value))} className="w-40" /></label>

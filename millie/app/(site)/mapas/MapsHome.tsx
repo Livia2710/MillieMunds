@@ -9,6 +9,7 @@ import { useCampaign } from '@/lib/contexts/CampaignContext'
 import { createExplorationMap, deleteExplorationMap, listExplorationMaps, setExplorationLocation } from '@/app/actions/exploration'
 import type { ExplorationMapRecord } from '@/lib/types/exploration'
 import PlayerExplore from './PlayerExplore'
+import { useMapDialog } from '@/componentes/mapas/useMapDialog'
 
 export default function MapsHome() {
   const { isMaster, hasCampaign, loading: contextLoading } = useCampaign()
@@ -24,6 +25,7 @@ export default function MapsHome() {
   const [newMapName, setNewMapName] = useState('Novo mapa')
   const [creatingMap, setCreatingMap] = useState(false)
   const router = useRouter()
+  const mapDialog = useMapDialog()
 
   async function refresh() {
     try {
@@ -74,7 +76,7 @@ export default function MapsHome() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Excluir este mapa permanentemente?')) return
+    if (!await mapDialog.confirm('Excluir mapa', 'Excluir este mapa permanentemente?', 'Excluir mapa')) return
 
     try {
       await deleteExplorationMap(id)
@@ -144,6 +146,8 @@ export default function MapsHome() {
   }
 
   return (
+    <>
+    {mapDialog.dialog}
     <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 text-bege-claro md:px-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-bege-escuro/30 pb-5">
         <div>
@@ -276,5 +280,6 @@ export default function MapsHome() {
         </div>
       )}
     </main>
+    </>
   )
 }

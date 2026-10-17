@@ -106,6 +106,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const [subject, setSubject] = useState("");
   const [occupation, setOccupation] = useState("");
   const [image, setImage] = useState("");
+  const [portraitImage, setPortraitImage] = useState("");
   const [dangerLevel, setDangerLevel] = useState("Iniciante");
   const [error, setError] = useState("");
   const [manualLevel, setManualLevel] = useState("1");
@@ -220,6 +221,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
     setOccupation("");
     setDangerLevel("Iniciante");
     setImage("");
+    setPortraitImage("");
     setError("");
     setManualLevel("1");
 
@@ -254,6 +256,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
           occupation: category === "npc" ? occupation : undefined,
           dangerLevel: category === "monstro" ? computedDangerLevel : undefined,
           image: image || undefined,
+          portraitImage: portraitImage || undefined,
           birthRank: baseRank as BaseRank,
           ...attrs,
         });
@@ -514,6 +517,7 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
           value={image}
           onChange={setImage}
           aspectRatio="portrait"
+          portraitCrop={{ value: portraitImage, onChange: setPortraitImage, shape: "circle" }}
         />
 
         {error && <p className="text-xs text-red-500">{error}</p>}

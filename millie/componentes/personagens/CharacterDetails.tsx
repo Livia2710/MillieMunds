@@ -110,14 +110,14 @@ export default function CharacterDetails({ character, canEditStory = false }: Pr
         {/* Coluna esquerda — imagem + brasões */}
         <div className="flex flex-col items-center gap-4 lg:w-64 lg:shrink-0">
           {/* Imagem */}
-          <div className="relative w-full overflow-hidden border border-bege-escuro/40 shadow-card"
+          <div className="relative w-full overflow-hidden border border-bege-escuro/40 bg-roxo-escuro/60 shadow-card"
             style={{ aspectRatio: "3/4" }}>
             {character.image ? (
               <Image
                 src={character.image}
                 alt={character.name}
                 fill
-                className="object-cover object-top"
+                className="object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-roxo">

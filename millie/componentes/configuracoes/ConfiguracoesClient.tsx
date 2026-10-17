@@ -10,7 +10,7 @@ import TabNotificacoes from "./TabNotificacoes";
 import TabBiblioteca from "./TabBiblioteca";
 import TabCampanha from "./TabCampanha";
 
-type Profile = { username: string | null; avatar: string | null; email: string } | null;
+type Profile = { username: string | null; avatar: string | null; avatarCrop: string | null; email: string } | null;
 type ConfigTab = "conta" | "preferencias" | "notificacoes" | "biblioteca" | "campanha";
 type Settings = { preferences: UserPreferences; notifications: NotificationPreferences };
 

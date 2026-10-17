@@ -47,6 +47,7 @@ model User {
   email        String           @unique
   username     String?
   avatar       String?
+  avatarCrop   String?
   bio          String?
   preferences  Json?
   notifications Json?
@@ -299,6 +300,7 @@ model Character {
   category    String  // aluno | professor | npc | monstro
   element     String
   image       String?
+  portraitImage String?
   worldSlug   String
   isLocked    Boolean @default(false)
   campaignId  String

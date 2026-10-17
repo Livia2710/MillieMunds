@@ -31,6 +31,7 @@ export default async function CharacterDetailsPage({ params }: Props) {
     id: raw.id,
     name: raw.name,
     image: raw.image ?? undefined,
+    portraitImage: raw.portraitImage ?? undefined,
     rank: raw.rank as CharacterRank,
     element: raw.element as CharacterElement,
     race: raw.race as string,

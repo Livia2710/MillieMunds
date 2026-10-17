@@ -85,6 +85,7 @@ export default function CreateCharForm() {
   const [subject, setSubject] = useState('')
   const [occupation, setOccupation] = useState('')
   const [image, setImage] = useState('')
+  const [portraitImage, setPortraitImage] = useState('')
   const [error, setError] = useState('')
 
   // atributos
@@ -238,6 +239,7 @@ export default function CreateCharForm() {
           element,
           worldSlug: selectedWorld?.name.toLowerCase() ?? '',
           image: image || undefined,
+          portraitImage: portraitImage || undefined,
           year: category === 'aluno' ? year : undefined,
           subject: category === 'professor' ? subject : undefined,
           occupation: category === 'npc' ? occupation : undefined,
@@ -564,7 +566,7 @@ export default function CreateCharForm() {
           </div>
         </div>
 
-        <MillieImageUpload label="Foto do personagem (opcional)" value={image} onChange={setImage} aspectRatio="portrait" />
+        <MillieImageUpload label="Foto do personagem (opcional)" value={image} onChange={setImage} aspectRatio="portrait" portraitCrop={{ value: portraitImage, onChange: setPortraitImage, shape: 'circle' }} />
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 

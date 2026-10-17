@@ -19,6 +19,7 @@ type DbCharacter = {
   element: string
   rank: string
   image: string | null
+  portraitImage: string | null
   worldSlug: string
   isLocked: boolean
   year: number | null
@@ -58,6 +59,7 @@ export default function PersonagensClient({ characters, isMaster, hasCampaign }:
       id: c.id,
       name: c.name,
       image: c.image ?? undefined,
+      portraitImage: c.portraitImage ?? undefined,
       rank: c.rank as CharacterRank,
       element: c.element as CharacterElement,
       race: c.race.name,

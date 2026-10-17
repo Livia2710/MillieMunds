@@ -10,6 +10,7 @@ import { useCampaign } from "@/lib/contexts/CampaignContext";
 import ConfirmModal from "@/componentes/modais/ConfirmModal";
 import { unlockCharacter, deleteCharacter } from "@/app/actions/character";
 import EditarPersonagemModal from "../modais/EditarPersonagemModal";
+import CharacterCardModal from "./CharacterCardModal";
 
 type CharacterCardProps = {
   character: Character;
@@ -45,6 +46,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
   const [confirmUnlockOpen, setConfirmUnlockOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   async function handleUnlock() {
     await unlockCharacter(character.id);
@@ -58,7 +60,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
 
   return (
     <div className="relative">
-      <Link href={`/personagens/${character.id}`} className="block">
+      <Link href={isMaster ? `/personagens/${character.id}` : "/personagens"} onClick={(event) => { if (!isMaster) { event.preventDefault(); setCardOpen(true) } }} className="block">
         <article className="arcane-hover relative flex min-h-0 w-full flex-row items-center gap-4 overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-4 shadow-card transition-all lg:min-h-[360px] lg:flex-col lg:p-5">
           <div className="pointer-events-none absolute right-4 top-4 h-8 w-8 lg:left-4 lg:right-auto lg:top-4 lg:h-9 lg:w-9">
             <img src={rankCoatOfArms[character.rank]} alt="" className="h-full w-full object-contain" />
@@ -111,8 +113,8 @@ export default function CharacterCard({ character }: CharacterCardProps) {
           )}
 
           <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden lg:h-36 lg:w-full">
-            {character.image ? (
-              <Image src={character.image} alt={character.name} width={120} height={120} className="h-full w-full rounded-sm object-cover" />
+            {(character.portraitImage || character.image) ? (
+              <Image src={character.portraitImage || character.image!} alt={character.name} width={120} height={120} className="h-full w-full rounded-sm object-cover" />
             ) : (
               <span className="text-center font-title text-[10px] uppercase tracking-wider text-bege-medio/40">Sem Foto</span>
             )}
@@ -149,6 +151,8 @@ export default function CharacterCard({ character }: CharacterCardProps) {
         </article>
       </Link>
 
+      {!isMaster && <CharacterCardModal character={cardOpen ? character : null} onClose={() => setCardOpen(false)} />}
+
       <ConfirmModal
         isOpen={confirmUnlockOpen}
         onClose={() => setConfirmUnlockOpen(false)}
@@ -177,6 +181,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
           name: character.name,
           category: character.category,
           image: character.image ?? null,
+          portraitImage: character.portraitImage ?? null,
           year: character.category === "aluno" ? character.year : null,
           subject: character.category === "professor" ? character.subject : null,
           occupation: character.category === "npc" ? character.occupation : null,

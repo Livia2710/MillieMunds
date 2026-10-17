@@ -16,6 +16,7 @@ type CharacterToEdit = {
   name: string;
   category: CharacterCategory;
   image: string | null;
+  portraitImage: string | null;
   year: number | null;
   subject: string | null;
   occupation: string | null;
@@ -29,6 +30,7 @@ export default function EditarPersonagemModal({ isOpen, onClose, character }: Pr
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
+  const [portraitImage, setPortraitImage] = useState("");
   const [year, setYear] = useState("1");
   const [subject, setSubject] = useState("");
   const [occupation, setOccupation] = useState("");
@@ -38,6 +40,7 @@ export default function EditarPersonagemModal({ isOpen, onClose, character }: Pr
     if (!character) return;
     setName(character.name);
     setImage(character.image ?? "");
+    setPortraitImage(character.portraitImage ?? "");
     setYear(String(character.year ?? 1));
     setSubject(character.subject ?? "");
     setOccupation(character.occupation ?? "");
@@ -61,6 +64,7 @@ export default function EditarPersonagemModal({ isOpen, onClose, character }: Pr
         await updateCharacter(character.id, {
           name: name.trim(),
           image: image || undefined,
+          portraitImage: portraitImage || undefined,
           year: character.category === "aluno" ? Number(year) : undefined,
           subject: character.category === "professor" ? subject : undefined,
           occupation: character.category === "npc" ? occupation : undefined,
@@ -100,7 +104,7 @@ export default function EditarPersonagemModal({ isOpen, onClose, character }: Pr
           <MillieInput label="Ocupação" value={occupation} onChange={(e) => setOccupation(e.target.value)} />
         )}
 
-        <MillieImageUpload label="Imagem" value={image} onChange={setImage} aspectRatio="portrait" />
+        <MillieImageUpload label="Imagem" value={image} onChange={setImage} aspectRatio="portrait" portraitCrop={{ value: portraitImage, onChange: setPortraitImage, shape: "circle" }} />
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 

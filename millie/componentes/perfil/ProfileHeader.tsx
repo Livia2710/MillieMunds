@@ -45,8 +45,8 @@ export default function ProfileHeader({
 
         {/* Avatar */}
         <div className="relative w-40 h-40 rounded-full border-2 border-bege-medio overflow-hidden">
-          {character?.image ? (
-            <Image src={character.image} alt={displayName} fill className="object-cover" />
+          {(character?.portraitImage || character?.image) ? (
+            <Image src={character.portraitImage || character.image!} alt={displayName} fill className="object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-bege-claro text-4xl font-serif">
               ?

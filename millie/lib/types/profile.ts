@@ -10,6 +10,7 @@ export interface ProfileStats {
 }
 
 export type ProfileCharacter = Character & {
+  portraitImage?: string;
   playerId: string | null
   level:    number
   xp:       number

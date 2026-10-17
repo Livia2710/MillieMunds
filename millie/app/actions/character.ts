@@ -107,11 +107,8 @@ export async function getCharacterById(id: string) {
     },
   })
 
-  if (!char) return null
-  if (membership.role !== 'MASTER' && char.isLocked && char.playerId !== session.user.id) return null
-  const items = membership.role === 'MASTER'
-    ? char.campaign.items
-    : char.campaign.items.filter((item) => !item.isLocked)
+  if (!char || membership.role !== 'MASTER') return null
+  const items = char.campaign.items
   const currencies = await prisma.$queryRaw<Array<{currency:number}>>`SELECT "currency" FROM "Character" WHERE "id" = ${char.id}`
   return formatCharacter(char, items, currencies[0]?.currency ?? 100)
 }
@@ -155,6 +152,7 @@ export async function unlockCharacter(characterId: string) {
     data: { isLocked: false },
   })
 
+  revalidatePath('/perfil')
   revalidatePath('/personagens')
 }
 
@@ -166,6 +164,7 @@ export async function createCharacter(data: {
   element: string
   worldSlug: string
   image?: string
+  portraitImage?: string
   level: number
   year?: number
   subject?: string
@@ -195,6 +194,7 @@ export async function createCharacter(data: {
   const birthRank = oneOf(data.birthRank ?? 'D', 'Rank de nascença', ['E', 'D', 'C', 'B', 'A', 'S'] as const)
   const raceId = validatedText(data.raceId, 'Raça', { min: 1, max: 100 })
   const image = validateImageUrl(data.image, 'Imagem')
+  const portraitImage = validateImageUrl(data.portraitImage, 'Recorte do retrato')
   const year = data.year === undefined ? undefined : validatedInteger(data.year, 'Ano', 1, 5)
   const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
   const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
@@ -223,6 +223,8 @@ export async function createCharacter(data: {
       raceId,
       campaignId:  membership.campaignId,
       image,
+      portraitImage,
+      isLocked: true,
       level,
       unspentAttributePoints: Math.floor((level - 1) / 5),
       year,
@@ -248,6 +250,7 @@ export async function createPlayerCharacter(data: {
   element: string
   worldSlug: string
   image?: string
+  portraitImage?: string
   year?: number
   subject?: string
   occupation?: string
@@ -277,6 +280,7 @@ export async function createPlayerCharacter(data: {
   const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
   const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
   const image = validateImageUrl(data.image, 'Imagem')
+  const portraitImage = validateImageUrl(data.portraitImage, 'Recorte do retrato')
 
   if (!['aluno', 'professor', 'npc'].includes(data.category)) throw new Error('Categoria inválida')
   const attributes = [data.agilidade, data.inteligencia, data.forca, data.vigor, data.sorte]
@@ -329,6 +333,7 @@ export async function createPlayerCharacter(data: {
         campaignId: membership.campaignId,
         playerId: session.user.id,
         image,
+        portraitImage,
         year,
         subject,
         occupation,
@@ -378,7 +383,7 @@ export async function getMasterPageData() {
           members: {
             include: {
               user: {
-                select: { id: true, username: true, avatar: true, email: true },
+                select: { id: true, username: true, avatar: true, avatarCrop: true, email: true },
               },
             },
           },
@@ -446,6 +451,7 @@ export async function getMasterPageData() {
       userId: m.user.id,
       username: m.user.username,
       avatar: m.user.avatar,
+      avatarCrop: m.user.avatarCrop,
       email: m.user.email,
       character: characters.find((c) => c.playerId === m.user.id) ?? null,
     }))
@@ -878,6 +884,7 @@ export async function updateCharacter(
   data: {
     name: string
     image?: string
+    portraitImage?: string
     year?: number
     subject?: string
     occupation?: string
@@ -890,7 +897,8 @@ export async function updateCharacter(
   const year = data.year === undefined ? undefined : validatedInteger(data.year, 'Ano', 1, 5)
   const subject = data.subject === undefined ? undefined : validatedText(data.subject, 'Matéria', { max: 100 })
   const occupation = data.occupation === undefined ? undefined : validatedText(data.occupation, 'Ocupação', { max: 100 })
-  const image = validateImageUrl(data.image, 'Imagem')
+  const image = data.image === undefined ? undefined : validateImageUrl(data.image, 'Imagem') ?? null
+  const portraitImage = data.portraitImage === undefined ? undefined : validateImageUrl(data.portraitImage, 'Recorte do retrato') ?? null
 
   const membership = await prisma.campaignMember.findFirst({
     where: { userId: session.user.id, active: true, role: 'MASTER' },
@@ -908,6 +916,7 @@ export async function updateCharacter(
     data: {
       name,
       image,
+      portraitImage,
       year,
       subject,
       occupation,

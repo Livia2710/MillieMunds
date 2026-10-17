@@ -113,6 +113,7 @@ export async function updateProfile(data: {
   username?: string
   bio?: string
   avatar?: string
+  avatarCrop?: string
 }) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Não autenticado')
@@ -124,6 +125,7 @@ export async function updateProfile(data: {
     ? undefined
     : validatedText(data.bio, 'Biografia', { max: 500 })
   const avatar = data.avatar === undefined ? undefined : validateImageUrl(data.avatar, 'Avatar') ?? null
+  const avatarCrop = data.avatarCrop === undefined ? undefined : validateImageUrl(data.avatarCrop, 'Recorte do avatar') ?? null
 
   await prisma.user.update({
     where: { id: session.user.id },
@@ -131,6 +133,7 @@ export async function updateProfile(data: {
       ...(username !== undefined && { username }),
       ...(bio !== undefined && { bio }),
       ...(data.avatar !== undefined && { avatar }),
+      ...(data.avatarCrop !== undefined && { avatarCrop }),
     },
   })
 
@@ -170,6 +173,6 @@ export async function getUserProfile() {
 
   return prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { username: true, avatar: true, email: true },
+    select: { username: true, avatar: true, avatarCrop: true, email: true },
   })
 }

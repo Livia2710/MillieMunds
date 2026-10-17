@@ -153,8 +153,8 @@ export default function MestreJogadores({ players, conditionDefinitions = [] }: 
 
                 <div className="flex items-center gap-4 p-4">
                   <div className="relative w-10 h-10 rounded-full overflow-hidden border border-bege-escuro/30 bg-roxo-escuro shrink-0">
-                    {player.avatar ? (
-                      <Image src={player.avatar} alt={player.username ?? ''} fill className="object-cover" />
+                    {(player.avatarCrop || player.avatar) ? (
+                      <Image src={player.avatarCrop || player.avatar!} alt={player.username ?? ''} fill className="object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-bege-escuro/40 font-title text-sm">?</div>
                     )}

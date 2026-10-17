@@ -436,6 +436,11 @@ button {
   animation-delay: -0.3s;
 }
 
+@keyframes character-card-zoom {
+  from { opacity: 0; transform: scale(.82) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* ─── Preferência: desativar animações ─── */
 .no-animations,
 .no-animations * {

@@ -20,6 +20,7 @@ export default async function ProfilePage() {
       id:        rawCharacter.id,
       name:      rawCharacter.name,
       image:     rawCharacter.image ?? undefined,
+      portraitImage: rawCharacter.portraitImage ?? undefined,
       rank:      rawCharacter.rank as CharacterRank,
       element:   rawCharacter.element as CharacterElement,
       race:      rawCharacter.race as string,

@@ -8,13 +8,14 @@ import MillieInput from "@/componentes/ui/MillieInput";
 import { ConfigSection, ConfigActionButton } from "./shared";
 import { useToast } from "@/componentes/ui/ToastProvider";
 
-export default function TabConta({ initial }: { initial: { username: string | null; avatar: string | null; email: string } | null }) {
+export default function TabConta({ initial }: { initial: { username: string | null; avatar: string | null; avatarCrop: string | null; email: string } | null }) {
   const { update } = useSession();
   const [isPending, startTransition] = useTransition();
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const [username, setUsername] = useState(initial?.username ?? "");
   const [avatar, setAvatar] = useState(initial?.avatar ?? "");
+  const [avatarCrop, setAvatarCrop] = useState(initial?.avatarCrop ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const toast = useToast();
@@ -22,7 +23,7 @@ export default function TabConta({ initial }: { initial: { username: string | nu
   function handleSaveProfile() {
     startTransition(async () => {
       try {
-        await updateProfile({ username, avatar });
+        await updateProfile({ username, avatar, avatarCrop });
         // Um objeto vazio faz o NextAuth enviar a atualização de sessão (POST),
         // disparando trigger === 'update' para buscar o perfil recém-salvo no banco.
         await update({});
@@ -56,6 +57,7 @@ export default function TabConta({ initial }: { initial: { username: string | nu
         <MillieImageUpload
           value={avatar}
           onChange={setAvatar}
+          portraitCrop={{ value: avatarCrop, onChange: setAvatarCrop, shape: "circle" }}
           onUploadingChange={setIsUploadingAvatar}
           disabled={isPending}
           label="Trocar avatar"

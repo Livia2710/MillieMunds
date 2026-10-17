@@ -9,6 +9,7 @@ interface BaseCharacter {
   id: string;
   name: string;
   image?: string;
+  portraitImage?: string;
   rank: CharacterRank;
   element: CharacterElement;
   race: string;
@@ -73,6 +74,7 @@ export type MasterPlayer = {
   userId:    string
   username:  string | null
   avatar:    string | null
+  avatarCrop: string | null
   email:     string | null
   character: MasterCharacter | null
 }

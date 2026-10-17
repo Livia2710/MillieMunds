@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "CampaignExplorationPresence_campaignId_mapId_roomId_updatedAt_i" RENAME TO "CampaignExplorationPresence_campaignId_mapId_roomId_updated_idx";

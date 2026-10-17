@@ -172,6 +172,23 @@ export async function getExplorationMap(id: string) {
   const m = await member('MASTER'); const rows = await prisma.$queryRaw<MapRow[]>`SELECT "id","name","rooms","floors","isEditing","isPublished" FROM "ExplorationMap" WHERE "id"=${id} AND "campaignId"=${m.campaignId} LIMIT 1`
   return rows[0] ? mapRecord(rows[0]) : null
 }
+
+export async function heartbeatExplorationPresence(mapId: string, roomId: string, characterId?: string) {
+  const m = await member('PLAYER')
+  const [state] = await prisma.$queryRaw<Array<{currentMapId:string|null;currentRoomId:string|null}>>`SELECT "currentMapId","currentRoomId" FROM "CampaignExplorationState" WHERE "campaignId"=${m.campaignId} LIMIT 1`
+  if (state?.currentMapId !== mapId || state.currentRoomId !== roomId) return
+  const [map] = await prisma.$queryRaw<Array<{rooms:unknown;isPublished:boolean;isEditing:boolean}>>`SELECT "rooms","isPublished","isEditing" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} LIMIT 1`
+  if (!map?.isPublished || map.isEditing || !(map.rooms as MapRoom[]).some(room => room.id === roomId)) return
+  if (characterId && !await prisma.character.findFirst({where:{id:characterId,campaignId:m.campaignId,playerId:m.userId},select:{id:true}})) characterId=undefined
+  await prisma.$executeRaw`INSERT INTO "CampaignExplorationPresence" ("campaignId","userId","mapId","roomId","characterId","updatedAt") VALUES (${m.campaignId},${m.userId},${mapId},${roomId},${characterId??null},NOW()) ON CONFLICT ("campaignId","userId") DO UPDATE SET "mapId"=EXCLUDED."mapId","roomId"=EXCLUDED."roomId","characterId"=EXCLUDED."characterId","updatedAt"=NOW()`
+}
+
+export async function getExplorationPresence(mapId: string) {
+  const m = await member('MASTER')
+  const [map] = await prisma.$queryRaw<Array<{id:string}>>`SELECT "id" FROM "ExplorationMap" WHERE "id"=${mapId} AND "campaignId"=${m.campaignId} LIMIT 1`
+  if (!map) throw new Error('Mapa não encontrado')
+  return prisma.$queryRaw<Array<{userId:string;playerName:string;playerImage:string|null;characterName:string|null;mapId:string;roomId:string;updatedAt:Date}>>`SELECT p."userId",COALESCE(NULLIF(u."username",''),'Jogador') AS "playerName",COALESCE(c."portraitImage",c."image",u."avatarCrop",u."avatar") AS "playerImage",c."name" AS "characterName",p."mapId",p."roomId",p."updatedAt" FROM "CampaignExplorationPresence" p JOIN "CampaignMember" cm ON cm."campaignId"=p."campaignId" AND cm."userId"=p."userId" AND cm."role"='PLAYER' AND cm."active"=true JOIN "User" u ON u."id"=p."userId" LEFT JOIN "Character" c ON c."id"=p."characterId" AND c."campaignId"=p."campaignId" AND c."playerId"=p."userId" WHERE p."campaignId"=${m.campaignId} AND p."mapId"=${mapId} AND p."updatedAt">NOW()-INTERVAL '45 seconds' ORDER BY p."updatedAt" DESC`
+}
 export async function saveExplorationMap(id: string, name: string, value: unknown, floorValue?: unknown) {
   const m = await member('MASTER'); const rooms = checkedRooms(value).map(room => ({...room,connections:room.connections.map(connection => ({...connection,accessMode:connection.accessMode ?? (Object.values(normalizeAccess(connection.access)).some(Boolean) ? 'restricted' : 'open')}))})); const clean = name.trim().slice(0,80) || 'Mapa sem nome'; const floors = Array.isArray(floorValue) ? floorValue.filter((f): f is MapFloor => !!f && typeof f.id === 'string' && typeof f.name === 'string' && !!f.name.trim()).slice(0,20) : [{id:'ground',name:'Térreo'}]; if(!floors.length) throw new Error('Adicione pelo menos um andar'); const floorIds=new Set(floors.map(f=>f.id)); if(rooms.some(r=>!floorIds.has(r.floorId??'ground'))) throw new Error('Cada sala precisa pertencer a um andar existente')
   const missionItems = [...new Set(rooms.flatMap(room => room.objects.filter(object => object.type === 'mission').map(object => object.missionObjectiveItemId!)))]

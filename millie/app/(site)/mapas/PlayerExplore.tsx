@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowDown, Compass, LoaderCircle, Smartphone, Sparkles, X } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { answerMapClass, chooseExplorationRoom, chooseExplorationSceneOption, closeExplorationInteraction, discoverExplorationObject, getExplorationRoomChoice, getPlayerExplorationSnapshot, moveExplorationGroup } from '@/app/actions/exploration'
+import { answerMapClass, chooseExplorationRoom, chooseExplorationSceneOption, closeExplorationInteraction, discoverExplorationObject, getExplorationRoomChoice, getPlayerExplorationSnapshot, heartbeatExplorationPresence, moveExplorationGroup } from '@/app/actions/exploration'
 import type { MapSceneOption, PublicDoor, PublicObject } from '@/lib/types/exploration'
 
 type CharacterChoice = { id: string; name: string; image?: string | null; portraitImage?: string | null; capacity: number; used: number; items: { id: string; name: string }[] }
@@ -97,6 +97,22 @@ export default function PlayerExplore() {
     const timer = setInterval(() => void refresh(), 3000)
     return () => clearInterval(timer)
   }, [refresh])
+
+  useEffect(() => {
+    const mapId = snapshot?.map?.id
+    const roomId = snapshot?.room?.id
+    if (!mapId || !roomId || snapshot?.masterPreview) return
+    const heartbeat = () => {
+      if (document.visibilityState === 'visible') void heartbeatExplorationPresence(mapId, roomId, activeCharacter).catch(() => {})
+    }
+    heartbeat()
+    const timer = setInterval(heartbeat, 15000)
+    document.addEventListener('visibilitychange', heartbeat)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', heartbeat)
+    }
+  }, [snapshot?.map?.id, snapshot?.room?.id, snapshot?.masterPreview, activeCharacter])
 
   const currentText = scene?.choiceText || scene?.description || (scene?.type === 'scene' ? 'O Mestre ainda não escreveu a narração desta sala.' : FALLBACK_TEXT)
   const dialoguePages = paginateDialogue(currentText)

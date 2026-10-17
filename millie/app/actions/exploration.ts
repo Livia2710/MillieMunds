@@ -302,7 +302,7 @@ export async function moveExplorationGroup(fromRoomId: string, roomId: string, a
     const rooms = map.rooms as MapRoom[]
     const current = rooms.find(r => r.id === s.currentRoomId)
     const dest = rooms.find(r => r.id === roomId)
-    const door = current?.connections.find(c => c.roomId === roomId) ?? dest?.connections.find(c => c.roomId === s.currentRoomId)
+    const door = current?.connections.find(c => c.roomId === roomId) ?? dest?.connections.find(c => c.roomId === s.currentRoomId && c.autoConnect !== false)
     if (!dest || !door) throw new Error('Esse caminho não está conectado a esta sala')
     await assertAccess(tx, m.campaignId, m.userId, door.access, accessCode)
     const interaction = await firstEntryScene(tx, m.campaignId, s.currentMapId, dest, m.userId)

@@ -7,7 +7,7 @@ export type MapClassConfig = { teacherCharacterId?: string; prompt: string; imag
 export type MapObject = { id: string; title: string; type: MapObjectType; x: number; y: number; width?: number; height?: number; image?: string; description?: string; discoveredOnce?: boolean; targetMapId?: string; targetRoomId?: string; portalState?: PortalState; portalStyle?: PortalStyle; inventoryItemId?: string; characterId?: string; options?: MapSceneOption[]; access?: MapAccess; missionObjectiveItemId?: string; missionObjectiveQuantity?: number; missionFavorCharacterId?: string; missionFavorDelta?: number; missionCurrencyDelta?: number }
 export type MapAccess = { level?: number; code?: string; itemId?: string; affinityCharacterId?: string; affinity?: number }
 type LegacyAccess = { type: 'open' } | { type: 'level'; value: number } | { type: 'code'; value: string }
-export type MapConnection = { roomId: string; label?: string; accessMode?: 'open' | 'restricted'; access?: MapAccess | LegacyAccess }
+export type MapConnection = { roomId: string; label?: string; accessMode?: 'open' | 'restricted'; autoConnect?: boolean; access?: MapAccess | LegacyAccess }
 
 export type PublicObject = Pick<MapObject, 'id' | 'title' | 'type' | 'x' | 'y' | 'width' | 'height' | 'image' | 'description' | 'portalState' | 'portalStyle' | 'missionObjectiveItemId' | 'missionObjectiveQuantity' | 'missionFavorCharacterId' | 'missionFavorDelta' | 'missionCurrencyDelta'> & { needsCode?: boolean }
 export type PublicDoor = {

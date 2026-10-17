@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Search, ArrowLeft } from "lucide-react";
 import type { ProfileCharacter } from "@/lib/types/profile";
 import type { CharacterElement, CharacterRank, CharacterCategory } from "@/lib/types/character";
-import type { RaceSkillTree, SkillBranch } from "@/lib/types/skill";
+import type { ElementMeta, RaceSkillTree, SkillBranch } from "@/lib/types/skill";
 import { ELEMENT_META } from "@/lib/types/skill";
 import { SkillTree } from "./SkillTree";
 import { getSkillsByCharacter } from "@/app/actions/skill";
@@ -35,6 +35,22 @@ const rankCoatOfArms: Record<string, string> = {
   C: "/assets/svgs/rank/C.svg", D: "/assets/svgs/rank/D.svg", E: "/assets/svgs/rank/E.svg",
   V: "/assets/svgs/rank/V.svg",
 };
+
+const UNKNOWN_ELEMENT_META: ElementMeta = {
+  ...ELEMENT_META.terra,
+  label: "Desconhecido",
+  color: "#A89BAB",
+  glow: "#D8CDDD",
+  colorClass: "text-bege-escuro",
+  bgClass: "bg-bege-escuro",
+  borderClass: "border-bege-escuro",
+  glowClass: "text-bege-escuro",
+  svgPath: "",
+};
+
+function getElementMeta(element: string): ElementMeta {
+  return ELEMENT_META[element as CharacterElement] ?? UNKNOWN_ELEMENT_META;
+}
 
 type MasterSkillDashboardProps = {
   characters: ProfileCharacter[];
@@ -87,7 +103,7 @@ useEffect(() => {
 
   // ── Visão da árvore de um personagem específico ──
   if (selectedChar) {
-    const meta = ELEMENT_META[selectedChar.element];
+    const meta = getElementMeta(selectedChar.element);
 
     return (
       <div className="space-y-6">
@@ -133,7 +149,7 @@ useEffect(() => {
               className="flex h-9 w-9 items-center justify-center rounded-full border"
               style={{ borderColor: `${meta.color}60`, backgroundColor: `${meta.color}18` }}
             >
-              <Image src={meta.svgPath} alt={meta.label} width={20} height={20} className="object-contain" />
+              {meta.svgPath ? <Image src={meta.svgPath} alt={meta.label} width={20} height={20} className="object-contain" /> : <span aria-hidden="true" className="text-sm text-bege-escuro">?</span>}
             </div>
             <span className="font-title text-sm uppercase tracking-wider" style={{ color: meta.color }}>
               {meta.label}
@@ -276,7 +292,7 @@ useEffect(() => {
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((char) => {
-            const meta = ELEMENT_META[char.element];
+            const meta = getElementMeta(char.element);
 
             return (
               <button
@@ -319,7 +335,7 @@ useEffect(() => {
                       className="flex h-6 w-6 items-center justify-center rounded-full border"
                       style={{ borderColor: `${meta.color}50`, backgroundColor: `${meta.color}15` }}
                     >
-                      <Image src={meta.svgPath} alt={meta.label} width={14} height={14} className="object-contain" />
+                      {meta.svgPath ? <Image src={meta.svgPath} alt={meta.label} width={14} height={14} className="object-contain" /> : <span aria-hidden="true" className="text-xs text-bege-escuro">?</span>}
                     </div>
                     <span className="font-title text-[10px] uppercase tracking-wider" style={{ color: meta.color }}>
                       {meta.label}

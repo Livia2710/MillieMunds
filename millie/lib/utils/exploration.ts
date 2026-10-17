@@ -25,7 +25,7 @@ export function doorsFor(rooms: MapRoom[], room: MapRoom): PublicDoor[] {
   for (const c of room.connections) raw.set(c.roomId, c.access)
   for (const r of rooms) {
     const back = r.connections.find(c => c.roomId === room.id)
-    if (back && !raw.has(r.id)) raw.set(r.id, back.access)
+    if (back && back.autoConnect !== false && !raw.has(r.id)) raw.set(r.id, back.access)
   }
   return [...raw].flatMap(([roomId, access]) => {
     const t = rooms.find(r => r.id === roomId)

@@ -55,6 +55,14 @@ function drawValidCard(): CardResult {
   }
 }
 
+function drawCardThatFits(totalAssigned: number, slotsAfterThis: number): CardResult {
+  const minValue = Math.max(CREATION_MIN, CREATION_TOTAL - totalAssigned - slotsAfterThis * CREATION_MAX)
+  const maxValue = Math.min(CREATION_MAX, CREATION_TOTAL - totalAssigned - slotsAfterThis * CREATION_MIN)
+  let card = drawValidCard()
+  while (card.value < minValue || card.value > maxValue) card = drawValidCard()
+  return card
+}
+
 // ─── constantes fixas de criação ──────────────────────────
 const CREATION_MIN = 1
 const CREATION_MAX = 10
@@ -166,7 +174,12 @@ export default function CreateCharForm() {
   // ─── método aleatório — todos de uma vez ─────────────────
   function handleDrawAll() {
     const cards: CardResult[] = []
-    for (let i = 0; i < 5; i++) cards.push(drawValidCard())
+    let totalAssigned = 0
+    for (let i = 0; i < ATTR_KEYS.length; i++) {
+      const card = drawCardThatFits(totalAssigned, ATTR_KEYS.length - i - 1)
+      cards.push(card)
+      totalAssigned += card.value
+    }
     setDrawnCards(cards)
     const newAttrs: Attributes = {} as Attributes
     ATTR_KEYS.forEach((key, i) => {
@@ -178,7 +191,8 @@ export default function CreateCharForm() {
   // ─── método aleatório — um a um ──────────────────────────
   function handleDrawOne() {
     if (currentCardIndex >= 5) return
-    setCurrentCard(drawValidCard())
+    const totalAssigned = Object.values(assignedAttrs).reduce((sum, card) => sum + (card?.value ?? 0), 0)
+    setCurrentCard(drawCardThatFits(totalAssigned, ATTR_KEYS.length - currentCardIndex - 1))
   }
 
   function handleAssignCard(key: AttrKey) {

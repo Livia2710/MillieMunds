@@ -189,7 +189,7 @@ export async function createCharacter(data: {
 
   const name = validatedText(data.name, 'Nome do personagem', { min: 2, max: 80 })
   const category = oneOf(data.category, 'Categoria', ['aluno', 'professor', 'npc', 'monstro'] as const)
-  const element = validatedText(data.element, 'Elemento', { min: 1, max: 40 })
+  const element = oneOf(data.element, 'Elemento', ['trevas', 'luz', 'terra', 'agua', 'vento', 'fogo'] as const)
   const worldSlug = validatedText(data.worldSlug, 'Mundo', { min: 1, max: 120 })
   const level = validatedInteger(data.level, 'Nível', 1, 10_000)
   const birthRank = oneOf(data.birthRank ?? 'D', 'Rank de nascença', ['E', 'D', 'C', 'B', 'A', 'S'] as const)
@@ -287,6 +287,9 @@ export async function createPlayerCharacter(data: {
   if (!race) throw new Error('Raça inválida')
   const allowedElements = ['trevas', 'luz', 'terra', 'agua', 'vento', 'fogo']
   const isRitualista = race.name.trim().toLocaleLowerCase('pt-BR') === 'ritualista'
+  if (!allowedElements.includes(race.element)) {
+    throw new Error('A raça está com um elemento inválido. Peça ao Mestre para corrigir o cadastro da raça.')
+  }
   if (isRitualista ? !allowedElements.includes(data.element) : data.element !== race.element) {
     throw new Error(isRitualista ? 'Escolha um dos seis elementos para o Ritualista' : 'O elemento não corresponde à raça escolhida')
   }

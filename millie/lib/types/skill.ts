@@ -2,6 +2,31 @@ import type { CharacterElement } from "./character";
 
 export type SkillBranch = "ativa" | "passiva" | "reacao" | "aprimoramento";
 
+export type SkillCardResult = {
+  card: string;
+  outcome: string;
+  interpretation: string;
+};
+
+export type SkillEvolutionStage = {
+  number: number;
+  name: string;
+  requiredRank: string;
+  requiredCharacterLevel: number;
+  requirements: string;
+  costResource: string;
+  costAmount: number;
+  range: string;
+  customRange: string;
+  duration: string;
+  potency: string;
+  testAttribute: string;
+  execution: string;
+  trigger: string;
+  enhances: string;
+  results: SkillCardResult[];
+};
+
 export type Skill = {
   id: string;
   name: string;
@@ -12,6 +37,25 @@ export type Skill = {
   isUnlocked: boolean;
   requiredCharacterLevel: number;
   levelEffects?: string[];
+  evolutionStages?: SkillEvolutionStage[];
+  isInnate?: boolean;
+  element?: string;
+  costResource?: string;
+  costAmount?: number;
+  range?: string;
+  duration?: string;
+  trigger?: string;
+  enhances?: string;
+  execution?: string;
+  testAttribute?: string;
+  results?: string;
+  potency?: string;
+  lineName?: string;
+  formNumber?: number;
+  requiredRank?: string;
+  evolvesTo?: string;
+  requirements?: string;
+  interactions?: string;
 };
 
 export type RaceSkillTree = {

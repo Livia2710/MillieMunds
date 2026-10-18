@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Skill, ElementMeta } from "@/lib/types/skill";
-import { useInnateSkill, useSkill, deleteSkill } from "@/app/actions/skill";
+import { registerInnateSkillUse, registerSkillUse, deleteRaceSkill, deleteSkill } from "@/app/actions/skill";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
 import ConfirmModal from "@/componentes/modais/ConfirmModal";
 import EditarHabilidadeModal from "@/componentes/modais/EditarHabilidadeModal";
@@ -52,19 +52,20 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
   const usePct      = isMaxed ? 100 : Math.min((uses / needed) * 100, 100);
 
   const canUse = !isLocked && !isMaxed;
-  const canManage = isMaster && !skill.isInnate;
+  const canManage = isMaster;
 
   // efeito já alcançado (nível atual) e o próximo, se existir
   const currentEffect = skill.currentLevel > 0 ? skill.levelEffects?.[skill.currentLevel - 1] : undefined;
   const nextEffect = !isMaxed ? skill.levelEffects?.[skill.currentLevel] : undefined;
+  const activeStage = skill.evolutionStages?.[Math.min(skill.currentLevel, skill.maxLevel - 1)] ?? skill.evolutionStages?.[0];
 
   function handleUse() {
     if (!canUse) return;
     startTransition(async () => {
       try {
         const result = skill.isInnate
-          ? await useInnateSkill(skill.id, characterId)
-          : await useSkill(skill.id);
+          ? await registerInnateSkillUse(skill.id, characterId)
+          : await registerSkillUse(skill.id);
         if (result.leveledUp) {
           const message = `Subiu para nível ${result.newLevel}!`
           setFeedback(message);
@@ -85,7 +86,8 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
   }
 
   async function handleDelete() {
-    await deleteSkill(skill.id);
+    if (skill.isInnate) await deleteRaceSkill(skill.id)
+    else await deleteSkill(skill.id)
     router.refresh();
     onSkillChanged?.();
   }
@@ -159,7 +161,7 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
           )}
           {currentEffect && (
             <p className="mt-2 text-[10px] italic leading-relaxed text-bege-claro/70">
-              "{currentEffect}"
+              &quot;{currentEffect}&quot;
             </p>
           )}
         </div>
@@ -197,7 +199,7 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
 
       {expanded && !isLocked && (
         <div
-          className="mt-1 w-48 rounded border p-3 text-left"
+          className="mt-1 w-64 max-w-[calc(100vw-2rem)] rounded border p-3 text-left"
           style={{
             borderColor:     `${meta.color}40`,
             backgroundColor: "#1a0f22ee",
@@ -231,6 +233,31 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
 
           <p className="text-[10px] leading-relaxed text-bege-claro/75">{skill.description}</p>
 
+          <div className="mt-2 space-y-1 border-t border-bege-escuro/20 pt-2 text-[9px] leading-relaxed text-bege-claro/70">
+            {activeStage ? <>
+              <p><strong>Forma atual:</strong> {activeStage.name}</p>
+              {activeStage.execution && <p><strong>Efeito:</strong> {activeStage.execution}</p>}
+              <p><strong>Custo:</strong> {activeStage.costResource === "pm" ? `${activeStage.costAmount} PM` : activeStage.costResource === "pv" ? `${activeStage.costAmount} PV` : "Sem custo"} · <strong>Alcance:</strong> {activeStage.customRange || activeStage.range}</p>
+              {activeStage.duration && <p><strong>Duração:</strong> {activeStage.duration}</p>}
+              {activeStage.testAttribute && <p><strong>Teste:</strong> {activeStage.testAttribute}</p>}
+              {activeStage.potency && <p><strong>Potência:</strong> {activeStage.potency}</p>}
+              {activeStage.requiredRank && <p><strong>Rank mínimo:</strong> {activeStage.requiredRank}</p>}
+              {activeStage.requirements && <p><strong>Requisitos:</strong> {activeStage.requirements}</p>}
+              {activeStage.results.length > 0 && <div><strong>Resultados por carta:</strong><ul className="ml-3 list-disc">{activeStage.results.map((result, index) => <li key={`${result.card}-${index}`}><strong>{result.card} · {result.outcome}:</strong> {result.interpretation}</li>)}</ul></div>}
+            </> : <>
+              {skill.execution && <p><strong>Execução:</strong> {skill.execution}</p>}
+              <p><strong>Custo:</strong> {skill.costResource === "pm" ? `${skill.costAmount ?? 0} PM` : skill.costResource === "pv" ? `${skill.costAmount ?? 0} PV` : "Sem custo"} · <strong>Alcance:</strong> {skill.range ?? "—"}</p>
+              {skill.duration && <p><strong>Duração:</strong> {skill.duration}</p>}
+              {skill.testAttribute && <p><strong>Teste:</strong> {skill.testAttribute}</p>}
+              {skill.potency && <p><strong>Potência:</strong> {skill.potency}</p>}
+              {skill.results && <p className="whitespace-pre-wrap"><strong>Resultados:</strong> {skill.results}</p>}
+              {skill.trigger && <p><strong>Gatilho:</strong> {skill.trigger}</p>}
+              {skill.enhances && <p><strong>Aprimora:</strong> {skill.enhances}</p>}
+              {skill.requirements && <p><strong>Requisitos:</strong> {skill.requirements}</p>}
+            </>}
+            {skill.interactions && <p><strong>Interações:</strong> {skill.interactions}</p>}
+          </div>
+
           <p className="mt-2 font-mono text-[9px] text-bege-escuro/50">
             Nível {skill.currentLevel}/{skill.maxLevel}
           </p>
@@ -243,12 +270,12 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
 
           {currentEffect && (
             <p className="mt-2 text-[9px] italic leading-relaxed text-bege-claro/70">
-              Efeito atual: "{currentEffect}"
+              Efeito atual: &quot;{currentEffect}&quot;
             </p>
           )}
           {nextEffect && (
             <p className="mt-1 text-[9px] italic leading-relaxed text-bege-escuro/40">
-              Próximo (nível {skill.currentLevel + 1}): "{nextEffect}"
+              Próximo (nível {skill.currentLevel + 1}): &quot;{nextEffect}&quot;
             </p>
           )}
 

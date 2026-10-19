@@ -112,7 +112,6 @@ export default function AtlasClient({ data }: { data: Data }) {
   return <main className="mx-auto min-h-[75vh] max-w-[1800px] px-3 pb-10 text-bege-claro md:px-5">
     <div className="relative isolate min-h-[78vh] overflow-hidden border border-bege-escuro/35 bg-[#100a16] shadow-[0_18px_80px_rgba(0,0,0,.42)]">
       <PageCorners />
-      {level === 'universe' && universe?.artworkUrl && <div aria-hidden className="absolute inset-0 bg-cover bg-center opacity-15" style={{ backgroundImage: `url("${universe.artworkUrl}")` }} />}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(102,75,126,0.18),transparent_58%)]" />
       <div aria-hidden className="atlas-star-pulse absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(1px 1px at 18% 22%,#f0d89b 99%,transparent),radial-gradient(1px 1px at 76% 34%,#f0d89b 99%,transparent),radial-gradient(1.5px 1.5px at 56% 72%,#fff 99%,transparent),radial-gradient(1px 1px at 31% 81%,#fff 99%,transparent),radial-gradient(1px 1px at 88% 77%,#f0d89b 99%,transparent)' }} />
       <div className="relative z-10 grid min-h-[78vh] lg:grid-cols-[320px_minmax(0,1fr)]">

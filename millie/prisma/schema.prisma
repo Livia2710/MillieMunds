@@ -116,6 +116,7 @@ model Campaign {
   explorationPresence    CampaignExplorationPresence[]
   conditionDefinitions   CampaignConditionDefinition[]
   mapMissionProgress     MapMissionProgress[]
+  atlasDiscoveries       AtlasDiscovery[]
 }
 
 model CampaignMember {
@@ -240,17 +241,52 @@ model Chapter {
 // ─── UNIVERSO / RAÇA ──────────────────────────────────────
 
 model Universe {
-  id     String          @id @default(cuid())
-  name   String          @unique
-  worlds UniverseWorld[]
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  description         String               @default("") @db.Text
+  artworkUrl          String?
+  artStyle            String               @default("")
+  kind                String               @default("universe") // origin | universe | multiversal
+  visibility          String               @default("PUBLIC")
+  worlds              UniverseWorld[]
+  outgoingConnections UniverseConnection[] @relation("UniverseConnectionFrom")
+  incomingConnections UniverseConnection[] @relation("UniverseConnectionTo")
+}
+
+model UniverseConnection {
+  id             String   @id @default(cuid())
+  fromUniverseId String
+  toUniverseId   String
+  relationType   String   @default("known") // known | uncertain | multiversal
+  description    String   @default("") @db.Text
+  visibility     String   @default("PUBLIC")
+  fromUniverse   Universe @relation("UniverseConnectionFrom", fields: [fromUniverseId], references: [id], onDelete: Cascade)
+  toUniverse     Universe @relation("UniverseConnectionTo", fields: [toUniverseId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUniverseId, toUniverseId])
+}
+
+model AtlasDiscovery {
+  id           String   @id @default(cuid())
+  campaignId   String
+  entityType   String
+  entityId     String
+  discoveredAt DateTime @default(now())
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, entityType, entityId])
+  @@index([campaignId, entityType])
 }
 
 model UniverseWorld {
-  id         String   @id @default(cuid())
-  name       String
-  universeId String
-  universe   Universe @relation(fields: [universeId], references: [id])
-  races      Race[]
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("") @db.Text
+  imageUrl    String?
+  visibility  String   @default("PUBLIC")
+  universeId  String
+  universe    Universe @relation(fields: [universeId], references: [id])
+  races       Race[]
 
   @@unique([name, universeId])
 }
@@ -262,6 +298,11 @@ model Race {
   baseRank        BaseRank        @default(D)
   isCorrupted     Boolean         @default(false)
   description     String?         @db.Text
+  appearance      String          @default("") @db.Text
+  biology         String          @default("") @db.Text
+  culture         String          @default("") @db.Text
+  masterNotes     String          @default("") @db.Text
+  visibility      String          @default("PUBLIC")
   image           String?
   canAscend       Boolean         @default(false)
   canCorrupt      Boolean         @default(false)
@@ -302,6 +343,7 @@ model RaceSkill {
   evolvesTo       String               @default("")
   requirements    String               @default("") @db.Text
   interactions    String               @default("") @db.Text
+  visibility      String               @default("PUBLIC")
   levelEffects    String[]             @default([])
   evolutionStages String               @default("[]") @db.Text
   characterSkills CharacterRaceSkill[]

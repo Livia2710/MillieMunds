@@ -48,6 +48,8 @@ export default function MillieImageUpload({
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const imageValue = value && value !== "null" && value !== "undefined" ? value : ""
+  const cropValue = portraitCrop?.value && portraitCrop.value !== "null" && portraitCrop.value !== "undefined" ? portraitCrop.value : ""
 
   const aspectClass = {
     square: "aspect-square",
@@ -212,12 +214,12 @@ export default function MillieImageUpload({
     <div className="flex flex-col gap-1.5">
       {label && <label className="font-title text-[10px] uppercase tracking-[0.2em] text-bege-escuro">{label}</label>}
 
-      {value ? (
+      {imageValue ? (
         <div className={`relative w-full ${aspectClass} overflow-hidden border border-bege-escuro/40`}>
-          <Image src={value} alt="Imagem enviada" fill className={portraitCrop ? "object-contain" : "object-cover"} />
-          {portraitCrop?.value && portraitCrop.saveOriginal !== false && (
+          <Image src={imageValue} alt="Imagem enviada" fill className={portraitCrop ? "object-contain" : "object-cover"} />
+          {cropValue && portraitCrop?.saveOriginal !== false && (
             <div className="absolute bottom-2 left-2 h-12 w-12 overflow-hidden rounded-full border border-bege-medio bg-roxo-escuro">
-              <Image src={portraitCrop.value} alt="Prévia do retrato recortado" fill className="object-cover" />
+              <Image src={cropValue} alt="Prévia do retrato recortado" fill className="object-cover" />
             </div>
           )}
           <button type="button" disabled={disabled || uploading} onClick={clearImages} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center border border-bege-escuro/40 bg-roxo-escuro/80 text-bege-medio transition-colors hover:text-bege-claro disabled:opacity-40" aria-label="Remover imagem">
@@ -239,7 +241,7 @@ export default function MillieImageUpload({
         </div>
       )}
 
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={disabled || uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(file); e.currentTarget.value = "" }} />
+      <input ref={inputRef} type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" disabled={disabled || uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(file); e.currentTarget.value = "" }} />
       {portraitCrop && <p className="text-[9px] text-bege-escuro/50">{portraitCrop.saveOriginal === false ? "Ajuste o enquadramento vertical para mostrar o rosto e o tronco no diálogo." : "A imagem original será mantida; o recorte será usado em retratos e cards."}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
 

@@ -81,6 +81,7 @@ export function Header() {
               Habilidades
             </Link>
             <Link href="/mapas" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">Mapas</Link>
+            <Link href="/atlas" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">Atlas</Link>
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -176,6 +177,7 @@ export function Header() {
               closeSidebar={() => setIsSidebarOpen(false)}
               active={pathname === "/habilidades"}
               />
+              <SidebarLink href="/atlas" label="Atlas" icon={<Compass size={17} strokeWidth={1.4}/>} closeSidebar={() => setIsSidebarOpen(false)} active={pathname.startsWith("/atlas")} />
             </div>
               {isMaster && (
                 <SidebarLink

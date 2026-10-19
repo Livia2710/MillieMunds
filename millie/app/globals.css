@@ -441,6 +441,75 @@ button {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+@keyframes atlas-orbit-drift {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-7px) scale(1.015); }
+}
+
+@keyframes atlas-star-pulse {
+  0%, 100% { opacity: .2; }
+  50% { opacity: .65; }
+}
+
+@keyframes atlas-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes atlas-nucleus-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes atlas-nucleus-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes atlas-dust-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 48px -36px, -35px 28px; }
+}
+
+.atlas-nucleus-body { animation: atlas-nucleus-float 7s ease-in-out infinite; }
+.atlas-floating-art {
+  filter: drop-shadow(0 8px 15px rgba(8, 5, 13, .65)) drop-shadow(0 0 16px rgba(211, 174, 113, .18));
+  animation: atlas-art-glimmer 8s ease-in-out infinite;
+}
+@keyframes atlas-art-glimmer {
+  0%, 100% { filter: drop-shadow(0 8px 15px rgba(8, 5, 13, .65)) drop-shadow(0 0 12px rgba(211, 174, 113, .14)); }
+  50% { filter: drop-shadow(0 11px 18px rgba(8, 5, 13, .62)) drop-shadow(0 0 20px rgba(211, 174, 113, .28)); }
+}
+.atlas-nucleus:nth-of-type(odd) .atlas-nucleus-body { animation-delay: -3.5s; }
+.atlas-nucleus-orbit { animation: atlas-nucleus-orbit 75s linear infinite; }
+.atlas-cosmic-dust {
+  background-image: radial-gradient(1px 1px at 20% 30%, rgba(236,214,171,.36) 99%, transparent), radial-gradient(1px 1px at 70% 72%, rgba(208,187,255,.25) 99%, transparent);
+  background-size: 180px 160px, 240px 220px;
+  opacity: .2;
+  animation: atlas-dust-drift 110s linear infinite;
+}
+.atlas-primordial-glow { animation: atlas-nucleus-float 8s ease-in-out infinite, atlas-primordial-pulse 6s ease-in-out infinite; }
+@keyframes atlas-primordial-pulse {
+  0%, 100% { box-shadow: 0 0 48px rgba(226,184,121,.42); }
+  50% { box-shadow: 0 0 68px rgba(255,211,123,.68); }
+}
+
+.atlas-orbit-drift {
+  animation: atlas-orbit-drift 7s ease-in-out infinite;
+}
+
+.atlas-star-pulse {
+  animation: atlas-star-pulse 6s ease-in-out infinite;
+}
+
+.atlas-orbit-spin {
+  animation: atlas-orbit-spin 90s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-orbit-drift, .atlas-star-pulse, .atlas-orbit-spin,
+  .atlas-nucleus-body, .atlas-nucleus-orbit, .atlas-cosmic-dust,
+  .atlas-floating-art, .atlas-primordial-glow { animation: none !important; }
+}
+
 /* ─── Preferência: desativar animações ─── */
 .no-animations,
 .no-animations * {

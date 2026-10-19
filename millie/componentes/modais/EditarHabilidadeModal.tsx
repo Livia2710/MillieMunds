@@ -80,7 +80,6 @@ export default function EditarHabilidadeModal({ isOpen, onClose, skill, onSaved 
     if (!name.trim()) { setError("Nome é obrigatório."); return }
     const activeStages = stages.slice(0, Number(maxLevel))
     activeStages[0] = { ...activeStages[0], name: name.trim() }
-    if (Number(maxLevel) >= 4 && ["E", "D", "C"].includes(activeStages[0].requiredRank)) { setError("Habilidades com 4 ou 5 etapas exigem Rank mínimo B."); return }
     if (activeStages.some((stage, index) => index >= 3 && ["E", "D", "C"].includes(stage.requiredRank))) { setError("Despertares 4 e 5 exigem Rank mínimo B."); return }
     if (activeStages.some((stage) => stage.costResource !== "none" && stage.costAmount < 1)) { setError("Informe a quantidade do custo em cada etapa que tenha custo."); return }
     if (activeStages.some((stage) => stage.range === "Fórmula personalizada" && !stage.customRange.trim())) { setError("Informe a fórmula para cada alcance personalizado."); return }
@@ -109,7 +108,7 @@ export default function EditarHabilidadeModal({ isOpen, onClose, skill, onSaved 
           potency: activeStages[0].potency,
           lineName,
           formNumber: 1,
-          requiredRank: Number(maxLevel) >= 4 ? "B" : activeStages[0].requiredRank,
+          requiredRank: activeStages[0].requiredRank,
           evolvesTo: activeStages[1]?.name ?? "",
           requirements: activeStages[0].requirements,
           interactions,
@@ -155,7 +154,7 @@ export default function EditarHabilidadeModal({ isOpen, onClose, skill, onSaved 
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <MillieSelect label="Número de etapas" options={MAX_LEVEL_OPTIONS} value={maxLevel} onChange={(e) => { const next = Number(e.target.value); setMaxLevel(e.target.value); setStages((current) => { const updated = [...current.slice(0, next), ...createInitialSkillStages(next).slice(current.length)]; if (next >= 4) updated[0] = { ...updated[0], requiredRank: "B" }; return updated }) }} />
+          <MillieSelect label="Número de etapas" options={MAX_LEVEL_OPTIONS} value={maxLevel} onChange={(e) => { const next = Number(e.target.value); setMaxLevel(e.target.value); setStages((current) => [...current.slice(0, next), ...createInitialSkillStages(next).slice(current.length)]) }} />
           <MillieInput label="Linha de evolução" value={lineName} onChange={(e) => setLineName(e.target.value)} />
         </div>
         <SkillEvolutionStagesEditor count={Number(maxLevel)} stages={stages} onChange={setStages} branch={branch} baseName={name} />

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Skill, ElementMeta } from "@/lib/types/skill";
-import { registerInnateSkillUse, registerSkillUse, deleteRaceSkill, deleteSkill } from "@/app/actions/skill";
+import { registerInnateSkillUse, registerSkillUse, deleteRaceSkill, deleteSkill, setCharacterInnateSkillLevel, setCharacterSkillLevel } from "@/app/actions/skill";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
 import ConfirmModal from "@/componentes/modais/ConfirmModal";
 import EditarHabilidadeModal from "@/componentes/modais/EditarHabilidadeModal";
@@ -53,6 +53,7 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
 
   const canUse = !isLocked && !isMaxed;
   const canManage = isMaster;
+  const canOpen = !isLocked || canManage;
 
   // efeito já alcançado (nível atual) e o próximo, se existir
   const currentEffect = skill.currentLevel > 0 ? skill.levelEffects?.[skill.currentLevel - 1] : undefined;
@@ -85,6 +86,22 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
     });
   }
 
+  function handleMasterSetLevel(level: number) {
+    if (!canManage || level < 0 || level > skill.maxLevel) return;
+    startTransition(async () => {
+      try {
+        if (skill.isInnate) await setCharacterInnateSkillLevel(skill.id, characterId, level);
+        else await setCharacterSkillLevel(skill.id, level);
+        router.refresh();
+        onSkillChanged?.();
+        toast.success(level >= skill.maxLevel ? "Habilidade definida na forma máxima." : `Habilidade ajustada para a forma ${level + 1}.`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Não foi possível ajustar a forma da habilidade.";
+        toast.error(message);
+      }
+    });
+  }
+
   async function handleDelete() {
     if (skill.isInnate) await deleteRaceSkill(skill.id)
     else await deleteSkill(skill.id)
@@ -97,11 +114,11 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
 
       <button
         type="button"
-        onClick={() => !isLocked && setExpanded((v) => !v)}
+        onClick={() => canOpen && setExpanded((v) => !v)}
         className={`
           group relative flex h-12 w-12 items-center justify-center rounded-full border-2
           transition-all duration-300 md:h-14 md:w-14
-          ${isLocked ? "opacity-40 grayscale cursor-default" : "cursor-pointer"}
+          ${isLocked ? (canManage ? "cursor-pointer" : "opacity-40 grayscale cursor-default") : "cursor-pointer"}
         `}
         style={{
           borderColor:     isLocked ? "#4a4a5a" : meta.color,
@@ -197,7 +214,7 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
         {skill.name}
       </p>
 
-      {expanded && !isLocked && (
+      {expanded && canOpen && (
         <div
           className="mt-1 w-64 max-w-[calc(100vw-2rem)] rounded border p-3 text-left"
           style={{
@@ -262,6 +279,8 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
             Nível {skill.currentLevel}/{skill.maxLevel}
           </p>
 
+          {isLocked && canManage && <p className="mt-1 font-mono text-[9px] text-amber-200/70">Habilidade bloqueada para o personagem; o ajuste do Mestre ainda pode definir sua forma.</p>}
+
           {!isMaxed && (
             <p className="font-mono text-[9px] text-bege-escuro/40">
               {uses}/{needed} usos para evoluir
@@ -300,7 +319,33 @@ export function SkillNode({ skill, meta, characterLevel, birthRank, characterId,
             </button>
           )}
 
-          {skill.isInnate && !isMaxed && (
+          {canManage && !isMaxed && (
+            <div className="mt-3 space-y-2 border-t pt-2" style={{ borderColor: `${meta.color}30` }}>
+              <p className="font-title text-[9px] uppercase tracking-widest" style={{ color: meta.glow }}>Ajuste do Mestre</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleMasterSetLevel(skill.currentLevel + 1)}
+                  disabled={isPending}
+                  className="flex-1 border px-2 py-1.5 font-title text-[9px] uppercase tracking-wide disabled:opacity-40"
+                  style={{ borderColor: `${meta.color}60`, color: meta.color }}
+                >
+                  Evoluir sem usos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMasterSetLevel(skill.maxLevel)}
+                  disabled={isPending}
+                  className="flex-1 border px-2 py-1.5 font-title text-[9px] uppercase tracking-wide disabled:opacity-40"
+                  style={{ borderColor: `${meta.color}60`, color: meta.glow }}
+                >
+                  Forma máxima
+                </button>
+              </div>
+            </div>
+          )}
+
+          {skill.isInnate && !isMaxed && !canManage && (
             <p className="mt-2 font-title text-[9px] uppercase tracking-widest text-bege-escuro/30">
               Habilidade inata — evolução em breve
             </p>

@@ -16,7 +16,7 @@ import { useToast } from "@/componentes/ui/ToastProvider"
 import SkillEvolutionStagesEditor, { createInitialSkillStages } from "@/componentes/habilidades/SkillEvolutionStagesEditor"
 import type { SkillEvolutionStage } from "@/lib/types/skill"
 
-type Props = { isOpen: boolean; onClose: () => void }
+type Props = { isOpen: boolean; onClose: () => void; initialOrigin?: Origin; initialTargetId?: string }
 type Origin = "innate" | "trained"
 
 const BRANCH_OPTIONS: { value: SkillBranch; label: string }[] = [
@@ -26,11 +26,11 @@ const BRANCH_OPTIONS: { value: SkillBranch; label: string }[] = [
 const ELEMENT_OPTIONS = Object.values(ELEMENT_META).map((m) => ({ value: m.element, label: m.label }))
 const LEVEL_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} Forma${n > 1 ? "s" : ""}` }))
 
-export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
+export default function CriarHabilidadeModal({ isOpen, onClose, initialOrigin = "trained", initialTargetId = "" }: Props) {
   const router = useRouter()
   const toast = useToast()
   const [isPending, startTransition] = useTransition()
-  const [origin, setOrigin] = useState<Origin>("trained")
+  const [origin, setOrigin] = useState<Origin>(initialOrigin)
   const [characters, setCharacters] = useState<{ id: string; name: string }[]>([])
   const [races, setRaces] = useState<{ id: string; name: string }[]>([])
   const [targetsLoaded, setTargetsLoaded] = useState(false)
@@ -51,6 +51,8 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
     getSkillCreationTargets().then((targets) => {
       setCharacters(targets.characters)
       setRaces(targets.races)
+      setOrigin(initialOrigin)
+      setTargetId(initialTargetId)
       setTargetsLoaded(true)
     }).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : "Não foi possível carregar personagens e raças."
@@ -58,10 +60,10 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
       setTargetsLoaded(true)
       toast.error(message)
     })
-  }, [isOpen, targetsLoaded, toast])
+  }, [isOpen, targetsLoaded, toast, initialOrigin, initialTargetId])
 
   function reset() {
-    setOrigin("trained"); setTargetId(""); setName(""); setDescription(""); setBranch("ativa"); setElement("fogo")
+    setOrigin(initialOrigin); setTargetId(initialTargetId); setName(""); setDescription(""); setBranch("ativa"); setElement("fogo")
     setMaxLevel("1"); setStages(createInitialSkillStages(1)); setLineName(""); setInteractions(""); setError("")
   }
 
@@ -71,7 +73,6 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
     if (!targetId) { setError(origin === "innate" ? "Selecione uma raça." : "Selecione um personagem."); return }
     if (!name.trim()) { setError("Nome é obrigatório."); return }
     const activeStages = stages.slice(0, Number(maxLevel))
-    if (Number(maxLevel) >= 4 && ["E", "D", "C"].includes(activeStages[0].requiredRank)) { setError("Habilidades com 4 ou 5 etapas exigem Rank mínimo B."); return }
     if (Number(maxLevel) >= 4 && activeStages.some((stage, index) => index >= 3 && ["E", "D", "C"].includes(stage.requiredRank))) { setError("Despertares 4 e 5 exigem Rank mínimo B."); return }
     if (activeStages.some((stage) => stage.costResource !== "none" && stage.costAmount < 1)) { setError("Informe a quantidade do custo em cada etapa que tenha custo."); return }
     if (activeStages.some((stage) => stage.range === "Fórmula personalizada" && !stage.customRange.trim())) { setError("Informe a fórmula para cada alcance personalizado."); return }
@@ -86,7 +87,7 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
       costResource: initial.costResource, costAmount: initial.costAmount, range: initial.range === "Fórmula personalizada" ? initial.customRange.trim() : initial.range,
       duration: initial.duration, trigger: initial.trigger, enhances: initial.enhances,
       execution: initial.execution, testAttribute: initial.testAttribute, results: "", potency: initial.potency,
-      lineName, formNumber: 1, requiredRank: Number(maxLevel) >= 4 ? "B" : initial.requiredRank,
+      lineName, formNumber: 1, requiredRank: initial.requiredRank,
       evolvesTo: activeStages[1]?.name ?? "", requirements: initial.requirements, interactions,
     }
     startTransition(async () => {
@@ -125,7 +126,7 @@ export default function CriarHabilidadeModal({ isOpen, onClose }: Props) {
 
       <section className="space-y-3 border-t border-bege-escuro/20 pt-4">
         <h3 className="font-title text-xs uppercase tracking-widest text-bege-medio">Despertar e evolução</h3>
-        <MillieSelect label="Número de etapas (forma inicial + despertares)" options={LEVEL_OPTIONS} value={maxLevel} onChange={(event) => { const count = Number(event.target.value); setMaxLevel(event.target.value); setStages((current) => { const next = [...current.slice(0, count), ...createInitialSkillStages(count).slice(current.length)]; if (count >= 4) next[0] = { ...next[0], requiredRank: "B" }; return next }) }} />
+        <MillieSelect label="Número de etapas (forma inicial + despertares)" options={LEVEL_OPTIONS} value={maxLevel} onChange={(event) => { const count = Number(event.target.value); setMaxLevel(event.target.value); setStages((current) => [...current.slice(0, count), ...createInitialSkillStages(count).slice(current.length)]) }} />
         {Number(maxLevel) >= 4 && <p className="text-xs text-amber-200/80">Despertares 4 e 5 exigem Rank B ou superior.</p>}
       </section>
       <SkillEvolutionStagesEditor count={Number(maxLevel)} stages={stages} onChange={setStages} branch={branch} baseName={name} />

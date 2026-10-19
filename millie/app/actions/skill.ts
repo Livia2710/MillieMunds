@@ -103,13 +103,11 @@ function parseEvolutionStages(value: string): SkillEvolutionStage[] {
 export async function getSkillCreationTargets() {
   const userId = await requireUserId()
   const membership = await requireActiveMembership(userId, 'MASTER')
-  const characters = await prisma.character.findMany({
+  const [characters, races] = await Promise.all([prisma.character.findMany({
     where: { campaignId: membership.campaignId },
     select: { id: true, name: true, race: { select: { id: true, name: true } } },
     orderBy: { name: 'asc' },
-  })
-  const races = [...new Map(characters.map((character) => [character.race.id, character.race])).values()]
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }), prisma.race.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })])
   return { characters: characters.map(({ id, name }) => ({ id, name })), races }
 }
 
@@ -248,9 +246,6 @@ export async function createSkill(data: {
   requiredRank: string; evolvesTo: string; requirements: string; interactions: string
 }) {
   const fields = validateSkillFields(data)
-  if (fields.maxLevel >= 4 && SKILL_RANKS.indexOf(fields.requiredRank as typeof SKILL_RANKS[number]) < SKILL_RANKS.indexOf('B')) {
-    throw new Error('Habilidades com Forma 4 ou 5 exigem Rank mínimo B')
-  }
   const characterId = validatedText(data.characterId, 'Personagem', { min: 1, max: 100 })
   const userId = await requireUserId()
   const membership = await requireActiveMembership(userId, 'MASTER')
@@ -290,15 +285,12 @@ export async function createRaceSkill(data: {
   const fields = validateSkillFields(data)
   const raceId = validatedText(data.raceId, 'Raça', { min: 1, max: 100 })
   const userId = await requireUserId()
-  const membership = await requireActiveMembership(userId, 'MASTER')
-  const race = await prisma.race.findFirst({
-    where: { id: raceId, characters: { some: { campaignId: membership.campaignId } } },
+  await requireActiveMembership(userId, 'MASTER')
+  const race = await prisma.race.findUnique({
+    where: { id: raceId },
     select: { id: true },
   })
-  if (!race) throw new Error('Raça não encontrada entre os personagens da campanha ativa')
-  if (fields.maxLevel >= 4 && SKILL_RANKS.indexOf(fields.requiredRank as typeof SKILL_RANKS[number]) < SKILL_RANKS.indexOf('B')) {
-    throw new Error('Habilidades com Forma 4 ou 5 exigem Rank mínimo B')
-  }
+  if (!race) throw new Error('Raça não encontrada')
   const { requiredCharacterLevel, evolutionStages, ...raceSkillFields } = fields
 
   await prisma.raceSkill.create({
@@ -442,6 +434,44 @@ export async function registerInnateSkillUse(raceSkillId: string, characterId: s
   revalidatePath('/habilidades')
   return result
 }
+
+// O Mestre pode definir a progressão de uma habilidade sem registrar Marcas de Uso.
+export async function setCharacterSkillLevel(skillId: string, level: number) {
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
+  const skill = await prisma.skill.findFirst({
+    where: { id: skillId, character: { campaignId: membership.campaignId } },
+    select: { id: true, maxLevel: true },
+  })
+  if (!skill) throw new Error('Habilidade treinada não encontrada na campanha ativa')
+  const nextLevel = validatedInteger(level, 'Forma da habilidade', 0, skill.maxLevel)
+  await prisma.skill.update({ where: { id: skill.id }, data: { currentLevel: nextLevel, uses: 0 } })
+  revalidatePath('/habilidades')
+  return { level: nextLevel, maxLevel: skill.maxLevel }
+}
+
+export async function setCharacterInnateSkillLevel(raceSkillId: string, characterId: string, level: number) {
+  const userId = await requireUserId()
+  const membership = await requireActiveMembership(userId, 'MASTER')
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, campaignId: membership.campaignId },
+    select: { id: true, raceId: true },
+  })
+  if (!character) throw new Error('Personagem não encontrado na campanha ativa')
+  const raceSkill = await prisma.raceSkill.findFirst({
+    where: { id: raceSkillId, raceId: character.raceId },
+    select: { id: true, maxLevel: true },
+  })
+  if (!raceSkill) throw new Error('Habilidade inata não pertence à raça deste personagem')
+  const nextLevel = validatedInteger(level, 'Forma da habilidade', 0, raceSkill.maxLevel)
+  await prisma.characterRaceSkill.upsert({
+    where: { characterId_raceSkillId: { characterId: character.id, raceSkillId: raceSkill.id } },
+    create: { characterId: character.id, raceSkillId: raceSkill.id, currentLevel: nextLevel, uses: 0 },
+    update: { currentLevel: nextLevel, uses: 0 },
+  })
+  revalidatePath('/habilidades')
+  return { level: nextLevel, maxLevel: raceSkill.maxLevel }
+}
 // ─── updateSkill ────────────────────────────────────────────
 // Mestre edita uma habilidade criada por ele (não se aplica a RaceSkill, que é inata)
 export async function updateSkill(skillId: string, data: {
@@ -458,9 +488,6 @@ export async function updateSkill(skillId: string, data: {
   requiredRank: string; evolvesTo: string; requirements: string; interactions: string
 }) {
   const fields = validateSkillFields(data)
-  if (fields.maxLevel >= 4 && SKILL_RANKS.indexOf(fields.requiredRank as typeof SKILL_RANKS[number]) < SKILL_RANKS.indexOf('B')) {
-    throw new Error('Habilidades com Forma 4 ou 5 exigem Rank mínimo B')
-  }
   const userId = await requireUserId()
   const membership = await requireActiveMembership(userId, 'MASTER')
 
@@ -489,13 +516,10 @@ export async function updateRaceSkill(raceSkillId: string, data: {
   formNumber: number; requiredRank: string; evolvesTo: string; requirements: string; interactions: string
 }) {
   const fields = validateSkillFields(data)
-  if (fields.maxLevel >= 4 && SKILL_RANKS.indexOf(fields.requiredRank as typeof SKILL_RANKS[number]) < SKILL_RANKS.indexOf('B')) {
-    throw new Error('Habilidades com Forma 4 ou 5 exigem Rank mínimo B')
-  }
   const userId = await requireUserId()
-  const membership = await requireActiveMembership(userId, 'MASTER')
-  const existing = await prisma.raceSkill.findFirst({
-    where: { id: raceSkillId, race: { characters: { some: { campaignId: membership.campaignId } } } },
+  await requireActiveMembership(userId, 'MASTER')
+  const existing = await prisma.raceSkill.findUnique({
+    where: { id: raceSkillId },
     select: { id: true },
   })
   if (!existing) throw new Error('Habilidade inata não encontrada nesta campanha')
@@ -519,10 +543,8 @@ export async function deleteSkill(skillId: string) {
 
 export async function deleteRaceSkill(raceSkillId: string) {
   const userId = await requireUserId()
-  const membership = await requireActiveMembership(userId, 'MASTER')
-  const result = await prisma.raceSkill.deleteMany({
-    where: { id: raceSkillId, race: { characters: { some: { campaignId: membership.campaignId } } } },
-  })
-  if (!result.count) throw new Error('Habilidade inata não encontrada nesta campanha')
+  await requireActiveMembership(userId, 'MASTER')
+  const result = await prisma.raceSkill.deleteMany({ where: { id: raceSkillId } })
+  if (!result.count) throw new Error('Habilidade inata não encontrada')
   revalidatePath('/habilidades')
 }

@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 
 const VISIBILITY = ['PUBLIC', 'DISCOVERED', 'MASTER_ONLY'] as const
 const UNIVERSE_KINDS = ['origin', 'universe', 'multiversal'] as const
-const ELEMENTS = ['fogo', 'agua', 'terra', 'vento', 'luz', 'trevas'] as const
+const ELEMENTS = ['fogo', 'agua', 'terra', 'vento', 'luz', 'trevas', 'vazio'] as const
 const RANKS = ['E', 'D', 'C', 'B', 'A', 'S'] as const
 
 export async function getAtlasData() {

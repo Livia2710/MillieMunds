@@ -10,7 +10,7 @@ type World = { id: string; name: string; description: string; imageUrl: string |
 type Universe = { id: string; name: string; artworkUrl: string | null; kind: string; worlds: World[] }
 type Section = 'worlds' | 'races' | 'skills'
 
-const elementNames: Record<string, string> = { agua: 'Água', fogo: 'Fogo', terra: 'Terra', vento: 'Vento', luz: 'Luz', trevas: 'Trevas' }
+const elementNames: Record<string, string> = { agua: 'Água', fogo: 'Fogo', terra: 'Terra', vento: 'Vento', luz: 'Luz', trevas: 'Trevas', vazio: 'Vazio' }
 const elementPath = (element: string) => `/assets/svgs/elemento/${element.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.svg`
 
 function MiniElement({ element }: { element: string }) {

@@ -290,12 +290,14 @@ export async function createPlayerCharacter(data: {
   const race = await prisma.race.findUnique({ where: { id: data.raceId }, select: { name: true, baseRank: true, element: true } })
   if (!race) throw new Error('Raça inválida')
   const allowedElements = ['trevas', 'luz', 'terra', 'agua', 'vento', 'fogo']
-  const isRitualista = race.name.trim().toLocaleLowerCase('pt-BR') === 'ritualista'
-  if (!allowedElements.includes(race.element)) {
-    throw new Error('A raça está com um elemento inválido. Peça ao Mestre para corrigir o cadastro da raça.')
+  const isRitualista = race.name.trim().toLocaleLowerCase('pt-BR') === 'ritualista' || race.element === 'escolha'
+  const selectedElement = validatedText(data.element, 'Afinidade racial', { min: 2, max: 40 }).trim().toLocaleLowerCase('pt-BR')
+  const raceElement = isRitualista ? selectedElement : race.element.trim().toLocaleLowerCase('pt-BR')
+  if (!raceElement || raceElement === 'vazio' || (raceElement === 'escolha' && !isRitualista)) {
+    throw new Error('A raça precisa ter uma afinidade definida. Vazio é uma condição, não uma afinidade.')
   }
-  if (isRitualista ? !allowedElements.includes(data.element) : data.element !== race.element) {
-    throw new Error(isRitualista ? 'Escolha um dos seis elementos para o Ritualista' : 'O elemento não corresponde à raça escolhida')
+  if ((isRitualista && !allowedElements.includes(selectedElement)) || (!isRitualista && selectedElement !== raceElement)) {
+    throw new Error('O elemento não corresponde à raça escolhida')
   }
   const finalAttributes = applyRaceAttributeModifiers({
     agilidade: data.agilidade,
@@ -325,7 +327,7 @@ export async function createPlayerCharacter(data: {
       data: {
         name,
         category: data.category,
-        element: isRitualista ? data.element : race.element,
+        element: raceElement,
         worldSlug,
         birthRank: race.baseRank,
         isLocked: false,

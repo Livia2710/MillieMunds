@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction, ReactNode } from "react";
+import Image from "next/image";
 import type {
   InventoryCategoryFilter,
   InventoryRarityFilter,
@@ -50,13 +51,12 @@ export default function InventoryFilters({
   const isMobile = variant === "mobile";
 
   return (
-    <aside
-      className={
-        isMobile
-          ? "w-full"
-          : "w-60 border-r border-bege-escuro/25 px-4 py-10"
-      }
-    >
+    <aside data-frame="simple" className={`relative isolate overflow-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(113,74,128,.18),transparent_48%),linear-gradient(155deg,#2b1c34,#1a0f22_60%,#130b19)] p-5 shadow-[0_0_24px_rgba(209,186,142,.06)] ${isMobile ? "w-full" : "h-fit md:sticky md:top-24"}`}>
+      <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 h-14 w-14 opacity-55" />
+      <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 h-14 w-14 opacity-55" />
+      <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 h-14 w-14 opacity-55" />
+      <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 h-14 w-14 opacity-55" />
+      <div className="relative z-10">
       <FilterGroup title="Categoria" compact={isMobile}>
         {categories.map((item) => (
           <FilterButton
@@ -79,6 +79,7 @@ export default function InventoryFilters({
           />
         ))}
       </FilterGroup>
+      </div>
     </aside>
   );
 }
@@ -132,8 +133,10 @@ function FilterGroup({
 }) {
   return (
     <div className={compact ? "mb-5" : "mb-6"}>
-      <h2 className="mb-2 border-b border-bege-escuro/20 pb-1.5 font-title text-base uppercase tracking-[0.12em] text-bege-claro">
-        {title}
+      <h2 className="mb-3 flex items-center gap-2 font-title text-sm uppercase tracking-[0.16em] text-bege-medio">
+        <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-r from-transparent to-bege-medio/40" />
+        <span aria-hidden="true" className="text-[9px]">✦</span>{title}<span aria-hidden="true" className="text-[9px]">✦</span>
+        <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-l from-transparent to-bege-medio/40" />
       </h2>
 
       <div

@@ -1,15 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import type { Character, CharacterRank, CharacterElement } from '@/lib/types/character'
-import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import NoCampaign from '@/componentes/NoCampaign'
 import CharactersGrid from '@/componentes/personagens/CharactersGrid'
 import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
-import { unlockCharacter } from '@/app/actions/character'
-import { useToast } from '@/componentes/ui/ToastProvider'
 
 // Tipo que vem do Prisma — separado do tipo de UI
 type DbCharacter = {
@@ -36,23 +32,8 @@ type Props = {
 }
 
 export default function PersonagensClient({ characters, isMaster, hasCampaign }: Props) {
-  const router = useRouter()
-  const toast = useToast()
-  const [isPending, startTransition] = useTransition()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
-
-  function handleUnlock(characterId: string) {
-    startTransition(async () => {
-      try {
-        await unlockCharacter(characterId)
-        router.refresh()
-        toast.success('Personagem liberado para os jogadores.')
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : 'Não foi possível liberar o personagem.')
-      }
-    })
-  }
 
   const normalized: Character[] = characters.map((c) => {
     const base = {
@@ -88,7 +69,6 @@ export default function PersonagensClient({ characters, isMaster, hasCampaign }:
   if (!hasCampaign) {
     return (
       <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header md:p-12">
-        <PageCorners />
         <NoCampaign
           message="Os personagens só aparecem depois que você entra em uma campanha ou cria a sua própria."
           onCreate={() => setIsCreateOpen(true)}
@@ -101,24 +81,11 @@ export default function PersonagensClient({ characters, isMaster, hasCampaign }:
   }
 
   return (
-    <div className="relative block min-h-screen w-full bg-roxo-escuro shadow-header">
-      <PageCorners />
+      <div className="relative block min-h-screen w-full">
       <CharactersGrid
         characters={visible}
         isMaster={isMaster}
-        onUnlock={handleUnlock}
       />
     </div>
-  )
-}
-
-function PageCorners() {
-  return (
-    <>
-      <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 h-19 w-19 md:h-25 md:w-25" />
-    </>
   )
 }

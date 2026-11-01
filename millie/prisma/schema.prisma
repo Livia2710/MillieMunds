@@ -58,6 +58,7 @@ model User {
   memberships         CampaignMember[]
   inboxNotifications  Notification[]
   explorationPresence CampaignExplorationPresence[]
+  grimoireAuditEntries GrimoireAuditEntry[] @relation("GrimoireAuditActor")
 }
 
 model Account {
@@ -117,6 +118,7 @@ model Campaign {
   conditionDefinitions   CampaignConditionDefinition[]
   mapMissionProgress     MapMissionProgress[]
   atlasDiscoveries       AtlasDiscovery[]
+  grimoireAuditEntries   GrimoireAuditEntry[]
 }
 
 model CampaignMember {
@@ -434,6 +436,9 @@ model Character {
   affinitiesGiven    CharacterAffinity[]  @relation("AffinitySource")
   affinitiesReceived CharacterAffinity[]  @relation("AffinityTarget")
   mapMissionProgress MapMissionProgress[]
+  ritualProgress     CharacterRitual[]
+  elementalAffinities CharacterElementAffinity[]
+  grimoireAuditEntries GrimoireAuditEntry[]
 
   conditions          CharacterCondition[]
   explorationPresence CampaignExplorationPresence[]
@@ -452,6 +457,97 @@ model CharacterAffinity {
 
   @@id([campaignId, sourceCharacterId, targetCharacterId])
   @@index([campaignId, targetCharacterId])
+}
+
+// Catálogo público carregado da aba "Catálogo + Domínio" da planilha de rituais.
+model RitualCatalogEntry {
+  id                  String   @id
+  catalogOrder        Int      @unique
+  sourceRow           Int
+  degree              Int
+  sourceIdOrPair      String?
+  elementText         String
+  elements            String[] @default([])
+  categoryOrVariant   String?
+  anchor              String?
+  anchorVariant       String?
+  secondary           String?
+  secondaryVariant    String?
+  name                String
+  effect              String?  @db.Text
+  pmBase              String?
+  difficulty          String?
+  difficultyModifier  String?
+  affinityXpModifier  String?
+  domainXpMax         Int?
+  grade4ResultElement String?
+  sigilForm           String?
+  sourceData          Json
+  overrides           Json?
+  characterProgress   CharacterRitual[]
+
+  @@index([degree, name])
+  @@index([elements], type: Gin)
+}
+
+model CharacterRitual {
+  id           String            @id @default(cuid())
+  characterId  String
+  ritualId     String
+  masteryXp    Int               @default(0)
+  learnedAt    DateTime          @default(now())
+  lastPracticedAt DateTime?
+  character    Character         @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  ritual       RitualCatalogEntry @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, ritualId])
+  @@index([characterId, learnedAt])
+}
+
+model CharacterElementAffinity {
+  id          String   @id @default(cuid())
+  characterId String
+  element     String
+  stage       Int      // 1..5: Despertar, Sintonia, Domínio, Maestria, Transcendência
+  stageXp     Int      @default(0) // XP acumulado no estágio atual; 100..1000 conforme a planilha
+  racialRank  String?  // último rank natural processado para evitar avanços repetidos
+  source      String   @default("RACIAL") // RACIAL | ADMIN | ITEM | STUDY
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, element])
+  @@index([characterId, stage])
+}
+
+model GrimoireConfig {
+  id                        String   @id @default("default")
+  stageTransitionRule       String?  // null significa regra ainda não definida
+  affinitySuccessXpByDegree Json     @default("{\"1\":100,\"2\":300,\"3\":700,\"4\":1500}")
+  affinityPracticeXpByDegree Json    @default("{\"1\":50,\"2\":150,\"3\":350,\"4\":750}")
+  affinityStudyXpByDegree   Json?
+  domainSuccessXpByRitual   Json     @default("{\"ritual-1-5\":100}")
+  domainPracticeXpByRitual  Json     @default("{\"ritual-1-5\":50}")
+  difficultyModifiers       Json?
+  repetitionDiminishingRule Json?
+  updatedAt                 DateTime @updatedAt
+}
+
+model GrimoireAuditEntry {
+  id          String    @id @default(cuid())
+  campaignId  String
+  characterId String?
+  actorUserId String?
+  operation   String
+  targetId    String?
+  details     Json?
+  createdAt   DateTime  @default(now())
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  actor       User?     @relation("GrimoireAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt])
+  @@index([characterId, createdAt])
 }
 
 model CharacterCondition {

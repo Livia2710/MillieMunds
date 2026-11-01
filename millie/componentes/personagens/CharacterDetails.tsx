@@ -140,16 +140,11 @@ export default function CharacterDetails({ character, canEditStory = false }: Pr
 
           {/* Elemento */}
           <div className="flex w-full items-center justify-center gap-3 border border-bege-escuro/30 bg-roxo/60 px-4 py-3">
-            <div className="relative h-7 w-7 shrink-0">
-              <Image
-                src={elementIcon[character.element]}
-                alt={character.element}
-                fill
-                className="object-contain"
-              />
-            </div>
+            {elementIcon[character.element] && <div className="relative h-7 w-7 shrink-0">
+              <Image src={elementIcon[character.element]} alt={character.element} fill className="object-contain" />
+            </div>}
             <span className="font-title text-sm uppercase tracking-widest text-bege-claro">
-              {elementLabel[character.element]}
+              {elementLabel[character.element] ?? character.element}
             </span>
           </div>
 

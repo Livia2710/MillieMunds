@@ -8,7 +8,6 @@ import { getSpecialCards, saveSpecialCard, consumeSpecialCard, updateCharacterPo
 import { calcAutoConditions, calcRankCondition, CONDITION_LABELS, CONDITION_COLORS } from '@/lib/utils/conditions'
 import { getRankMax } from '@/lib/utils/rank'
 import { drawNormalCard } from '@/app/actions/rules'
-import { formatCurrency } from '@/lib/utils/equipment'
 import CurrencyDisplay from '@/componentes/moedas/CurrencyDisplay'
 import { useToast } from '@/componentes/ui/ToastProvider'
 

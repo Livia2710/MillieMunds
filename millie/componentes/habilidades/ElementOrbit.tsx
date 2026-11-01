@@ -139,8 +139,6 @@ export function ElementOrbit({ characterElement, onAnimationComplete }: ElementO
         {ORBIT_ORDER.map((el, i) => {
           const elMeta = ELEMENT_META[el];
           const isActive = i === currentIndex;
-          const isTarget = el === characterElement;
-
           return (
             <div
               key={el}

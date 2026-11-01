@@ -8,7 +8,7 @@ import { getUniverses, createPlayerCharacter } from '@/app/actions/character'
 import type { CharacterCategory } from '@/lib/types/character'
 import type { BaseRank } from '@/lib/generated/prisma'
 import MillieImageUpload from '@/componentes/ui/MillieImageUpload'
-import { getRankMax, calcPV, calcPM } from '@/lib/utils/rank'
+import { calcPV, calcPM } from '@/lib/utils/rank'
 import { applyRaceAttributeModifiers, getRaceAttributeModifiers } from '@/lib/utils/raceTraits'
 
 // ─── tipos locais ──────────────────────────────────────────
@@ -445,7 +445,7 @@ export default function CreateCharForm() {
                           </div>
                         ))}
                       </div>
-                      {ATTR_KEYS.map((key, i) => (
+                      {ATTR_KEYS.map((key) => (
                         <div key={key} className="flex items-center gap-3">
                           <span className="text-[10px] font-title uppercase tracking-widest text-bege-escuro/70 w-24 shrink-0">
                             {ATTR_LABELS[key]}

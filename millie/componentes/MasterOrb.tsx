@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCampaign } from "@/lib/contexts/CampaignContext";
 import {
-  BookOpen, Boxes, Gem, Scroll,
+  BookOpen, Boxes, Scroll,
   Sparkles, UserRoundPlus, WandSparkles, X,
 } from "lucide-react";
 import CriarMundoModal from "@/componentes/modais/CriarMundoModal";
@@ -11,6 +11,7 @@ import CriarItemModal from "@/componentes/modais/CriarItemModal";
 import CriarPersonagemModal from "@/componentes/modais/CriarPersonagemModal";
 import CriarLivroModal from "@/componentes/modais/CriarLivroModal";
 import CriarHabilidadeModal from "@/componentes/modais/CriarHabilidadeModal";
+import GerenciarGrimorioModal from "@/componentes/modais/GerenciarGrimorioModal";
 
 type ModalKey =
   | "mundo"
@@ -18,6 +19,7 @@ type ModalKey =
   | "item"
   | "livro"
   | "habilidade"
+  | "grimorio"
   | null;
 
 const masterActions: { label: string; icon: React.ReactNode; modal: ModalKey }[] = [
@@ -26,6 +28,7 @@ const masterActions: { label: string; icon: React.ReactNode; modal: ModalKey }[]
   { label: "Criar item",    icon: <Boxes size={17} strokeWidth={1.5} />,           modal: "item" },
   { label: "Criar livro",       icon: <BookOpen size={17} strokeWidth={1.5} />,      modal: "livro" },
   { label: "Criar habilidade",  icon: <Scroll size={17} strokeWidth={1.5} />,        modal: "habilidade" },
+  { label: "Administrar Grimório", icon: <BookOpen size={17} strokeWidth={1.5} />,     modal: "grimorio" },
 ];
 
 export function MasterOrb() {
@@ -56,7 +59,7 @@ export function MasterOrb() {
                 Ferramentas do Mestre
               </p>
               <p className="mt-1 text-xs text-bege-claro/55">
-                Crie conteúdos para a campanha ativa
+                Crie conteúdos e gerencie a campanha ativa
               </p>
             </div>
 
@@ -92,6 +95,7 @@ export function MasterOrb() {
       <CriarItemModal   isOpen={activeModal === "item"}     onClose={closeModal} />
       <CriarLivroModal       isOpen={activeModal === "livro"}        onClose={closeModal} />
       <CriarHabilidadeModal  isOpen={activeModal === "habilidade"}   onClose={closeModal} />
+      <GerenciarGrimorioModal isOpen={activeModal === "grimorio"} onClose={closeModal} />
     </>
   );
 }

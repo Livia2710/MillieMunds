@@ -15,12 +15,6 @@ const PATH_LABELS: Record<RacePath, string> = {
   PERMANENCIA: 'Permanência',
 }
 
-const PATH_COLORS: Record<RacePath, string> = {
-  ASCENSAO:    'text-yellow-400 border-yellow-400/40 bg-yellow-400/10',
-  CORRUPCAO:   'text-red-400   border-red-400/40   bg-red-400/10',
-  PERMANENCIA: 'text-blue-400  border-blue-400/40  bg-blue-400/10',
-}
-
 const PATH_BUTTON: Record<RacePath, string> = {
   ASCENSAO:    'border-yellow-400/50 text-yellow-400 hover:border-yellow-300 hover:text-yellow-300',
   CORRUPCAO:   'border-red-400/50   text-red-400   hover:border-red-300   hover:text-red-300',

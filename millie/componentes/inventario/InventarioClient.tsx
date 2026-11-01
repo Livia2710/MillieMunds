@@ -1,16 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import type { ConsumableType, EquipmentEffectRecord, EquipmentType, InventoryItem, InventoryRarity } from '@/lib/types/inventory'
-import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import NoCampaign from '@/componentes/NoCampaign'
 import InventoryGrid from '@/componentes/inventario/InventoryGrid'
 import EntregarItemModal from '@/componentes/inventario/EntregarItemModal'
 import CriarCampanhaModal from '@/componentes/modais/CriarCampanhaModal'
 import EntrarCampanhaModal from '@/componentes/modais/EntrarCampanhaModal'
-import { unlockItem } from '@/app/actions/inventory'
-import { useToast } from '@/componentes/ui/ToastProvider'
 
 type Item = {
   id: string
@@ -46,24 +42,9 @@ type Props = {
 }
 
 export default function InventarioClient({ items, isMaster, hasCampaign, playerCharacters }: Props) {
-  const router = useRouter()
-  const toast = useToast()
-  const [isPending, startTransition] = useTransition()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
   const [itemToAssign, setItemToAssign] = useState<InventoryItem | null>(null)
-
-  function handleUnlock(itemId: string) {
-    startTransition(async () => {
-      try {
-        await unlockItem(itemId)
-        router.refresh()
-        toast.success('Item liberado para os jogadores.')
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : 'Não foi possível liberar o item.')
-      }
-    })
-  }
 
   const normalized = items.map((item) => {
   const base = {
@@ -123,8 +104,7 @@ const visible = isMaster ? normalized : normalized.filter((i) => !i.isLocked)
 
   if (!hasCampaign) {
     return (
-      <div className="relative block min-h-screen w-full bg-roxo-escuro p-8 shadow-header md:p-12">
-        <PageCorners />
+      <div className="relative block min-h-screen w-full p-8 md:p-12">
         <NoCampaign
           message="O inventário só aparece depois que você entra em uma campanha ou cria a sua própria."
           onCreate={() => setIsCreateOpen(true)}
@@ -137,12 +117,10 @@ const visible = isMaster ? normalized : normalized.filter((i) => !i.isLocked)
   }
 
   return (
-    <div className="relative block min-h-screen w-full bg-roxo-escuro shadow-header">
-      <PageCorners />
+    <div className="relative block min-h-screen w-full">
       <InventoryGrid
         items={visible}
         isMaster={isMaster}
-        onUnlock={handleUnlock}
         onAssign={setItemToAssign}
       />
       <EntregarItemModal
@@ -152,16 +130,5 @@ const visible = isMaster ? normalized : normalized.filter((i) => !i.isLocked)
         onClose={() => setItemToAssign(null)}
       />
     </div>
-  )
-}
-
-function PageCorners() {
-  return (
-    <>
-      <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 h-19 w-19 md:h-25 md:w-25" />
-      <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 h-19 w-19 md:h-25 md:w-25" />
-    </>
   )
 }

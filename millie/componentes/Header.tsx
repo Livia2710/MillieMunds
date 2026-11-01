@@ -26,6 +26,7 @@ export function Header() {
   const [joinCampaignOpen, setJoinCampaignOpen] = useState(false);
 
   const username = session?.user?.name ?? session?.user?.email ?? "Usuário";
+  const isActivePath = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   const masterCampaigns = campaigns.filter((c) => c.role === "MASTER");
   const playerCampaigns = campaigns.filter((c) => c.role === "PLAYER");
@@ -42,7 +43,7 @@ export function Header() {
 
   return (
     <>
-      <header className="relative z-50 h-20 overflow-visible rounded-[10px] bg-roxo-escuro text-bege-escuro shadow-header">
+      <header className="relative z-50 h-[5.25rem] overflow-visible rounded-[10px] bg-roxo-escuro text-bege-escuro shadow-header">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[10px]">
           <Image
             src="/assets/svgs/header-left.svg"
@@ -70,18 +71,13 @@ export function Header() {
             className="mr-14 opacity-90"
           />
 
-          <nav className="hidden md:flex items-center gap-14">
-            <Link href="/" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">
-              Home
-            </Link>
-            <Link href="/personagens" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">
-              Personagens
-            </Link>
-            <Link href="/habilidades" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">
-              Habilidades
-            </Link>
-            <Link href="/mapas" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">Mapas</Link>
-            <Link href="/atlas" className="font-title text-lg uppercase tracking-[0.18em] hover:opacity-80 transition-opacity">Atlas</Link>
+          <nav className="hidden h-full items-center gap-8 md:flex lg:gap-12">
+            <HeaderNavLink href="/" active={isActivePath("/")}>Home</HeaderNavLink>
+            <HeaderNavLink href="/personagens" active={isActivePath("/personagens")}>Personagens</HeaderNavLink>
+            <HeaderNavLink href="/habilidades" active={isActivePath("/habilidades")}>Habilidades</HeaderNavLink>
+            <HeaderNavLink href="/grimorio" active={isActivePath("/grimorio")}>Grimório</HeaderNavLink>
+            <HeaderNavLink href="/mapas" active={isActivePath("/mapas")}>Mapas</HeaderNavLink>
+            <HeaderNavLink href="/atlas" active={isActivePath("/atlas")}>Atlas</HeaderNavLink>
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -177,6 +173,13 @@ export function Header() {
               closeSidebar={() => setIsSidebarOpen(false)}
               active={pathname === "/habilidades"}
               />
+              <SidebarLink
+              href="/grimorio"
+              label="Grimório"
+              icon={<BookOpen size={17} strokeWidth={1.4}/>}
+              closeSidebar={() => setIsSidebarOpen(false)}
+              active={pathname.startsWith("/grimorio")}
+              />
               <SidebarLink href="/atlas" label="Atlas" icon={<Compass size={17} strokeWidth={1.4}/>} closeSidebar={() => setIsSidebarOpen(false)} active={pathname.startsWith("/atlas")} />
             </div>
               {isMaster && (
@@ -256,6 +259,18 @@ export function Header() {
       />
     </>
   );
+}
+
+function HeaderNavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return <Link href={href} aria-current={active ? "page" : undefined} className={`relative flex h-full items-center whitespace-nowrap font-title text-lg uppercase tracking-[0.18em] transition-colors ${active ? "text-bege-claro" : "hover:text-bege-claro"}`}>
+    {children}
+    {active && <>
+      <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-bege-medio to-transparent" />
+      <span aria-hidden="true" className="absolute bottom-0 left-1/2 z-10 grid h-4 w-4 -translate-x-1/2 translate-y-1/2 place-items-center bg-roxo-escuro">
+        <Image src="/assets/svgs/logo.svg" alt="" width={13} height={13} />
+      </span>
+    </>}
+  </Link>
 }
 
 function SidebarLink({label, icon, href, closeSidebar, active,}: {

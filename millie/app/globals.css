@@ -61,7 +61,7 @@
 
 @font-face {
   font-family: "Caslon Antique";
-  src: url("/fonts/CaslonAntique-Regular.ttf") format("truetype");
+  src: url("/assets/fonts/CaslonAntique.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -527,4 +527,11 @@ button {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* Moldura simples compartilhada por sidebars e painéis laterais do site. */
+.site-shell aside:not([data-frame="ornate"]):not([data-frame="simple"]) {
+  border: 1px solid rgba(209, 186, 142, .38);
+  background: #1a0f22;
+  color: #f3ecdc;
 }

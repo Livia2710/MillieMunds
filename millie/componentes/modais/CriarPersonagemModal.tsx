@@ -107,7 +107,6 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
   const [occupation, setOccupation] = useState("");
   const [image, setImage] = useState("");
   const [portraitImage, setPortraitImage] = useState("");
-  const [dangerLevel, setDangerLevel] = useState("Iniciante");
   const [error, setError] = useState("");
   const [manualLevel, setManualLevel] = useState("1");
 
@@ -219,7 +218,6 @@ export default function CriarPersonagemModal({ isOpen, onClose }: Props) {
     setYear("1");
     setSubject("");
     setOccupation("");
-    setDangerLevel("Iniciante");
     setImage("");
     setPortraitImage("");
     setError("");

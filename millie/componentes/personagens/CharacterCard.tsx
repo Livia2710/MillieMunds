@@ -14,6 +14,7 @@ import CharacterCardModal from "./CharacterCardModal";
 
 type CharacterCardProps = {
   character: Character;
+  number?: number;
 };
 
 const rankCoatOfArms: Record<string, string> = {
@@ -26,21 +27,22 @@ const rankCoatOfArms: Record<string, string> = {
   V: "/assets/svgs/rank/V.svg",
 };
 
-function getCharacterSpecificInfo(character: Character) {
-  switch (character.category) {
-    case "aluno":
-      return { label: "Ano", value: `${character.year}º ano` };
-    case "professor":
-      return { label: "Matéria", value: character.subject };
-    case "npc":
-      return { label: "Ocupação", value: character.occupation };
-    case "monstro":
-      return { label: "Perigo", value: character.dangerLevel };
-  }
+const elementIcons: Record<string, string> = {
+  luz: "/assets/svgs/elemento/luz.svg", vento: "/assets/svgs/elemento/vento.svg",
+  fogo: "/assets/svgs/elemento/fogo.svg", trevas: "/assets/svgs/elemento/trevas.svg",
+  terra: "/assets/svgs/elemento/terra.svg", agua: "/assets/svgs/elemento/agua.svg",
+};
+
+function toRoman(value: number) {
+  const numerals: [number, string][] = [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  let remainder = Math.max(1, value);
+  return numerals.reduce((result, [amount, numeral]) => {
+    while (remainder >= amount) { result += numeral; remainder -= amount; }
+    return result;
+  }, "");
 }
 
-export default function CharacterCard({ character }: CharacterCardProps) {
-  const specificInfo = getCharacterSpecificInfo(character);
+export default function CharacterCard({ character, number = 1 }: CharacterCardProps) {
   const { isMaster } = useCampaign();
   const router = useRouter();
   const [confirmUnlockOpen, setConfirmUnlockOpen] = useState(false);
@@ -61,14 +63,23 @@ export default function CharacterCard({ character }: CharacterCardProps) {
   return (
     <div className="relative">
       <Link href={isMaster ? `/personagens/${character.id}` : "/personagens"} onClick={(event) => { if (!isMaster) { event.preventDefault(); setCardOpen(true) } }} className="block">
-        <article className="arcane-hover relative flex min-h-0 w-full flex-row items-center gap-4 overflow-hidden border border-bege-escuro/45 bg-roxo-escuro/60 p-4 shadow-card transition-all lg:min-h-[360px] lg:flex-col lg:p-5">
-          <div className="pointer-events-none absolute right-4 top-4 h-8 w-8 lg:left-4 lg:right-auto lg:top-4 lg:h-9 lg:w-9">
-            <img src={rankCoatOfArms[character.rank]} alt="" className="h-full w-full object-contain" />
+        <article className="arcane-hover group/card relative aspect-[2/3] w-full overflow-hidden border border-bege-medio/55 bg-[#160e1c] shadow-[0_10px_30px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-1 hover:border-bege-claro/80 hover:shadow-[0_0_25px_rgba(209,186,142,.2)]">
+          <div className="absolute inset-1 z-10 border border-bege-medio/30" />
+          <div className="absolute inset-[7%] z-10 rounded-[48%] border border-bege-medio/30" />
+          <div className="absolute inset-[13%] z-10 rotate-45 border border-bege-medio/20" />
+          <div className="absolute inset-x-[13%] top-[18%] z-10 aspect-square rounded-full border border-bege-medio/15" />
+          <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#100a17]/50 via-transparent via-45% to-[#130b19]/95" />
+
+          <div className="absolute left-1/2 top-3 z-20 flex h-8 w-8 -translate-x-1/2 rotate-45 items-center justify-center border border-bege-medio/65 bg-[#1a1022]/90 shadow-[0_0_12px_rgba(209,186,142,.18)]">
+            <span className="-rotate-45 font-title text-[10px] text-bege-claro">{toRoman(number)}</span>
+          </div>
+          <div className="pointer-events-none absolute left-3 top-3 z-20 h-10 w-8 drop-shadow-[0_0_5px_rgba(209,186,142,.55)]">
+            <img src={rankCoatOfArms[character.rank]} alt={`Rank ${character.rank}`} className="h-full w-full object-contain" />
           </div>
 
           {/* Ícones do Mestre — canto oposto ao brasão de rank */}
           {isMaster && (
-            <div className="absolute left-4 top-4 z-20 flex gap-1.5 lg:left-auto lg:right-4">
+            <div className="absolute right-3 top-3 z-30 flex gap-1.5">
               {character.isLocked && (
                 <button
                   type="button"
@@ -77,7 +88,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
                     e.stopPropagation();
                     setConfirmUnlockOpen(true);
                   }}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/80 hover:border-bege-medio"
+                  className="flex h-7 w-7 items-center justify-center border border-bege-medio/50 bg-roxo-escuro/90 hover:border-bege-claro"
                   aria-label="Desbloquear personagem"
                 >
                   <Lock size={12} strokeWidth={1.5} className="text-bege-escuro" />
@@ -91,7 +102,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
                   e.stopPropagation();
                   setEditOpen(true);
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/80 hover:border-bege-medio"
+                className="flex h-7 w-7 items-center justify-center border border-bege-medio/50 bg-roxo-escuro/90 hover:border-bege-claro"
                 aria-label="Editar personagem"
               >
                 <Pencil size={12} strokeWidth={1.5} className="text-bege-escuro" />
@@ -104,7 +115,7 @@ export default function CharacterCard({ character }: CharacterCardProps) {
                   e.stopPropagation();
                   setConfirmDeleteOpen(true);
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-bege-escuro/40 bg-roxo-escuro/80 hover:border-bege-medio"
+                className="flex h-7 w-7 items-center justify-center border border-bege-medio/50 bg-roxo-escuro/90 hover:border-bege-claro"
                 aria-label="Excluir personagem"
               >
                 <Trash2 size={12} strokeWidth={1.5} className="text-bege-escuro" />
@@ -112,41 +123,18 @@ export default function CharacterCard({ character }: CharacterCardProps) {
             </div>
           )}
 
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden lg:h-36 lg:w-full">
-            {(character.portraitImage || character.image) ? (
-              <Image src={character.portraitImage || character.image!} alt={character.name} width={120} height={120} className="h-full w-full rounded-sm object-cover" />
+          <div className="absolute inset-x-[9%] bottom-[24%] top-[14%] flex items-center justify-center overflow-hidden">
+            {(character.image || character.portraitImage) ? (
+              <Image src={character.image || character.portraitImage!} alt={character.name} fill sizes="(max-width: 640px) 80vw, (max-width: 1024px) 36vw, 23vw" className="object-contain object-center transition duration-700 group-hover/card:scale-[1.025]" />
             ) : (
-              <span className="text-center font-title text-[10px] uppercase tracking-wider text-bege-medio/40">Sem Foto</span>
+              <span className="text-center font-title text-xs uppercase tracking-[.2em] text-bege-medio/50">Sem imagem</span>
             )}
           </div>
 
-          <div className="flex w-full flex-1 flex-col items-start text-left lg:items-center lg:text-center">
-            <h2 className="font-title text-lg uppercase tracking-[0.12em] text-bege-claro lg:text-xl">{character.name}</h2>
-
-            <Image src="/assets/svgs/divider.svg" alt="" width={180} height={14} className="mt-2 hidden max-w-[60%] opacity-70 lg:block" />
-
-            <div className="mt-2 w-full space-y-1 font-body text-xs text-bege-medio/90 lg:mt-4 lg:text-base">
-              <p className="flex gap-2 border-b border-bege-escuro/10 pb-0.5 lg:justify-between">
-                <strong className="font-title uppercase text-bege-escuro">Raça:</strong>
-                <span>{character.race}</span>
-              </p>
-              <p className="flex gap-2 border-b border-bege-escuro/10 pb-0.5 lg:justify-between">
-                <strong className="font-title uppercase text-bege-escuro">Elemento:</strong>
-                <span className="capitalize">{character.element}</span>
-              </p>
-              <p className="flex gap-2 border-b border-bege-escuro/10 pb-0.5 lg:justify-between">
-                <strong className="font-title uppercase text-bege-escuro">{specificInfo.label}:</strong>
-                <span className="truncate max-w-[110px] lg:max-w-[150px]">{specificInfo.value}</span>
-              </p>
-              <p className="flex gap-2 lg:justify-between">
-                <strong className="font-title uppercase text-bege-escuro">Mundo:</strong>
-                <span className="truncate max-w-[100px] lg:max-w-[140px]">{character.worldSlug}</span>
-              </p>
-              {character.favorByCharacter?.map(favor => <p key={favor.characterName} className="flex gap-2 border-t border-bege-escuro/10 pt-1 lg:justify-between">
-                <strong className="font-title uppercase text-bege-escuro">Favor de {character.name} com {favor.characterName}:</strong>
-                <span>{favor.category}</span>
-              </p>)}
-            </div>
+          <div className="absolute inset-x-[8%] bottom-[6%] z-20 border-y border-bege-medio/60 bg-[linear-gradient(90deg,transparent,rgba(20,12,27,.94)_12%,rgba(20,12,27,.94)_88%,transparent)] px-4 py-3 text-center shadow-[0_0_18px_rgba(0,0,0,.25)]">
+            <span aria-hidden="true" className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 text-[10px] text-bege-claro">✦</span>
+            <h2 className="truncate font-title text-lg uppercase tracking-[0.13em] text-bege-claro sm:text-xl">{character.name}</h2>
+            {elementIcons[character.element] && <img src={elementIcons[character.element]} alt="" aria-hidden="true" className="mx-auto mt-1 h-6 w-6 object-contain drop-shadow-[0_0_6px_rgba(209,186,142,.5)]" />}
           </div>
         </article>
       </Link>

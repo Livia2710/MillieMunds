@@ -1,5 +1,6 @@
-import { PrismaClient } from '../lib/generated/prisma'
+import { PrismaClient, type BaseRank } from '../lib/generated/prisma'
 import { raceDescriptions } from '../lib/raceDescription'
+import ritualCatalogData from './data/ritual-catalog.json'
 
 const prisma = new PrismaClient()
 
@@ -36,7 +37,7 @@ async function main() {
       await prisma.race.upsert({
         where: { name_universeWorldId: { name: raca.name, universeWorldId: mundo.id } },
         update: {
-          baseRank: raca.baseRank as any,
+          baseRank: raca.baseRank as BaseRank,
           element: raca.element,
           canAscend: raca.canAscend,
           canCorrupt: raca.canCorrupt,
@@ -45,7 +46,7 @@ async function main() {
         create: {
           name: raca.name,
           element: raca.element,
-          baseRank: raca.baseRank as any,
+          baseRank: raca.baseRank as BaseRank,
           canAscend: raca.canAscend,
           canCorrupt: raca.canCorrupt,
           description: raceDescriptions[raca.name] ?? null,
@@ -492,6 +493,64 @@ async function main() {
   // ── CRYSALIS: só a Biogra pode virar Rainha, e é raríssimo ──
   await criarEvolucao('Biogra (Vespa-Tecelã)', 'Sistema Crysalis', 'Rainha (Abelha / Vespa Dourada)', 'ASCENSAO', 195) // ADICIONADO
 
+  for (const ritual of ritualCatalogData.rituals) {
+    const domainXpMax = ritual.domainXpMax && /^\d+$/.test(ritual.domainXpMax)
+      ? Number(ritual.domainXpMax)
+      : null
+    await prisma.ritualCatalogEntry.upsert({
+      where: { id: ritual.id },
+      update: {
+        catalogOrder: ritual.catalogOrder,
+        sourceRow: ritual.sourceRow,
+        degree: Number(ritual.grade),
+        sourceIdOrPair: ritual.sourceIdOrPair,
+        elementText: ritual.elementText ?? '',
+        elements: ritual.elements,
+        categoryOrVariant: ritual.categoryOrVariant,
+        anchor: ritual.anchor,
+        anchorVariant: ritual.anchorVariant,
+        secondary: ritual.secondary,
+        secondaryVariant: ritual.secondaryVariant,
+        name: ritual.name ?? '',
+        effect: ritual.effect,
+        pmBase: ritual.pmBase,
+        difficultyModifier: ritual.difficultyModifier,
+        domainXpMax,
+        grade4ResultElement: ritual.resultElement ?? null,
+        sigilForm: ritual.sigilForm ?? null,
+        sourceData: ritual.sourceData,
+      },
+      create: {
+        id: ritual.id,
+        catalogOrder: ritual.catalogOrder,
+        sourceRow: ritual.sourceRow,
+        degree: Number(ritual.grade),
+        sourceIdOrPair: ritual.sourceIdOrPair,
+        elementText: ritual.elementText ?? '',
+        elements: ritual.elements,
+        categoryOrVariant: ritual.categoryOrVariant,
+        anchor: ritual.anchor,
+        anchorVariant: ritual.anchorVariant,
+        secondary: ritual.secondary,
+        secondaryVariant: ritual.secondaryVariant,
+        name: ritual.name ?? '',
+        effect: ritual.effect,
+        pmBase: ritual.pmBase,
+        difficultyModifier: ritual.difficultyModifier,
+        domainXpMax,
+        grade4ResultElement: ritual.resultElement ?? null,
+        sigilForm: ritual.sigilForm ?? null,
+        sourceData: ritual.sourceData,
+      },
+    })
+  }
+  await prisma.grimoireConfig.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: { id: 'default' },
+  })
+
+  console.log(`📖 ${ritualCatalogData.catalogCount} rituais carregados no Grimório.`)
   console.log('\n🎉 Seed concluído!')
 }
 

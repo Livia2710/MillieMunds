@@ -18,7 +18,6 @@ export type YearFilter = "todos" | 1 | 2 | 3 | 4 | 5;
 type CharactersGridProps = {
   characters: Character[];
   isMaster: boolean;
-  onUnlock?: (characterId: string) => void;
 };
 
 const categoryTitles: Record<CategoryFilter, string> = {
@@ -31,7 +30,7 @@ const categoryTitles: Record<CategoryFilter, string> = {
 
 const ITEMS_PER_PAGE = 6;
 
-export default function CharactersGrid({characters, isMaster, onUnlock}: CharactersGridProps) {
+export default function CharactersGrid({characters, isMaster}: CharactersGridProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("todos");
   const [rank, setRank] = useState<RankFilter>("todos");
@@ -135,7 +134,7 @@ const renderMobilePagination = () => {
   };
 
   return (
-    <main className="min-h-screen bg-roxo-escuro text-bege-escuro font-body md:grid md:grid-cols-[220px_1fr] text-center">
+    <main className="min-h-screen bg-transparent py-7 font-body text-center text-bege-escuro md:grid md:grid-cols-[250px_minmax(0,1fr)] md:items-start md:gap-7 md:py-9">
       <div className="hidden md:block">
         <CharacterFilters {...filtersProps} />
       </div>
@@ -163,7 +162,12 @@ const renderMobilePagination = () => {
         </div>
       )}
 
-      <section className="flex min-h-screen flex-col justify-between px-4 py-9 sm:px-6 md:px-12 md:py-16">
+      <section data-frame="simple" className="relative isolate flex min-h-screen min-w-0 flex-col justify-between overflow-hidden border border-bege-medio/40 bg-[radial-gradient(ellipse_at_50%_0%,rgba(113,74,128,.12),transparent_42%),linear-gradient(155deg,#24162c,#190f20_68%,#130b19)] p-5 shadow-[0_0_24px_rgba(209,186,142,.05)] sm:p-7 md:py-7">
+        <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 h-16 w-16 opacity-55" />
+        <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col justify-between">
         <div>
           <div className="mb-6 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between md:gap-8">
             <div>
@@ -212,10 +216,12 @@ const renderMobilePagination = () => {
           <div className="mb-5">{renderMobilePagination()}</div>
 
           {paginatedCharacters.length > 0 ? (
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
-              {paginatedCharacters.map((character) => (
-                <CharacterCard key={character.id} character={character} />
-              ))}
+            <div className="px-1 py-5 sm:px-2 sm:py-7 lg:px-4 lg:py-9">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
+                {paginatedCharacters.map((character, index) => (
+                  <CharacterCard key={character.id} character={character} number={startIndex + index + 1} />
+                ))}
+              </div>
             </div>
           ) : (
             <p className="mt-16 text-center font-title text-lg tracking-wide text-bege-medio/70 md:mt-20 md:text-xl">
@@ -272,6 +278,7 @@ const renderMobilePagination = () => {
             </button>
           </div>
         )}
+        </div>
       </section>
     </main>
   );

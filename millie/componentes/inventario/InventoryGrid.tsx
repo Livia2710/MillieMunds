@@ -13,13 +13,12 @@ export type InventoryRarityFilter = "todos" | InventoryRarity;
 type InventoryGridProps = {
   items: InventoryItem[];
   isMaster: boolean;
-  onUnlock?: (itemId: string) => void;
   onAssign?: (item: InventoryItem) => void;
 };
 
 const ITEMS_PER_PAGE = 12;
 
-export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: InventoryGridProps) {
+export default function InventoryGrid({ items, isMaster, onAssign }: InventoryGridProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<InventoryCategoryFilter>("todos");
   const [rarity, setRarity] = useState<InventoryRarityFilter>("todos");
@@ -94,7 +93,7 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
   const usedSpaces = items.reduce((total, item) => total + item.quantity, 0);
 
   return (
-    <main className="min-h-screen bg-roxo-escuro text-bege-escuro font-body md:grid md:grid-cols-[220px_1fr]">
+    <main className="min-h-screen bg-transparent py-7 font-body text-bege-escuro md:grid md:grid-cols-[250px_minmax(0,1fr)] md:items-start md:gap-7 md:py-9">
       <div className="hidden md:block">
         <InventoryFilters {...filtersProps} variant="desktop" />
       </div>
@@ -122,7 +121,12 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
         </div>
       )}
 
-      <section className="flex min-h-screen flex-col justify-between px-4 py-9 sm:px-6 md:px-12 md:py-16">
+      <section data-frame="simple" className="relative isolate flex min-h-screen min-w-0 flex-col justify-between overflow-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(113,74,128,.12),transparent_42%),linear-gradient(155deg,#24162c,#190f20_68%,#130b19)] p-5 shadow-[0_0_24px_rgba(209,186,142,.05)] sm:p-7 md:py-7">
+        <Image src="/assets/svgs/corner-left-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute left-0 top-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-right-top.svg" alt="" width={100} height={100} className="pointer-events-none absolute right-0 top-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-left-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 left-0 h-16 w-16 opacity-55" />
+        <Image src="/assets/svgs/corner-right-bottom.svg" alt="" width={100} height={100} className="pointer-events-none absolute bottom-0 right-0 h-16 w-16 opacity-55" />
+        <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col justify-between">
     <div>
   {/* Conteúdo do Cabeçalho principal */}
   <div className="mb-6 flex flex-col gap-5 md:mb-8 md:flex-row md:items-end md:justify-between md:gap-8">
@@ -130,13 +134,7 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
       <h1 className="font-title text-4xl uppercase tracking-[0.08em] text-bege-medio sm:text-5xl md:text-6xl">
         Inventário
       </h1>
-      <Image 
-        src="/assets/svgs/divider.svg" 
-        alt="divider" 
-        width={360} 
-        height={28} 
-        className="mt-3 max-w-55 sm:max-w-75 md:mt-4 md:max-w-[80%]" 
-      />
+      <Image src="/assets/svgs/divider.svg" alt="" width={360} height={28} className="mt-3 max-w-55 sm:max-w-75 md:mt-4 md:max-w-[80%]" />
       <p className="mt-3 font-title text-lg text-bege-claro sm:text-xl md:text-2xl">
         {usedSpaces} unidades cadastradas
       </p>
@@ -168,13 +166,12 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
     </div>
   </div>
 
-  {/* A <hr /> agora fica AQUI, isolada, servindo como uma divisória horizontal perfeita */}
-  <hr className="mb-6 border-t border-bege-escuro/40 md:mb-10" />
-
   {/* Paginação Superior Mobile */}
   <div className="mb-5">
     {renderMobilePagination()}
   </div>
+
+  <hr className="mb-6 border-t border-bege-escuro/40 md:mb-10" />
 
   {/* Grid de itens vem logo em sequência... */}
 
@@ -210,7 +207,7 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
                 disabled:opacity-20
               "
             >
-              <Image
+      <Image 
                 src="/assets/svgs/arrow.svg"
                 alt="Voltar"
                 width={16}
@@ -256,38 +253,9 @@ export default function InventoryGrid({ items, isMaster, onUnlock, onAssign }: I
 
           </div>
         )}
+        </div>
       </section>
     </main>
   );
 }
 
-function MobilePagination({
-  currentPage,
-  pages,
-  setCurrentPage,
-}: {
-  currentPage: number;
-  pages: number[];
-  setCurrentPage: (page: number) => void;
-}) {
-  if (pages.length <= 1) return null;
-
-  return (
-    <div className="flex justify-center gap-2">
-      {pages.map((page) => (
-        <button
-          key={page}
-          type="button"
-          onClick={() => setCurrentPage(page)}
-          className={`flex h-7 w-7 items-center justify-center border font-title text-xs ${
-            currentPage === page
-              ? "border-bege-claro bg-bege-claro text-roxo-escuro"
-              : "border-bege-escuro/40 text-bege-medio"
-          }`}
-        >
-          {page}
-        </button>
-      ))}
-    </div>
-  );
-}

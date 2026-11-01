@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 
 const VISIBILITY = ['PUBLIC', 'DISCOVERED', 'MASTER_ONLY'] as const
 const UNIVERSE_KINDS = ['origin', 'universe', 'multiversal'] as const
-const ELEMENTS = ['fogo', 'agua', 'terra', 'vento', 'luz', 'trevas', 'vazio'] as const
+const ELEMENTS = ['fogo', 'agua', 'terra', 'vento', 'luz', 'trevas'] as const
 const RANKS = ['E', 'D', 'C', 'B', 'A', 'S'] as const
 
 export async function getAtlasData() {
@@ -53,6 +53,16 @@ async function activeMaster() {
 
 function optionalImage(value: unknown, label: string) {
   return validateImageUrl(value, label) ?? null
+}
+
+function atlasElement(value: unknown) {
+  if (typeof value !== 'string') throw new Error('Afinidade racial inválida.')
+  const clean = validatedText(value, 'Afinidade racial', { min: 2, max: 40 }).toLowerCase()
+  const normalized = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (normalized === 'vazio') throw new Error('Vazio é uma condição, não um elemento. Use "escolha" para a condição Ritualista.')
+  if (normalized === 'escolha') return 'escolha'
+  if (ELEMENTS.includes(normalized as (typeof ELEMENTS)[number])) return normalized
+  return clean
 }
 
 export async function createAtlasUniverse(data: {
@@ -125,7 +135,7 @@ export async function createAtlasRace(data: {
   const race = await prisma.race.create({ data: {
     universeWorldId,
     name: validatedText(data.name, 'Nome da raça', { min: 2, max: 120 }),
-    element: oneOf(data.element, 'Elemento', ELEMENTS),
+    element: atlasElement(data.element),
     baseRank: oneOf(data.baseRank, 'Rank natural', RANKS),
     description: validatedText(data.description ?? '', 'Descrição', { max: 5_000, trim: false }),
     image: optionalImage(data.image, 'Imagem da raça'),
@@ -148,7 +158,7 @@ export async function updateAtlasRace(raceId: string, data: {
   const id = validatedText(raceId, 'Raça', { min: 1, max: 100 })
   await prisma.race.update({ where: { id }, data: {
     name: validatedText(data.name, 'Nome da raça', { min: 2, max: 120 }),
-    element: oneOf(data.element, 'Elemento', ELEMENTS),
+    element: atlasElement(data.element),
     baseRank: oneOf(data.baseRank, 'Rank natural', RANKS),
     description: validatedText(data.description ?? '', 'Descrição', { max: 5_000, trim: false }),
     image: optionalImage(data.image, 'Imagem da raça'),

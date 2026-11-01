@@ -15,6 +15,7 @@ const campaignLinks = [
   { href: "/personagens", label: "Personagens", icon: <Users size={16} /> },
   { href: "/inventario", label: "Inventário", icon: <Package size={16} /> },
   { href: "/habilidades", label: "Habilidades", icon: <ScrollText size={16} /> },
+  { href: "/grimorio", label: "Grimório", icon: <BookOpen size={16} /> },
   { href: "/mapas", label: "Exploração", icon: <Compass size={16} /> },
 ] as const;
 
